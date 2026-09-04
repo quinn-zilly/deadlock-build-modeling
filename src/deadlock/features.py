@@ -32,6 +32,35 @@ PHASE_INTERVAL_S = 600
 N_PHASES = 4
 
 
+def player_won(player: dict[str, Any], match: dict[str, Any]) -> bool | None:
+    """Whether this player won.
+
+    The metadata endpoint carries no per-player `won` boolean -- that exists
+    only on the SQL table -- so read `player_match_outcome` and fall back to
+    comparing the player's team against the match winner. Returns None when
+    the outcome is genuinely unknown (abandons, draws, errored matches) so
+    those rows can be dropped rather than silently counted as losses.
+    """
+    outcome = player.get("player_match_outcome")
+    if outcome == "Win":
+        return True
+    if outcome == "Loss":
+        return False
+    if outcome in {"Penalized", "PenalizedParty"}:
+        # Penalized players are recorded on the losing side.
+        return False
+    if outcome in {"Invalid", "NotScored"}:
+        return None
+
+    winner = match.get("winning_team")
+    team = player.get("team")
+    if winner in {None, "Spectator"} or team is None:
+        return None
+    if match.get("match_outcome") not in {None, "TeamWin"}:
+        return None  # draws and errors are not usable labels
+    return team == winner
+
+
 def clean_purchases(
     player: dict[str, Any], upgrade_ids: frozenset[int]
 ) -> list[dict[str, Any]]:

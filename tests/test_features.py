@@ -138,3 +138,43 @@ class TestWithinMatchPosition:
 
     def test_empty_match_is_safe(self):
         assert features.within_match_position({"players": []}, 180.0) == {}
+
+
+class TestPlayerWon:
+    """The metadata endpoint has no per-player `won` field.
+
+    Only the SQL table carries one. Reading `player.get("won")` returns None
+    for every metadata row, which silently becomes a 0% win rate and destroys
+    the label. Resolve from player_match_outcome, falling back to the team.
+    """
+
+    def test_reads_player_match_outcome(self):
+        match = {"winning_team": "Team0", "match_outcome": "TeamWin"}
+        assert features.player_won({"player_match_outcome": "Win"}, match) is True
+        assert features.player_won({"player_match_outcome": "Loss"}, match) is False
+
+    def test_falls_back_to_team_comparison(self):
+        match = {"winning_team": "Team1", "match_outcome": "TeamWin"}
+        assert features.player_won({"team": "Team1"}, match) is True
+        assert features.player_won({"team": "Team0"}, match) is False
+
+    def test_outcome_takes_precedence_over_team(self):
+        match = {"winning_team": "Team0", "match_outcome": "TeamWin"}
+        player = {"player_match_outcome": "Loss", "team": "Team0"}
+        assert features.player_won(player, match) is False
+
+    @pytest.mark.parametrize("outcome", ["Invalid", "NotScored"])
+    def test_unusable_outcomes_return_none(self, outcome):
+        match = {"winning_team": "Team0", "match_outcome": "TeamWin"}
+        assert features.player_won({"player_match_outcome": outcome}, match) is None
+
+    def test_draw_is_not_a_label(self):
+        match = {"winning_team": "Team0", "match_outcome": "Draw"}
+        assert features.player_won({"team": "Team0"}, match) is None
+
+    def test_missing_everything_returns_none(self):
+        assert features.player_won({}, {}) is None
+
+    def test_never_silently_false(self):
+        # The original bug: absent data must not read as a loss.
+        assert features.player_won({}, {"winning_team": "Team0"}) is not False
