@@ -1,9 +1,18 @@
-"""Static game assets: items and heroes.
+"""Static game assets: items, heroes, and abilities.
 
 The critical export is UPGRADE_IDS. The per-player `items` array returned by
 the match metadata endpoint interleaves ability-point spends with actual item
 purchases — measured at ~46% ability entries — and the only way to tell them
 apart is to join against the asset list on type == "upgrade".
+
+Those ability entries are not noise. They carry the complete ability-leveling
+timeline, which is what distinguishes how a hero is being played, so
+`load_abilities` and `signature_slots` exist to read them rather than discard
+them.
+
+Two asset fields the endpoint returns and the old code never touched:
+`item_slot_type` (weapon/vitality/spirit, the archetype signal) and
+`component_items` (65 items have prerequisites, referenced by class_name).
 """
 
 from __future__ import annotations
@@ -34,6 +43,14 @@ class Hero:
     name: str
     disabled: bool
     in_development: bool
+
+
+@dataclass(frozen=True)
+class Ability:
+    id: int
+    class_name: str
+    name: str
+    hero_id: int | None
 
 
 @lru_cache(maxsize=1)
@@ -79,3 +96,103 @@ def upgrade_ids(cache_dir: Path = DEFAULT_CACHE) -> frozenset[int]:
 def playable_heroes(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Hero]:
     """Heroes actually available in matches (38 of 57 listed as of 2026-09-03)."""
     return {h.id: h for h in load_heroes(cache_dir).values() if not h.disabled}
+
+
+@lru_cache(maxsize=1)
+def load_abilities(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Ability]:
+    """Hero abilities, keyed by id (389 as of 2026-09-04).
+
+    These share the /v1/assets/items response with purchasable upgrades and are
+    distinguished by type == "ability". They appear in a player's `items` array
+    as level-up records, which is how the leveling timeline is recovered.
+    """
+    raw: list[dict[str, Any]] = api.get("/v1/assets/items", cache_dir=cache_dir)
+    return {
+        entry["id"]: Ability(
+            id=entry["id"],
+            class_name=entry.get("class_name", ""),
+            name=entry.get("name", ""),
+            hero_id=entry.get("hero"),
+        )
+        for entry in raw
+        if entry.get("type") == "ability"
+    }
+
+
+@lru_cache(maxsize=1)
+def signature_slots(cache_dir: Path = DEFAULT_CACHE) -> dict[int, int]:
+    """Map ability id -> signature slot (1..4).
+
+    Each hero's asset entry names its four abilities under `items.signature1`
+    through `signature4`, by class_name. Joining those to ability ids gives the
+    slot an in-match level-up refers to.
+
+    99.99% of observed ability entries resolve. The exception is hero 80
+    (Silver), whose three `ability_werewolf_*` abilities are absent from its
+    signature map — a renamed or reworked hero in the asset dump. Callers see
+    those as unmapped rather than silently mis-slotted.
+    """
+    heroes: list[dict[str, Any]] = api.get("/v1/assets/heroes", cache_dir=cache_dir)
+    by_class = {a.class_name: a.id for a in load_abilities(cache_dir).values()}
+
+    slots: dict[int, int] = {}
+    for hero in heroes:
+        signatures = (hero.get("items") or {})
+        for slot in range(1, 5):
+            class_name = signatures.get(f"signature{slot}")
+            ability_id = by_class.get(class_name) if class_name else None
+            if ability_id is not None:
+                slots[ability_id] = slot
+    return slots
+
+
+@lru_cache(maxsize=1)
+def shopable_items(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Item]:
+    """Items that can actually be bought (173 of 251).
+
+    `load_items` deliberately keeps the rest, because filtering ability spends
+    needs every upgrade id. Anything ranked as a recommendation should come
+    from here instead: the remainder are innate or disabled entries that no
+    player can purchase.
+    """
+    raw: list[dict[str, Any]] = api.get("/v1/assets/items", cache_dir=cache_dir)
+    shopable = {
+        entry["id"]
+        for entry in raw
+        if entry.get("type") == "upgrade"
+        and entry.get("shopable")
+        and not entry.get("disabled")
+    }
+    return {i: item for i, item in load_items(cache_dir).items() if i in shopable}
+
+
+@lru_cache(maxsize=1)
+def component_map(cache_dir: Path = DEFAULT_CACHE) -> dict[int, tuple[int, ...]]:
+    """Map item id -> the component items it is built from.
+
+    65 of 251 upgrades have components, referenced by class_name in the raw
+    asset and resolved to ids here. Depth reaches 3; two items take two
+    components.
+
+    This is a soft ordering prior, NOT a hard constraint. Only ~79% of players
+    who buy a composite ever bought its component separately, so forbidding the
+    parent before the component would make roughly a fifth of real builds
+    unreachable. Use it to prefer an ordering and to check generated builds --
+    never to filter training data.
+    """
+    raw: list[dict[str, Any]] = api.get("/v1/assets/items", cache_dir=cache_dir)
+    by_class = {
+        entry.get("class_name"): entry["id"]
+        for entry in raw
+        if entry.get("type") == "upgrade"
+    }
+    out: dict[int, tuple[int, ...]] = {}
+    for entry in raw:
+        if entry.get("type") != "upgrade":
+            continue
+        components = tuple(
+            by_class[c] for c in (entry.get("component_items") or []) if c in by_class
+        )
+        if components:
+            out[entry["id"]] = components
+    return out
