@@ -130,6 +130,46 @@ class TestFitHero:
         """Separation is what matches judgement; silhouette would split Dynamo."""
         assert archetype.MIN_SEPARATION == 0.45
 
+    def test_separation_is_the_weakest_pair(self):
+        """One distinct cluster must not drag near-duplicates through with it.
+
+        Kelvin's support build carried two spirit clusters that share identical
+        ability investment and differ on no item by more than 23 points.
+        """
+        prevalence = pd.DataFrame(
+            {
+                "a": [1.0, 0.95, 0.0],  # 0 vs 1 differ by 0.05; 0 vs 2 by 1.0
+                "b": [0.0, 0.02, 0.9],
+            },
+            index=[0, 1, 2],
+        )
+        assert archetype._separation(prevalence) == pytest.approx(0.05)
+
+    def test_two_near_duplicate_clusters_do_not_split(self):
+        """Differing only slightly is one archetype on a gradient, not two.
+
+        Both halves buy the same core; a tenth of one half adds one extra item,
+        so no item's prevalence differs by more than 10 points.
+        """
+        core = WEAPON[:3]
+        rows = []
+        for player in range(800):
+            items = list(core)
+            if player < 40:
+                items.append(SPIRIT[0])
+            for position, item in enumerate(items):
+                rows.append(
+                    {
+                        "match_id": 1000 + player,
+                        "player_slot": player % 12,
+                        "hero_id": 1,
+                        "item_id": item,
+                        "buy_index": position,
+                    }
+                )
+        fit = archetype.fit_hero(pd.DataFrame(rows), hero_id=1, hero_name="T")
+        assert fit.k == 1
+
     def test_prefers_smaller_k(self):
         """Two real builds must not be cut into three."""
         fit = archetype.fit_hero(build_population(), hero_id=1, hero_name="Test")

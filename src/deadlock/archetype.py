@@ -39,6 +39,7 @@ leave both sides large enough to model. All four, or k=1.
 
 from __future__ import annotations
 
+import itertools
 import json
 import logging
 import warnings
@@ -146,6 +147,18 @@ def feature_matrix(purchases: pd.DataFrame) -> pd.DataFrame:
     return slot_shares(purchases).fillna(0.0)
 
 
+def _silhouette(features: pd.DataFrame, labels: np.ndarray) -> float:
+    """Silhouette over the full matrix is O(n^2); sample for large heroes."""
+    if len(set(labels)) < 2:
+        return float("nan")
+    n = len(features)
+    if n > 4000:
+        rng = np.random.default_rng(ARCHETYPE_SEED)
+        idx = rng.choice(n, 4000, replace=False)
+        return float(silhouette_score(features.values[idx], np.asarray(labels)[idx]))
+    return float(silhouette_score(features.values, labels))
+
+
 def _fit_k(features: pd.DataFrame, k: int) -> tuple[np.ndarray, float]:
     model = KMeans(n_clusters=k, n_init=10, random_state=ARCHETYPE_SEED)
     with warnings.catch_warnings():
@@ -153,17 +166,7 @@ def _fit_k(features: pd.DataFrame, k: int) -> tuple[np.ndarray, float]:
         # problem to warn about -- fit_hero reads it off the nan silhouette.
         warnings.simplefilter("ignore", ConvergenceWarning)
         labels = model.fit_predict(features.values)
-    if len(set(labels)) < 2:
-        return labels, float("nan")
-    # Silhouette over the full matrix is O(n^2); sample for large heroes.
-    n = len(features)
-    if n > 4000:
-        rng = np.random.default_rng(ARCHETYPE_SEED)
-        idx = rng.choice(n, 4000, replace=False)
-        score = silhouette_score(features.values[idx], labels[idx])
-    else:
-        score = silhouette_score(features.values, labels)
-    return labels, float(score)
+    return labels, _silhouette(features, labels)
 
 
 def _canonical_order(features: pd.DataFrame, labels: np.ndarray) -> np.ndarray:
@@ -244,14 +247,60 @@ def _replication(
 
 
 def _separation(prevalence: pd.DataFrame) -> float:
-    """Largest pick-rate gap between any two clusters, over all items.
+    """How distinguishable the LEAST distinct pair of clusters is.
 
-    The criterion a human can check: "these two builds differ by 60 points on
-    Extra Charge" is a claim about the game, not about the statistics.
+    For each pair, the largest pick-rate gap on any item -- the criterion a
+    player can check, since "these two builds differ by 60 points on Extra
+    Charge" is a claim about the game. The score is then the WEAKEST pair.
+
+    Taking the weakest pair rather than the strongest is load-bearing. Under a
+    max, one genuinely distinct cluster drags near-duplicates through with it:
+    Kelvin's support build carried two spirit clusters that share identical
+    ability investment and differ on no item by more than 23 points. Every k=3
+    hero had a pair below threshold that way -- Kelvin 0.226, Infernus 0.222,
+    Sinclair 0.233. Two clusters are two archetypes only if a player would call
+    them different builds, so every pair must qualify.
     """
     if len(prevalence) < 2:
         return float("nan")
-    return float((prevalence.max(axis=0) - prevalence.min(axis=0)).max())
+    clusters = list(prevalence.index)
+    gaps = [
+        float((prevalence.loc[a] - prevalence.loc[b]).abs().max())
+        for a, b in itertools.combinations(clusters, 2)
+    ]
+    return min(gaps) if gaps else float("nan")
+
+
+def merge_indistinct(
+    purchases: pd.DataFrame, labels: pd.Series, *, threshold: float = MIN_SEPARATION
+) -> pd.Series:
+    """Fold together cluster pairs no player would call different builds.
+
+    Repeatedly merges the weakest pair while any pair sits below `threshold`,
+    relabelling to stay contiguous. This recovers real archetypes that a
+    whole-fit rejection would throw away: Kelvin's k=3 has two spirit clusters
+    differing on no item by more than 23 points, but the third is a genuine
+    support build (Rescue Beam 46%, Healing Tempo 42%). Merging the first two
+    keeps the support build; rejecting k=3 outright loses it.
+
+    Infernus and Silver merge all the way down to one, which is the right
+    answer for them -- their k=3 was noise throughout.
+    """
+    labels = labels.copy()
+    while labels.nunique() > 1:
+        prevalence = cluster_prevalence(purchases, labels)
+        clusters = sorted(prevalence.index)
+        gaps = {
+            (a, b): float((prevalence.loc[a] - prevalence.loc[b]).abs().max())
+            for a, b in itertools.combinations(clusters, 2)
+        }
+        weakest = min(gaps, key=gaps.get)
+        if gaps[weakest] >= threshold:
+            break
+        labels = labels.replace({weakest[1]: weakest[0]})
+        remap = {old: new for new, old in enumerate(sorted(labels.unique()))}
+        labels = labels.map(remap)
+    return labels
 
 
 def fit_hero(
@@ -263,8 +312,10 @@ def fit_hero(
 ) -> ArchetypeFit:
     """Select k for one hero, accepting a split only on all four criteria.
 
-    Prefers the smallest k that qualifies: a hero with two real builds should
-    not be cut into three because the third scored marginally better.
+    Tries the largest k first and merges indistinguishable clusters back
+    together, rather than trying the smallest and stopping. Both orders land on
+    k=2 for Ivy, but only this one finds Kelvin's support build -- it lives in a
+    k=3 fit whose other two clusters are one archetype on a gradient.
     """
     features = feature_matrix(purchases)
     n = len(features)
@@ -281,10 +332,27 @@ def fit_hero(
         return single
 
     best_rejected = None
-    for k in candidate_k:
-        labels, score = _fit_k(features, k)
+    for k in sorted(candidate_k, reverse=True):
+        labels, _ = _fit_k(features, k)
         labels = _canonical_order(features, labels)
         series = pd.Series(labels, index=features.index, name="archetype")
+
+        # Fold away pairs that are one build on a gradient, then re-score what
+        # survives. A k=3 fit carrying one real cluster becomes a k=2 fit.
+        series = merge_indistinct(purchases, series)
+        if series.nunique() < 2:
+            # Everything folded into one: the clusters were a gradient, not
+            # builds. Record it so the review sheet says why.
+            if best_rejected is None:
+                best_rejected = ArchetypeFit(
+                    hero_id=hero_id, hero_name=hero_name, k=1, n=n,
+                    reason=f"k={k} fails separation (all clusters merged)",
+                )
+            continue
+        series = pd.Series(
+            _canonical_order(features, series.values), index=series.index, name="archetype"
+        )
+        score = _silhouette(features, series.values)
 
         prevalence = cluster_prevalence(purchases, series)
         separation = _separation(prevalence)
@@ -296,7 +364,7 @@ def fit_hero(
         candidate = ArchetypeFit(
             hero_id=hero_id,
             hero_name=hero_name,
-            k=k,
+            k=int(series.nunique()),
             n=n,
             labels=series,
             centroids=centroids,
@@ -308,9 +376,10 @@ def fit_hero(
 
         failures = [name for name, (_, _, ok) in candidate.criteria().items() if not ok]
         if not failures:
-            candidate.reason = f"k={k} clears every criterion"
+            merged = f" (merged from k={k})" if candidate.k < k else ""
+            candidate.reason = f"k={candidate.k} clears every criterion{merged}"
             return candidate
-        if best_rejected is None:
+        if best_rejected is None or candidate.separation > best_rejected.separation:
             candidate.reason = "fails " + ", ".join(failures)
             best_rejected = candidate
 
@@ -319,7 +388,7 @@ def fit_hero(
         single.replication = best_rejected.replication
         single.separation = best_rejected.separation
         single.smallest_share = best_rejected.smallest_share
-        single.reason = f"single archetype: best k=2 {best_rejected.reason}"
+        single.reason = f"single archetype: best split {best_rejected.reason}"
     return single
 
 

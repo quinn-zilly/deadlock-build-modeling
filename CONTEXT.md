@@ -34,6 +34,12 @@ Archetypes are discovered by clustering, but named by what the build *does*.
 The label is a claim about playstyle a player would recognize, not a summary of
 the clustering.
 
+Two clusters are only two archetypes if a player would call them different
+builds. Differing by [[counter-pick]]s alone does not qualify: Kelvin's two
+"spirit" clusters have identical ability investment and no item differing by
+more than 23 points, which is one build on a gradient. Every *pair* of a hero's
+archetypes must be distinguishable, not merely the most distinct pair.
+
 ## Slot type
 
 Which of the three shop tabs an item is sold in: **weapon**, **vitality**, or
@@ -75,6 +81,40 @@ A hero's archetype is named for its dominant family: "Gun Lash", "Melee
 Sinclair", "Support Kelvin". Two archetypes of the same hero can share a
 family — Kelvin has two spirit builds taking different paths — in which case
 the name needs a second distinguishing term rather than a family label alone.
+
+## Counter-pick
+
+An item bought because of who is on the enemy team, rather than because of how
+you are playing your hero. Counterspell against Lash, Slowing Hex against
+Apollo, Dispel Magic against Shiv, Healbane against Victor.
+
+Measured over 25k matches, facing the named hero raises the item's pick rate by
+5–8 points; facing Lash nearly doubles Counterspell (16.0% vs 8.5%).
+
+**A counter-pick is not an archetype.** It varies by matchup, not by playstyle,
+so a clustering that picks it up manufactures archetypes out of who you
+happened to face. Two clusters of one hero that differ only in counter-picks
+are one archetype, and the fit should refuse to split them. Counter-picks
+belong in the sequence model as a conditioning variable — given this enemy
+roster, what do people buy — never as an archetype dimension.
+
+## Ability focus
+
+Which of a hero's four signature abilities a build is built around. The way
+players name spirit builds, where the family label alone is uninformative
+because every candidate is "spirit": Dynamo players say **ult build**
+(Singularity — Expansion and Cooldown) or **stomp build** (Kinetic Pulse —
+Rapid Recharge and Tankbuster).
+
+Ability focus is not universal. Some builds invest across several abilities or
+all four, and by match end investment saturates — every Kelvin ends with all
+four near maximum. Where it discriminates at all, it does so mid-match; read it
+around 480s, never at the end.
+
+## Ultimate
+
+A hero's fourth signature ability. Colloquially the **ult**. Builds oriented
+around it are **ult builds**. See [[ability focus]].
 
 ## Staple
 
