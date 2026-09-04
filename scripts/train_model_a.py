@@ -86,25 +86,45 @@ def main() -> int:
             baseline = confound.wealth_baseline(train_df, test_df)
             print(f"\n{baseline}   [linear, purchase rows]")
 
-            x_ctl_tr, y_tr, _, _ = design.build_design(
-                train_df, item_ids, hero_ids, include_items=False
-            )
-            x_ctl_te, y_te, _, _ = design.build_design(
-                test_df, item_ids, hero_ids, include_items=False
-            )
-            _, ctl_auc, ctl_ll = _fit(x_ctl_tr, y_tr, x_ctl_te, y_te)
-            print(f"controls-only GBM   AUC={ctl_auc:.4f}  logloss={ctl_ll:.4f}")
+            # Three baselines, because "what do items add" has two honest
+            # answers depending on what else the model already knows.
+            # Economics and item choice overlap: a player buying expensive
+            # items early is described by both blocks.
+            def _build(inc_items, inc_eco):
+                a = design.build_design(
+                    train_df, item_ids, hero_ids,
+                    include_items=inc_items, include_economics=inc_eco,
+                )
+                b = design.build_design(
+                    test_df, item_ids, hero_ids,
+                    include_items=inc_items, include_economics=inc_eco,
+                )
+                return _fit(a[0], a[1], b[0], b[1])
+
+            _, bare_auc, bare_ll = _build(False, False)
+            _, ctl_auc, ctl_ll = _build(False, True)
+            print(f"bare controls       AUC={bare_auc:.4f}  logloss={bare_ll:.4f}")
+            print(f"+ economics         AUC={ctl_auc:.4f}  logloss={ctl_ll:.4f}"
+                  f"   ({ctl_auc - bare_auc:+.4f})")
 
             x_tr, y_tr, names, _ = design.build_design(train_df, item_ids, hero_ids)
             x_te, y_te, _, _ = design.build_design(test_df, item_ids, hero_ids)
             model, item_auc, item_ll = _fit(x_tr, y_tr, x_te, y_te)
             print(f"full item model     AUC={item_auc:.4f}  logloss={item_ll:.4f}")
 
+            n_tr, n_te = len(train_df.match_id.unique()), len(test_df.match_id.unique())
+            bare_result = confound.BaselineResult(
+                bare_auc, n_tr, len(y_te), pd.Series(dtype=float)
+            )
             ctl_result = confound.BaselineResult(
-                ctl_auc, x_ctl_tr.shape[0], x_ctl_te.shape[0], pd.Series(dtype=float)
+                ctl_auc, n_tr, len(y_te), pd.Series(dtype=float)
             )
             print()
-            print(confound.report_gate(item_auc, ctl_result))
+            print("  vs bare controls (does the build matter at all?):")
+            print("   ", confound.report_gate(item_auc, bare_result))
+            print("  vs controls+economics (do WHICH items matter, beyond how"
+                  " fast they were bought?):")
+            print("   ", confound.report_gate(item_auc, ctl_result))
 
             if split_name == "random-by-match" and max_phase == 1:
                 _report_importance(model, names, item_ids)
