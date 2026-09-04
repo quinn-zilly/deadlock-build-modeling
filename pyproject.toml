@@ -1,7 +1,7 @@
 [project]
 name = "deadlock-build-modeling"
 version = "0.1.0"
-description = "Net-worth-controlled item win-rate modeling and build recommendation for Deadlock"
+description = "Build order and purchase timing modeling for Deadlock"
 requires-python = ">=3.12"
 dependencies = [
     "pandas>=2.2",
@@ -11,7 +11,6 @@ dependencies = [
     "scipy>=1.13",
     "requests>=2.32",
     "tqdm>=4.66",
-    "lightgbm>=4.3",
 ]
 
 [project.optional-dependencies]
@@ -27,4 +26,7 @@ packages = ["src/deadlock"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "data: needs data/processed/*.parquet; skipped when absent",
+]
 
