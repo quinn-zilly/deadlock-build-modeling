@@ -23,20 +23,24 @@ from . import features
 
 log = logging.getLogger(__name__)
 
-# Player-level wealth/context controls. These mirror confound.BASELINE_FEATURES
-# so the item model and the wealth baseline are directly comparable.
+# Player-level wealth/context controls, mirroring confound.BASELINE_FEATURES
+# so the item model and the wealth baseline stay comparable.
+#
+# Deliberately EXCLUDED as outcome leakage (see confound.LEAKY_FEATURES):
+#   nw_final, duration_s  -- the final scoreline and match length
+#   n_purchases, sold_fraction -- both grow with match length
+#
+# With those included the controls-only model reaches ~0.92 AUC and no item
+# model can beat it, because the outcome is already encoded. The question is
+# what items add to what a player knows WHILE BUYING, not after.
 CONTROL_COLUMNS = [
-    "nw_final",
     "nw_vs_match_median_mean",
     "nw_vs_team_avg_mean",
     "nw_vs_enemy_avg_mean",
     "nw_rank_in_match_mean",
     "nw_vs_enemy_avg_early",
     "average_badge",
-    "duration_s",
     "assigned_lane",
-    "n_purchases",
-    "sold_fraction",
 ]
 
 
@@ -162,6 +166,18 @@ def composition_matrix(players: pd.DataFrame, hero_ids: list[int]) -> tuple[sp.c
         + [f"enemy_{h}" for h in hero_ids]
     )
     return matrix, names
+
+
+def restrict_phases(df: pd.DataFrame, max_phase: int) -> pd.DataFrame:
+    """Keep only purchases up to `max_phase`.
+
+    The reason to model the early game is that wealth is closest to exogenous
+    there. Wealth relative to enemies correlates 0.16 with winning in phase 0
+    but 0.60 by phase 3 -- at that point it is not a confounder to adjust for,
+    it is the outcome restated. Restricting to early phases also matches when
+    a recommendation is actually actionable.
+    """
+    return df[df.phase <= max_phase]
 
 
 def build_design(

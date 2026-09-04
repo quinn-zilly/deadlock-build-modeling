@@ -121,3 +121,34 @@ class TestGate:
     def test_boundary_is_not_a_pass(self):
         base = confound.BaselineResult(0.700, 100, 50, pd.Series(dtype=float))
         assert "FAILED GATE" in confound.report_gate(0.705, base, tolerance=0.005)
+
+
+class TestLeakageGuard:
+    """Outcome-encoding features must never enter the baseline.
+
+    duration_s and nw_final describe how the match ENDED, not what a player
+    knew while buying. With them included the controls-only model reaches
+    ~0.92 AUC on real data and no item model can clear it, which reads as
+    "items are worthless" when the real cause is a circular comparison.
+    """
+
+    def test_leaky_features_are_excluded_from_baseline(self):
+        assert not confound.LEAKY_FEATURES & set(confound.BASELINE_FEATURES)
+
+    def test_duration_and_final_networth_are_flagged(self):
+        assert "duration_s" in confound.LEAKY_FEATURES
+        assert "nw_final" in confound.LEAKY_FEATURES
+
+    def test_passing_a_leaky_feature_raises(self):
+        df = _frame()
+        df["duration_s"] = 2000
+        train, test = confound.split_by_match(df)
+        with pytest.raises(ValueError, match="leaking"):
+            confound.wealth_baseline(
+                train, test, features=[*confound.BASELINE_FEATURES, "duration_s"]
+            )
+
+    def test_design_controls_carry_no_leaks(self):
+        from deadlock import design
+
+        assert not confound.LEAKY_FEATURES & set(design.CONTROL_COLUMNS)

@@ -34,7 +34,16 @@ from sklearn.preprocessing import StandardScaler
 
 log = logging.getLogger(__name__)
 
-# Wealth/context only. Adding an item feature here defeats the purpose.
+# Wealth/context known AT THE MOMENT OF PURCHASE. Two exclusions matter:
+#
+#   duration_s  -- how long the match ran is not known when buying, and it
+#                  leaks the outcome (stomps end early).
+#   nw_final    -- the player's end-of-match net worth is the scoreline.
+#
+# Including either produces a baseline near 0.92 AUC that no item model can
+# beat, because the outcome has already been given away. Restricted to
+# genuinely pre-decision state the baseline lands near 0.73, and on early-game
+# purchases alone near 0.60 -- a floor an item model can meaningfully clear.
 BASELINE_FEATURES = [
     "nw_at_buy",
     "nw_vs_match_median",
@@ -42,10 +51,13 @@ BASELINE_FEATURES = [
     "nw_vs_enemy_avg",
     "nw_rank_in_match",
     "average_badge",
-    "duration_s",
     "buy_time_s",
     "phase",
 ]
+
+# Features that encode match outcome rather than pre-purchase state. Never
+# place these in a model whose AUC is being compared against the gate.
+LEAKY_FEATURES = frozenset({"duration_s", "nw_final", "sold_fraction", "n_purchases"})
 
 
 @dataclass
@@ -106,6 +118,12 @@ def wealth_baseline(
     missing = [f for f in features if f not in train.columns]
     if missing:
         raise KeyError(f"missing baseline features: {missing}")
+    leaks = LEAKY_FEATURES.intersection(features)
+    if leaks:
+        raise ValueError(
+            f"outcome-leaking features in baseline: {sorted(leaks)}. These "
+            f"encode how the match ended, not what was known at purchase time."
+        )
 
     x_train = train[features].astype(float).fillna(0.0)
     x_test = test[features].astype(float).fillna(0.0)
