@@ -83,12 +83,78 @@ class TestPlayerCorrections:
         assert "Divine Barrier" in BY_NAME
 
 
+class TestTooltipEvidence:
+    """Stats say which numbers move; the tooltip says what the item is for."""
+
+    @staticmethod
+    def tooltip(name: str) -> str:
+        return semantics.tooltip_text(semantics._raw_items()[BY_NAME[name]])
+
+    def test_tooltip_text_strips_markup(self):
+        """Tooltips are nested JSON carrying inline SVG icons and HTML spans."""
+        text = self.tooltip("Siphon Bullets")
+        assert "<" not in text
+        assert "steal Max HP" in text
+
+    def test_most_items_have_a_tooltip(self):
+        with_text = sum(
+            1
+            for i in assets.shopable_items()
+            if semantics.tooltip_text(semantics._raw_items()[i])
+        )
+        assert with_text >= 150
+
+    def test_siphon_bullets_primary_effect_is_only_in_the_tooltip(self):
+        """Its whole point -- bullets steal Max HP -- appears in no stat key.
+
+        A player raised this directly: the +15% weapon damage the stats show is
+        real but secondary.
+        """
+        assert "steal Max HP" in self.tooltip("Siphon Bullets")
+        stats = semantics._stat_names(semantics._raw_items()[BY_NAME["Siphon Bullets"]])
+        assert not any("Steal" in s and "Max" in s for s in stats)
+
+    @pytest.mark.parametrize("name", ["Mystic Regeneration", "Radiant Regeneration"])
+    def test_regeneration_items_heal_the_buyer_not_allies(self, name):
+        """They type as spirit healing, which read as "support" and mislabelled
+        Venator's hybrid gun build. The text says dealing spirit damage grants
+        YOU regeneration."""
+        assert "grants you" in self.tooltip(name).lower()
+        assert families(name).get("support", 0) == 0
+        assert families(name).get("sustain", 0) > 0
+
+    def test_healing_tempo_is_a_gun_item(self):
+        """It grants the target bonus FIRE RATE -- why a gun carry buys it."""
+        assert "fire rate" in self.tooltip("Healing Tempo").lower()
+        assert families("Healing Tempo").get("gun", 0) > 0
+
+    def test_ally_healing_is_recognised(self):
+        assert "allied hero" in self.tooltip("Rescue Beam")
+        assert families("Rescue Beam").get("support", 0) > 0
+
+    def test_melee_tooltip_recovers_items_stats_miss(self):
+        """Spirit Strike types as spirit; its text is about melee attacks."""
+        assert "melee" in self.tooltip("Spirit Strike").lower()
+        assert families("Spirit Strike").get("melee", 0) > 0
+
+
 class TestSupportVersusSustain:
     def test_self_healing_is_not_support(self):
-        """Without this split, Siphon Bullets' HP-steal lands with Healing
-        Tempo and Kelvin's support build stops being distinguishable."""
+        """Without this split, Siphon Bullets' HP-steal lands beside Rescue
+        Beam and Kelvin's support build stops being distinguishable."""
         assert families("Siphon Bullets").get("support", 0) == 0
         assert families("Siphon Bullets").get("sustain", 0) > 0
+
+    def test_siphon_bullets_is_both_gun_and_sustain(self):
+        """A player's description: it steals max HP AND raises gun damage."""
+        scores = families("Siphon Bullets")
+        assert scores.get("gun", 0) > 0 and scores.get("sustain", 0) > 0
+
+    def test_heal_shaped_stats_default_to_sustain(self):
+        """Almost every heal STAT is self-regen whatever triggers it; only the
+        tooltip establishes that healing reaches an ally."""
+        assert semantics.FAMILY_WEIGHTS["TotalHealthRegen"][0] == "sustain"
+        assert semantics.FAMILY_WEIGHTS["Regeneration"][0] == "sustain"
 
     def test_anti_heal_is_control_not_support(self):
         """Crippling Headshot debuffs enemy healing. It is a gun item."""

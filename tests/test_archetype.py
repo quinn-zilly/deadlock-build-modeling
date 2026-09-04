@@ -344,6 +344,7 @@ class TestAgainstRealData:
             ("Kelvin", "Support Kelvin"),
             ("Bebop", "Gun Bebop"),
             ("Calico", "Melee Calico"),
+            ("Yamato", "Melee Yamato"),
         ],
     )
     def test_player_corrections_are_reproduced(self, hero, expected):
@@ -358,10 +359,12 @@ class TestAgainstRealData:
     def test_duplicate_names_are_rare(self):
         """The old rule gave one hero three clusters all called "Spirit X".
 
-        Family naming cannot separate two builds of the SAME family -- Celeste
-        genuinely has two spirit builds -- so this bounds the problem rather
-        than forbidding it. Distinguishing those needs ability focus ("ult" vs
-        "stomp"), which is not implemented.
+        Family naming cannot separate two builds of the SAME family, and three
+        heroes genuinely have such a pair: Venator has two gun builds (one
+        hybrid gun/spirit, one bullet-lifesteal), Celeste two spirit, Drifter
+        two. This bounds the problem rather than forbidding it. Splitting those
+        needs ability focus -- "ult" versus "stomp" -- which is not
+        implemented.
         """
         _, meta, _ = self.load()
         duplicated = 0
@@ -369,7 +372,7 @@ class TestAgainstRealData:
             named = [a["name"] for a in entry["archetypes"] if a["name"] != entry["hero_name"]]
             if len(named) != len(set(named)):
                 duplicated += 1
-        assert duplicated <= 2
+        assert duplicated <= 3
 
     def test_thin_margins_decline_to_label(self):
         """A near-tie is a coin flip; the rule keeps the bare hero name."""
@@ -379,6 +382,15 @@ class TestAgainstRealData:
                 margin = cluster.get("naming_margin", 0.0)
                 if 0 < margin < semantics.MIN_NAMING_MARGIN:
                     assert cluster["name"] == entry["hero_name"]
+
+    def test_venator_is_not_support(self):
+        """A player correction: Venator's healing items are self-sustain for a
+        gun carry -- Mystic/Radiant Regeneration heal you for dealing spirit
+        damage, and Healing Tempo grants fire rate. Reading them as support
+        made a hybrid gun build look like a support build."""
+        _, meta, heroes = self.load()
+        names = {a["name"] for a in meta["heroes"][str(heroes["Venator"])]["archetypes"]}
+        assert not any(n.startswith("Support") for n in names)
 
     def test_tank_no_longer_dominates(self):
         """Slot-share naming produced 10 "Tank" labels, most of them wrong."""

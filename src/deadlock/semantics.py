@@ -8,10 +8,23 @@ weapon-slotted and belongs to melee builds; Rescue Beam is vitality-slotted and
 belongs to support builds.
 
 This module assigns each item to one or more **build families** -- the
-vocabulary players actually use -- by reading its stats.
+vocabulary players actually use -- by reading its stats AND its tooltip.
 
-Three things make that harder than it looks, each learned the hard way (see
-docs/ITEM-SEMANTICS.md):
+The tooltip is not decoration. Stats say which numbers an item moves; the
+tooltip says what it is FOR, and they disagree often enough that a stats-only
+reading mislabels real builds:
+
+- Siphon Bullets' typed block is "+15% weapon damage, +10 bullet resist". Its
+  tooltip says "your bullets steal Max HP from enemies" -- the actual reason
+  anyone buys it, present in no stat key.
+- Mystic and Radiant Regeneration type as spirit healing, so a stats-only pass
+  called them support. The tooltip says dealing spirit damage grants YOU
+  regeneration: self-sustain, which is why a gun carry stacks them.
+- Healing Tempo types as healing but grants the target bonus FIRE RATE, which
+  is why it appears in gun builds. Read as a heal, it made Venator's hybrid
+  gun/spirit build look like a support build.
+
+Four more things make this harder than it looks (see docs/ITEM-SEMANTICS.md):
 
 1. **Stats live in two places.** `upgrades[].property_upgrades[]` holds only
    what the tier-upgrade adds; `properties{}` holds the full block. Siphon
@@ -25,14 +38,20 @@ docs/ITEM-SEMANTICS.md):
    `CooldownReduction`, on seven items. Same trap for AbilityDuration,
    AbilityCastRange, AbilityCastDelay, AbilityChannelTime.
 
-3. **Self-healing is not support.** Without splitting `sustain` from `support`,
-   Siphon Bullets' HP-steal lands in the same bucket as Healing Tempo and
-   Kelvin's support build stops being distinguishable. Healing an ALLY is
-   support; healing yourself is sustain.
+3. **Self-healing is not support.** Almost every heal-shaped STAT is self-regen
+   whatever triggers it, so the stat table maps them to `sustain` and lets the
+   tooltip establish the exception. Healing an ALLY is support; healing
+   yourself is a bruiser pattern. Without the split, Siphon Bullets' HP-steal
+   lands beside Rescue Beam and Kelvin's support build stops being visible.
 
-Barrier-on-ally items (Guardian Ward, Divine Barrier) carry no typed stat that
-separates them from Plated Armor. The only evidence is the tooltip clause about
-casting on someone else, so the regex is not optional.
+4. **Key presence is not evidence.** Every item lists WeaponPower, TechPower
+   and ChannelMoveSpeed as `value: "0"` placeholders. Counting keys makes all
+   173 items look like gun AND spirit items, collapsing every IDF to zero.
+
+A family label is only as good as the vocabulary allows: two builds of the same
+family on one hero (Venator has two gun builds, Celeste two spirit) cannot be
+told apart this way. Distinguishing those needs ability focus -- "ult" versus
+"stomp" -- which is not implemented here.
 """
 
 from __future__ import annotations
@@ -129,19 +148,25 @@ FAMILY_WEIGHTS: dict[str, tuple[str, int]] = {
     "LifestrikeHeal": ("melee", 1),
     "LightMeleeAmmo": ("melee", 1),
     # --- support (healing or shielding SOMEONE ELSE)
-    "HealAmpCastPercent": ("support", 2),
-    "HealAmpRegenPercent": ("support", 2),
+    #
+    # Deliberately thin. Most heal-shaped stats are self-regen whatever
+    # triggers them -- Mystic Regeneration's TotalHealthRegen fires on dealing
+    # spirit damage and heals only the buyer, which is a bruiser pattern, not
+    # a support one. Whether healing reaches an ALLY lives in the tooltip, so
+    # `_tooltip_families` supplies most of this family's evidence.
+    "HealAmpCastPercent": ("support", 1),
+    "HealAmpRegenPercent": ("sustain", 1),
     "HealPercentAmount": ("support", 2),
-    "TotalHealthRegen": ("support", 2),
-    "HealingPerCast": ("support", 2),
-    "Regeneration": ("support", 2),
-    "HealFromHero": ("support", 2),
-    "HealFromNPC": ("support", 1),
-    "HealPerStack": ("support", 1),
+    "TotalHealthRegen": ("sustain", 2),
+    "HealingPerCast": ("sustain", 2),
+    "Regeneration": ("sustain", 2),
+    "HealFromHero": ("sustain", 2),
+    "HealFromNPC": ("sustain", 1),
+    "HealPerStack": ("sustain", 1),
     "MinStaminaRestore": ("support", 1),
-    "MinHeal": ("support", 1),
+    "MinHeal": ("sustain", 1),
     "AllyPercentage": ("support", 2),
-    "HealOnActivate": ("support", 1),
+    "HealOnActivate": ("sustain", 1),
     "GuardianWardCombatBarrier": ("support", 2),
     # --- tank
     "BonusHealth": ("tank", 2),
@@ -201,12 +226,76 @@ SELF_REFERENTIAL = frozenset(
     }
 )
 
-# The only evidence that a barrier item targets an ally rather than oneself.
+# --- Tooltip evidence -----------------------------------------------------
+#
+# Stats do not say what an item is FOR. Siphon Bullets' typed block reads
+# "+15% weapon damage, +10 bullet resist", but its tooltip says "your bullets
+# steal Max HP from enemies" -- which is the reason anyone buys it. Mystic
+# Regeneration types as spirit and heals; only the tooltip reveals that it
+# heals YOU for dealing spirit damage, so a build stacking it is sustaining
+# itself rather than supporting a team.
+#
+# Each pattern is a claim about what a phrase means, checked against the items
+# it matches.
+
+# Healing or shielding SOMEONE ELSE. "The target" alone is not enough --
+# Shrink Ray and Knockdown target enemies.
 ALLY_TOOLTIP_RE = re.compile(
-    r"(on\s+(?:an?\s+)?all(?:y|ied)|someone\s+else|nearby\s+all(?:y|ies)|"
-    r"target\s+all(?:y|ied)|non-self|allied\s+hero)",
+    r"(nearby\s+all(?:y|ies)|allied\s+hero|(?:your\s+)?allies\b|"
+    r"friendly\s+(?:target|unit)|to\s+an\s+ally|or\s+an\s+ally|"
+    r"someone\s+else|non-self)",
     re.IGNORECASE,
 )
+
+# Healing YOURSELF, however it is triggered. The line that separates a support
+# build from a bruiser one.
+SELF_HEAL_TOOLTIP_RE = re.compile(
+    r"(grants?\s+you\s+bonus\s+regen|heal\s+yourself|"
+    r"steal\s+max\s+hp|lifesteal|siphon)",
+    re.IGNORECASE,
+)
+
+# The item's damage rides on your gun. These read as spirit items by stats but
+# are bought to make bullets hit harder -- the hybrid gun/spirit pattern.
+BULLET_TOOLTIP_RE = re.compile(
+    r"(your\s+bullets|bullet\s+damage|weapon\s+damage|fire\s+rate|"
+    r"bullets?\s+(?:apply|deal|steal|build))",
+    re.IGNORECASE,
+)
+
+MELEE_TOOLTIP_RE = re.compile(r"(heavy\s+melee|light\s+melee|melee\s+attack)", re.IGNORECASE)
+
+_SVG_RE = re.compile(r"<svg.*?</svg>", re.S)
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def tooltip_text(entry: dict[str, Any]) -> str:
+    """The item's human-readable description, stripped of markup.
+
+    Tooltips are nested JSON carrying inline SVG icons and HTML spans; 155 of
+    173 shopable items have one. This is the only place the asset data says
+    what an item is FOR rather than which numbers it moves.
+    """
+    sections = entry.get("tooltip_sections")
+    if not sections:
+        return ""
+
+    parts: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ("loc_string", "name", "title") and isinstance(value, str):
+                    parts.append(value)
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(sections)
+    text = _TAG_RE.sub("", _SVG_RE.sub(" ", " ".join(parts)))
+    return re.sub(r"\s+", " ", text).strip()
 
 # Items whose family the typed stats cannot express, with the source of the
 # claim. Kept short and explicit rather than widening the stat table, so an
@@ -287,24 +376,53 @@ def item_families(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[int, dict[str,
             family, weight = weighting
             scores[family] = scores.get(family, 0) + weight
 
+        for family, weight in _tooltip_families(entry).items():
+            scores[family] = scores.get(family, 0) + weight
+
         override = TOOLTIP_OVERRIDES.get(entry.get("class_name", ""))
-        if override:
-            for family, weight in override.items():
-                scores[family] = scores.get(family, 0) + weight
-        elif _mentions_ally(entry):
-            scores["support"] = scores.get("support", 0) + 2
+        for family, weight in (override or {}).items():
+            scores[family] = scores.get(family, 0) + weight
 
         if scores:
             out[item_id] = scores
     return out
 
 
-def _mentions_ally(entry: dict[str, Any]) -> bool:
-    """Does the tooltip say this is cast on someone else?"""
-    sections = entry.get("tooltip_sections")
-    if not sections:
-        return False
-    return bool(ALLY_TOOLTIP_RE.search(json.dumps(sections)))
+def _tooltip_families(entry: dict[str, Any]) -> dict[str, int]:
+    """What the item's description says it is for.
+
+    Stats and text disagree often enough that this is not a tie-breaker, it is
+    primary evidence:
+
+    - Mystic and Radiant Regeneration type as spirit healing, so a stats-only
+      reading called them support. The text says "dealing spirit damage grants
+      YOU bonus regeneration" -- self-sustain, and the reason a gun carry buys
+      them alongside Healing Booster.
+    - Healing Tempo types as healing, but grants the target BONUS FIRE RATE,
+      which is why it appears in gun builds.
+    - Siphon Bullets' whole point ("your bullets steal Max HP") appears in no
+      stat key at all.
+
+    Ally-healing is scored at 3, above any stat, because it is the single
+    clearest signal that a build is supporting a team rather than itself.
+    """
+    text = tooltip_text(entry)
+    if not text:
+        return {}
+
+    scores: dict[str, int] = {}
+    heals_ally = bool(ALLY_TOOLTIP_RE.search(text))
+    heals_self = bool(SELF_HEAL_TOOLTIP_RE.search(text))
+
+    if heals_ally:
+        scores["support"] = 3
+    if heals_self and not heals_ally:
+        scores["sustain"] = scores.get("sustain", 0) + 2
+    if BULLET_TOOLTIP_RE.search(text):
+        scores["gun"] = scores.get("gun", 0) + 2
+    if MELEE_TOOLTIP_RE.search(text):
+        scores["melee"] = scores.get("melee", 0) + 3
+    return scores
 
 
 @functools.lru_cache(maxsize=1)
