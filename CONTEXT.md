@@ -118,26 +118,26 @@ use for kits. Distinct from [[build family]], which describes items: an ability
 is `burst`, `dot`, `cc`, `support`, `melee`, `gun`, `mobility`, `sustain` or
 `summon`.
 
-- **burst** — a large hit delivered in one moment. Lash's Ground Strike,
+- **burst** \x97 a large hit delivered in one moment. Lash's Ground Strike,
   Dynamo's Kinetic Pulse. Not merely "deals damage", which every hero does.
-- **dot** — damage over a duration. Shiv's Serrated Knives bleeds; Holliday's
+- **dot** \x97 damage over a duration. Shiv's Serrated Knives bleeds; Holliday's
   Powder Keg burns. An ability can be both: Powder Keg bursts *then* burns.
-- **cc** — taking control away from the enemy: stun, knockup, immobilize,
+- **cc** \x97 taking control away from the enemy: stun, knockup, immobilize,
   tether, silence, pull. Vindicta's Stake tethers; Dynamo's Singularity stuns
-  and pulls. Slow alone does not count — 35 of 152 abilities slow something.
-- **support** — helping someone else. Viscous' The Cube encases an ally in
+  and pulls. Slow alone does not count \x97 35 of 152 abilities slow something.
+- **support** \x97 helping someone else. Viscous' The Cube encases an ally in
   restorative goo; Kelvin's Frost Grenade heals allies.
-- **summon** — something that fights for you. Graves, McGinnis, Sinclair. The
+- **summon** \x97 something that fights for you. Graves, McGinnis, Sinclair. The
   item vocabulary has no word for this.
 
 Kit tags come from each ability's **description**, not its stats. Abilities
 keep that text in a different field from items (`description`, not
 `tooltip_sections`), and a stat-only reading misses most of what an ability
-does — Calico's Leaping Slash deals melee damage but carries no melee stat.
+does \x97 Calico's Leaping Slash deals melee damage but carries no melee stat.
 
 A kit says which builds are *plausible* on a hero, not which build a player is
 running. Measured against fitted archetypes, kit predicts build family only for
-melee — the one family whose items are useless without a melee ability.
+melee \x97 the one family whose items are useless without a melee ability.
 
 ## Ability focus
 
@@ -189,6 +189,39 @@ Mag and Long Range.
 A **soft** ordering prior, never a hard constraint: only 79% of players who buy
 a composite ever bought its component separately, so forbidding the parent
 before the component would make a fifth of real builds unreachable.
+
+## Absorption
+
+What happens to a component when its composite is bought: it leaves the
+inventory and frees its slot. This is the mechanism that reconciles ~17
+purchases with 12 held slots, and it is most of what "selling" means in this
+game â€” sold rate is 70.6% for items that are a component of something against
+6.4% for items that are not, and 86.6% for tier 1 against 1.1% for tier 4.
+
+Only about 6% of purchases are a genuine strategic sell.
+
+The consequence: a [[staple]] can be absorbed, and so be absent from the final
+inventory, while still being bought by nearly everyone. Mystic Burst is bought
+by 96% of one archetype's players and sold by 95%. So membership checks run
+over the purchase sequence, never over held items.
+
+## Backoff level
+
+Which table in the model's chain supplied a recommendation, from `L0` (this
+hero, archetype, last two items and time bucket) down to `L5` (this hero's
+overall pick rates). Reported with every recommendation alongside the raw
+observation count, so any number the tool prints traces to a literal table row
+and can be checked by hand.
+
+A deep level firing means this specific situation has been seen before; a
+shallow one means the tool is falling back on something more general.
+
+## Thin evidence
+
+A recommendation backed by fewer than 30 observations. Marked rather than
+hidden â€” the item may still be right, but a probability computed from 2
+observations is not the same claim as one computed from 1,635, and printing
+them identically is how a model earns confidence it has not measured.
 
 ## Tempo
 
