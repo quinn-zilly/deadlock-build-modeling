@@ -25,12 +25,20 @@ A recognizably different way of playing one hero, expressed as a distinct
 build. Ivy is played as a gun carry or as a spirit support; those two builds
 share few items, and advice averaged across them serves neither.
 
+An archetype has to be a playstyle a real minority actually plays, not one item
+pattern. Melee Sinclair at 15% is niche but genuine; a 3% Calico cluster
+separating on Lifestrike and Spirit Snatch is not, because she buys those in
+every build. The point of the project is to recommend how players actually
+build, so a cluster too small to represent a playstyle is discarded.
+
 An archetype belongs to a hero. There is no global "gun build" — there is Gun
 Ivy and Gun Lash, and they have different items. Not every hero has more than
 one: Haze, Dynamo, and Wraith have a single archetype, and that is a finding,
 not a failure to split.
 
-Archetypes are discovered by clustering, but named by what the build *does*.
+Archetypes are discovered by clustering on [[build family]] shares -- how a
+player's souls divided across gun, spirit, melee, support, tank, sustain,
+control and mobility -- and named by what the build *does*.
 The label is a claim about playstyle a player would recognize, not a summary of
 the clustering.
 
@@ -76,6 +84,11 @@ than where they are sold. The vocabulary players use:
 - **support** — healing and shielding allies. Signature: Rescue Beam,
   Healing Tempo, Divine Ward.
 - **tank** — health, resistances, sustain on oneself.
+
+Build families are also what the archetype clustering runs on. Clustering on
+shop-tab shares instead found 19 splits at mean separation 0.321; clustering on
+families finds 28 at 0.429, and recovers builds the tabs could not see --
+Dynamo's ult build (Refresher, Warp Stone, Duration Extender) among them.
 
 A hero's archetype is named for its dominant family: "Gun Lash", "Melee
 Sinclair", "Support Kelvin". Two archetypes of the same hero can share a

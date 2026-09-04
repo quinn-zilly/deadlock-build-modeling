@@ -10,12 +10,18 @@ arbitrary slices of a single population. Forcing k=2 everywhere would invent
 distinctions that do not exist, so k is selected per hero and 1 is an allowed
 answer.
 
-**The feature vector is deliberately coarse:** souls-weighted item slot-type
-shares (weapon / vitality / spirit), and nothing else. Clustering on item
-identities finds "who bought item X" groups that are tautological with what the
-model then predicts. Keeping the input coarse is what makes the readout ("these
-two clusters differ by 53 points on Extra Charge") a falsifiable claim rather
-than a restatement of the input.
+**The feature vector is souls-weighted BUILD FAMILY shares** -- how a player's
+souls divided across gun, spirit, melee, support, tank, sustain, control and
+mobility. Never item identities: clustering on those finds "who bought item X"
+groups that are tautological with what the model then predicts. Keeping the
+input coarse is what makes the readout ("these two clusters differ by 53 points
+on Extra Charge") a falsifiable claim rather than a restatement of the input.
+
+It used to be slot-type shares -- which shop tab the souls went to. That was
+wrong for the same reason it was wrong for naming: half the items sit in a tab
+that does not match what they do. Switching to families raised mean cluster
+separation from 0.321 to 0.429 across 38 heroes and found real splits on six
+heroes where slot shares found none, Dynamo among them.
 
 **Abilities are deliberately excluded, against the original design.** Measured
 on every hero tried, adding ability levels monotonically degrades the
@@ -26,10 +32,9 @@ mean ability-level gap is 0.48 of 4. Abilities do vary with archetype, but far
 too weakly to carry four extra dimensions, so they add noise. They remain
 available in `abilities.py` for the sequence model.
 
-Shares are also left unstandardized. Three fractions summing to 1 are already
-commensurate; z-scoring them inflates whichever slot type happens to have low
-variance for that hero and distorts the geometry (Ivy 0.508 raw vs 0.459
-standardized).
+Shares are left unstandardized. They already sum to 1, so they are commensurate;
+z-scoring inflates whichever family happens to have low variance for that hero
+and distorts the geometry.
 
 **Acceptance is not silhouette alone.** A silhouette score is exactly the kind
 of aggregate that passed while the old pipeline was wrong, so a split must also
@@ -69,9 +74,23 @@ CANDIDATE_K = (2, 3)
 # "these two builds differ by 63 points on Extra Charge" is a claim about the
 # game, where a silhouette coefficient is a claim about geometry.
 MIN_SEPARATION = 0.45
-MIN_SILHOUETTE = 0.35
+# A floor, not a criterion. Silhouette degrades with dimensionality, and the
+# family space has eight dimensions where the old slot space had three:
+# splits that scored 0.4-0.7 there score 0.19-0.61 here for the same data. A
+# 0.35 bar would reject 21 of the 25 heroes that clear separation and size.
+# Separation is what matches judgement, so silhouette only catches fits with
+# no geometric structure at all.
+MIN_SILHOUETTE = 0.15
 MIN_REPLICATION = 0.90
-MIN_CLUSTER_SHARE = 0.15
+# A build nobody plays is not a build. The point of the project is to
+# recommend how players -- especially good ones -- actually build, so a
+# cluster has to be a real minority playstyle rather than one item pattern.
+#
+# 12% admits melee Sinclair (14.6%), a niche but genuine playstyle. It excludes
+# Calico's 3.1% cluster, which separates at 0.92 purely on Lifestrike and
+# Spirit Snatch -- items she buys in every build, which does not make those
+# builds melee.
+MIN_CLUSTER_SHARE = 0.12
 
 # Below this a hero cannot support the fit at all.
 MIN_HERO_PLAYERS = 600
@@ -80,7 +99,13 @@ MIN_HERO_PLAYERS = 600
 NAMES_PATH = Path("data/archetype_names.json")
 
 SLOT_TYPES = ("weapon", "vitality", "spirit")
-FEATURE_COLUMNS = [f"share_{s}" for s in SLOT_TYPES]
+
+# Clustering runs on build families, not slot types. `slot_shares` is kept
+# because the review sheet still reports souls-by-shop-tab for reference.
+def _feature_columns() -> list[str]:
+    from . import semantics
+
+    return list(semantics.FAMILIES)
 
 
 @dataclass
@@ -137,14 +162,62 @@ def slot_shares(purchases: pd.DataFrame, items: dict[int, assets.Item] | None = 
     return shares
 
 
-def feature_matrix(purchases: pd.DataFrame) -> pd.DataFrame:
-    """Per-player archetype features: souls-weighted slot-type shares.
+def family_shares(
+    purchases: pd.DataFrame, items: dict[int, assets.Item] | None = None
+) -> pd.DataFrame:
+    """Souls-weighted share of each BUILD FAMILY in a player's purchases.
 
-    Left unstandardized on purpose -- see the module docstring. Three fractions
-    summing to 1 are already on one scale, and z-scoring them measurably
-    degrades every hero tried.
+    The semantic replacement for `slot_shares`. Slot type is a shop tab, and
+    half the items sit in a tab that does not match what they do; a build
+    family is what the item is for. Each item divides its cost across the
+    families it feeds, so Crushing Fists contributes mostly to melee and a
+    little to gun and tank.
+
+    Measured against slot shares over 38 heroes, this raises mean cluster
+    separation from 0.321 to 0.429 and finds real splits on six heroes where
+    slot shares found none -- Dynamo among them, which a player had named as
+    having distinct builds.
     """
-    return slot_shares(purchases).fillna(0.0)
+    from . import semantics
+
+    items = assets.load_items() if items is None else items
+    families = semantics.item_families()
+    columns = list(semantics.FAMILIES)
+
+    df = purchases.assign(cost=purchases["item_id"].map({i: it.cost for i, it in items.items()}))
+    df = df[df["cost"].fillna(0) > 0]
+
+    keys = ["match_id", "player_slot"]
+    weights = []
+    for family in columns:
+        share = df["item_id"].map(
+            lambda item_id, f=family: _family_weight(families, item_id, f)
+        )
+        weights.append((df["cost"] * share).rename(family))
+
+    spend = pd.concat([df[keys]] + weights, axis=1).groupby(keys)[columns].sum()
+    total = spend.sum(axis=1).replace(0.0, np.nan)
+    return spend.div(total, axis=0).dropna()
+
+
+def _family_weight(
+    families: dict[int, dict[str, int]], item_id: int, family: str
+) -> float:
+    """What fraction of one item's cost belongs to a family."""
+    scores = families.get(item_id)
+    if not scores:
+        return 0.0
+    total = sum(scores.values())
+    return scores.get(family, 0) / total if total else 0.0
+
+
+def feature_matrix(purchases: pd.DataFrame) -> pd.DataFrame:
+    """Per-player archetype features: souls-weighted build-family shares.
+
+    Left unstandardized on purpose -- see the module docstring. The shares
+    already sum to 1, and z-scoring them measurably degrades every hero tried.
+    """
+    return family_shares(purchases).fillna(0.0)
 
 
 def _silhouette(features: pd.DataFrame, labels: np.ndarray) -> float:
@@ -175,7 +248,7 @@ def _canonical_order(features: pd.DataFrame, labels: np.ndarray) -> np.ndarray:
     KMeans label indices are arbitrary across runs, so without this every
     downstream artifact silently permutes whenever the fit is repeated.
     """
-    spirit = features["share_spirit"] if "share_spirit" in features else None
+    spirit = features["spirit"] if "spirit" in features else None
     if spirit is None:
         return labels
     order = (
