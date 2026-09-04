@@ -46,6 +46,8 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
+from typing import Iterable
 import logging
 import warnings
 from dataclasses import dataclass, field
@@ -209,6 +211,90 @@ def _family_weight(
         return 0.0
     total = sum(scores.values())
     return scores.get(family, 0) / total if total else 0.0
+
+
+def partial_family_shares(
+    item_ids: Iterable[int], items: dict[int, assets.Item] | None = None
+) -> pd.Series:
+    """Build-family shares for an in-progress build.
+
+    The same arithmetic as `family_shares`, over a bare list of items rather
+    than a purchase frame -- the clustering is fit on finished builds, but
+    inference has to work on partial ones.
+    """
+    from . import semantics
+
+    items = assets.load_items() if items is None else items
+    families = semantics.item_families()
+    columns = list(semantics.FAMILIES)
+
+    spend = {family: 0.0 for family in columns}
+    for item_id in item_ids:
+        item = items.get(int(item_id))
+        if item is None or not item.cost:
+            continue
+        for family in columns:
+            spend[family] += item.cost * _family_weight(families, int(item_id), family)
+
+    total = sum(spend.values())
+    if total <= 0:
+        return pd.Series({family: 0.0 for family in columns})
+    return pd.Series({family: value / total for family, value in spend.items()})
+
+
+def archetype_posterior(
+    item_ids: Iterable[int],
+    hero_id: int,
+    meta: dict,
+    *,
+    temperature: float = 0.10,
+) -> dict[int, float]:
+    """How likely each archetype is, given the items bought so far.
+
+    Soft nearest-centroid rather than a hard assignment, because early in a
+    match the evidence genuinely does not identify the build. Measured on Ivy
+    (k=3, so a 33% floor), assignment accuracy runs 55% after 3 buys, 57% after
+    5, 64% after 8 and 79% after 12. Committing to one archetype at buy 3 would
+    be wrong nearly half the time, so the posterior stays spread and the
+    advisor shows the split.
+
+    With nothing bought, the honest answer is the population share of each
+    archetype -- how often people play it -- not a flat prior.
+
+    The default temperature is calibrated: accuracy is flat across 0.05-0.40
+    (the ranking barely moves), so it is chosen by log-loss at 8 buys, which
+    is minimised at 0.10. That matters because the posterior is displayed and
+    marginalised over, not just argmaxed.
+    """
+    hero_meta = (meta.get("heroes") or {}).get(str(int(hero_id)))
+    if not hero_meta:
+        return {0: 1.0}
+    entries = hero_meta.get("archetypes") or []
+    if len(entries) <= 1:
+        return {int(entries[0]["archetype_id"]) if entries else 0: 1.0}
+
+    prior = {int(e["archetype_id"]): float(e.get("share", 1.0)) for e in entries}
+    item_ids = list(item_ids)
+    if not item_ids:
+        total = sum(prior.values()) or 1.0
+        return {a: p / total for a, p in prior.items()}
+
+    shares = partial_family_shares(item_ids)
+    scores: dict[int, float] = {}
+    for entry in entries:
+        centroid = entry.get("centroid") or {}
+        distance = sum(
+            (shares.get(family, 0.0) - float(value)) ** 2
+            for family, value in centroid.items()
+        )
+        archetype_id = int(entry["archetype_id"])
+        scores[archetype_id] = prior[archetype_id] * math.exp(-distance / temperature)
+
+    total = sum(scores.values())
+    if total <= 0:
+        total = sum(prior.values()) or 1.0
+        return {a: p / total for a, p in prior.items()}
+    return {a: score / total for a, score in scores.items()}
 
 
 def feature_matrix(purchases: pd.DataFrame) -> pd.DataFrame:

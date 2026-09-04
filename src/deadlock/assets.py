@@ -196,3 +196,50 @@ def component_map(cache_dir: Path = DEFAULT_CACHE) -> dict[int, tuple[int, ...]]
         if components:
             out[entry["id"]] = components
     return out
+
+
+def _resolve(query: str, options: dict[int, str], kind: str) -> int:
+    """Match a name the way a person would type it.
+
+    Exact, then case-insensitive, then unique prefix, then unique substring.
+    Nobody types 4008176313, and "did you mean" beats a stack trace.
+    """
+    query = query.strip()
+    lowered = query.lower()
+    for key, name in options.items():
+        if name == query:
+            return key
+    matches = [k for k, name in options.items() if name.lower() == lowered]
+    if len(matches) == 1:
+        return matches[0]
+    for predicate in (
+        lambda name: name.lower().startswith(lowered),
+        lambda name: lowered in name.lower(),
+    ):
+        matches = [k for k, name in options.items() if predicate(name)]
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            names = sorted(options[k] for k in matches)
+            raise KeyError(
+                f"{query!r} matches several {kind}s: {', '.join(names[:6])}"
+            )
+    close = sorted(
+        (name for name in options.values() if lowered[:3] in name.lower()),
+    )[:5]
+    hint = f" Did you mean: {', '.join(close)}?" if close else ""
+    raise KeyError(f"no {kind} matching {query!r}.{hint}")
+
+
+def resolve_hero(query: str, cache_dir: Path = DEFAULT_CACHE) -> int:
+    """Hero id from a name a player typed."""
+    return _resolve(
+        query, {i: h.name for i, h in playable_heroes(cache_dir).items()}, "hero"
+    )
+
+
+def resolve_item(query: str, cache_dir: Path = DEFAULT_CACHE) -> int:
+    """Item id from a name a player typed."""
+    return _resolve(
+        query, {i: it.name for i, it in shopable_items(cache_dir).items()}, "item"
+    )

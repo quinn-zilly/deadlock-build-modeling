@@ -21,6 +21,11 @@ from . import assets
 TIME_BUCKET_BOUNDS_S = (300, 600, 900, 1200, 1800)
 TIME_BUCKET_LABELS = ("0-5", "5-10", "10-15", "15-20", "20-30", "30+")
 
+# Fewer observations than this behind a recommendation and the number is a
+# guess dressed as a measurement. Marked rather than hidden: the item may still
+# be right, but the player should know how little is standing behind it.
+THIN_EVIDENCE = 30
+
 
 def time_bucket(game_time_s: float) -> int:
     """Index into TIME_BUCKET_LABELS for a purchase time."""
@@ -105,11 +110,22 @@ class Recommendation:
     backoff_level: str
     cost: int
 
+    @property
+    def thin(self) -> bool:
+        """Whether too few observations back this to be worth stating plainly.
+
+        A probability from 2 observations and one from 1,635 are not the same
+        claim, and printing them identically invites exactly the misplaced
+        confidence this project was burned by.
+        """
+        return self.n < THIN_EVIDENCE
+
     def __str__(self) -> str:
-        return (
+        line = (
             f"{self.item_name:28s} p={self.probability:.4f}  "
             f"(n={self.n:,}, {self.backoff_level}, {self.cost} souls)"
         )
+        return line + "  [thin]" if self.thin else line
 
 
 def candidate_items(state: GameState, *, affordable_only: bool = True) -> list[int]:
