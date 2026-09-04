@@ -129,3 +129,26 @@ class TestMediatorControls:
         players = design.player_level(_purchases())
         for col in design.MEDIATOR_COLUMNS:
             assert col in players.columns
+
+
+class TestEconomicBlock:
+    def test_economics_included_by_default(self):
+        _, _, names, _ = design.build_design(_purchases(), ITEMS, HEROES)
+        assert "median_gap_s" in names
+
+    def test_can_be_excluded(self):
+        _, _, names, _ = design.build_design(
+            _purchases(), ITEMS, HEROES, include_economics=False
+        )
+        assert "median_gap_s" not in names
+
+    def test_no_wealth_proxy_in_matrix(self):
+        # total_spend correlates 0.78 with net worth; it must not enter a
+        # model whose lift is measured against the wealth baseline.
+        _, _, names, _ = design.build_design(_purchases(), ITEMS, HEROES)
+        assert "total_spend" not in names
+
+    def test_rows_stay_aligned(self):
+        x, y, names, players = design.build_design(_purchases(), ITEMS, HEROES)
+        assert x.shape[0] == len(y) == len(players)
+        assert x.shape[1] == len(names)

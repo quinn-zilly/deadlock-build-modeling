@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 
-from . import features
+from . import assets, economy, features
 
 log = logging.getLogger(__name__)
 
@@ -194,6 +194,7 @@ def build_design(
     hero_ids: list[int],
     *,
     include_items: bool = True,
+    include_economics: bool = True,
 ) -> tuple[sp.csr_matrix, np.ndarray, list[str], pd.DataFrame]:
     """Assemble the full sparse design matrix.
 
@@ -210,6 +211,17 @@ def build_design(
     comp, comp_names = composition_matrix(players, hero_ids)
     blocks.append(comp)
     names.extend(comp_names)
+
+    if include_economics:
+        # Behavioural spending features only. total_spend is excluded as a
+        # wealth proxy (corr 0.78 with net worth) -- see economy.py.
+        eco = economy.economic_features(df, assets.load_items())
+        key = pd.MultiIndex.from_frame(players[["match_id", "player_slot"]])
+        eco = eco.reindex(key).fillna(0.0)
+        blocks.append(
+            sp.csr_matrix(eco[economy.BEHAVIOURAL_COLUMNS].to_numpy(dtype=np.float32))
+        )
+        names.extend(economy.BEHAVIOURAL_COLUMNS)
 
     if include_items:
         items, item_names = item_phase_matrix(df, players, item_ids)
