@@ -520,10 +520,16 @@ def name_cluster(
     return f"{label} {hero_name}", scores, margin
 
 
-@functools.lru_cache(maxsize=1)
-def _raw_abilities(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[int, dict[str, Any]]:
-    raw: list[dict[str, Any]] = api.get("/v1/assets/items", cache_dir=cache_dir)
-    return {e["id"]: e for e in raw if e.get("type") == "ability"}
+# Kit tags map onto item build families where the vocabularies overlap. `burst`,
+# `dot` and `cc` describe how an ability delivers its effect and have no item
+# counterpart, so they carry no family weight.
+KIT_TAG_FAMILIES = {
+    "support": ("support", 3),
+    "melee": ("melee", 3),
+    "gun": ("gun", 2),
+    "sustain": ("sustain", 2),
+    "mobility": ("mobility", 1),
+}
 
 
 def hero_ability_families(
@@ -531,25 +537,24 @@ def hero_ability_families(
 ) -> dict[str, int]:
     """Which families a hero's own abilities point toward.
 
-    A hero's kit says what builds are plausible on them, independent of any
-    cluster: Calico's Leaping Slash deals melee damage and heals off spirit,
-    and Kelvin's Frost Grenade heals allies while slowing enemies. That is why
-    melee Calico and support Kelvin are real builds.
+    Read from what the abilities DO, via `kits.hero_kits`, not from their stat
+    keys. The stat-only version could not see that Calico's Leaping Slash
+    deals melee damage -- the ability carries only HealAmount -- and so could
+    not explain why melee Calico is a real build. The description says
+    "slashing all enemies in a circle, dealing melee damage".
 
-    This is weaker evidence than items -- it describes the hero, not which of
-    their clusters is which -- so it is a tie-breaker, never the primary
-    signal.
+    A hero's kit says what builds are PLAUSIBLE on them, not which build a
+    given player is running, so this stays a weak prior. Measured against the
+    fitted archetypes, kit predicts build family only for melee -- the one
+    family whose items are useless without a melee ability.
     """
-    abilities = _raw_abilities(cache_dir)
-    slots = assets.signature_slots(cache_dir)
+    from . import kits
+
     scores: dict[str, int] = {}
-    for ability_id, entry in abilities.items():
-        if entry.get("hero") != hero_id or ability_id not in slots:
+    for tag, count in kits.hero_kits(cache_dir).get(hero_id, {}).items():
+        mapping = KIT_TAG_FAMILIES.get(tag)
+        if mapping is None:
             continue
-        for stat in _stat_names(entry):
-            weighting = FAMILY_WEIGHTS.get(stat)
-            if weighting is None:
-                continue
-            family, weight = weighting
-            scores[family] = scores.get(family, 0) + weight
+        family, weight = mapping
+        scores[family] = scores.get(family, 0) + weight * count
     return scores

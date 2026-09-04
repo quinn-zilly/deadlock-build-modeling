@@ -252,19 +252,26 @@ class TestNaming:
 
 
 class TestHeroAbilities:
-    def test_ability_stats_do_not_encode_melee(self):
-        """A limit worth pinning, not a bug.
+    def test_calico_kit_points_at_melee(self):
+        """A limitation that turned out to be fixable.
 
-        A player noted Calico's Leaping Slash deals melee damage and heals off
-        spirit, which is why melee Calico is a real build. But the ability
-        carries no typed melee stat -- only HealAmount -- so the kit signal
-        cannot recover it. Hero-level ability evidence is a weak prior here,
-        and item evidence is what actually names the build.
+        Calico's Leaping Slash carries no typed melee stat -- only HealAmount
+        -- so a stat-based reading could not explain why melee Calico is a real
+        build. Its DESCRIPTION says "slashing all enemies in a circle, dealing
+        melee damage", and reading that recovers it.
         """
         scores = semantics.hero_ability_families(
             next(h for h, v in assets.load_heroes().items() if v.name == "Calico")
         )
-        assert scores.get("melee", 0) == 0
+        assert scores.get("melee", 0) > 0
+
+    def test_viscous_kit_points_at_support(self):
+        """The Cube. A stat-based reading saw only an Air Control buff and
+        concluded Viscous was not a support hero."""
+        scores = semantics.hero_ability_families(
+            next(h for h, v in assets.load_heroes().items() if v.name == "Viscous")
+        )
+        assert scores.get("support", 0) > 0
 
     def test_kelvin_kit_points_at_support(self):
         """Frost Grenade heals teammates and slows enemies."""

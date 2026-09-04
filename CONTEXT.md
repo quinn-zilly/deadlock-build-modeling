@@ -98,6 +98,34 @@ are one archetype, and the fit should refuse to split them. Counter-picks
 belong in the sequence model as a conditioning variable â€” given this enemy
 roster, what do people buy â€” never as an archetype dimension.
 
+## Kit tag
+
+What one of a hero's four signature abilities *does*, in the vocabulary players
+use for kits. Distinct from [[build family]], which describes items: an ability
+is `burst`, `dot`, `cc`, `support`, `melee`, `gun`, `mobility`, `sustain` or
+`summon`.
+
+- **burst** — a large hit delivered in one moment. Lash's Ground Strike,
+  Dynamo's Kinetic Pulse. Not merely "deals damage", which every hero does.
+- **dot** — damage over a duration. Shiv's Serrated Knives bleeds; Holliday's
+  Powder Keg burns. An ability can be both: Powder Keg bursts *then* burns.
+- **cc** — taking control away from the enemy: stun, knockup, immobilize,
+  tether, silence, pull. Vindicta's Stake tethers; Dynamo's Singularity stuns
+  and pulls. Slow alone does not count — 35 of 152 abilities slow something.
+- **support** — helping someone else. Viscous' The Cube encases an ally in
+  restorative goo; Kelvin's Frost Grenade heals allies.
+- **summon** — something that fights for you. Graves, McGinnis, Sinclair. The
+  item vocabulary has no word for this.
+
+Kit tags come from each ability's **description**, not its stats. Abilities
+keep that text in a different field from items (`description`, not
+`tooltip_sections`), and a stat-only reading misses most of what an ability
+does — Calico's Leaping Slash deals melee damage but carries no melee stat.
+
+A kit says which builds are *plausible* on a hero, not which build a player is
+running. Measured against fitted archetypes, kit predicts build family only for
+melee — the one family whose items are useless without a melee ability.
+
 ## Ability focus
 
 Which of a hero's four signature abilities a build is built around. The way
