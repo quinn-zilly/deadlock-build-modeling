@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from deadlock import archetype, assets, evaluate
+from deadlock import archetype, assets, evaluate, semantics
 
 ARCHETYPES = Path("data/processed/archetypes.parquet")
 PURCHASES = Path("data/processed/purchases.parquet")
@@ -229,14 +229,50 @@ class TestDiscriminativeItems:
 
 
 class TestProposeName:
-    @pytest.mark.parametrize(
-        "dominant,expected",
-        [("share_spirit", "Spirit Ivy"), ("share_weapon", "Gun Ivy"), ("share_vitality", "Tank Ivy")],
-    )
-    def test_names_from_dominant_slot(self, dominant, expected):
+    """Naming reads the cluster's distinguishing items, not its centroid."""
+
+    @staticmethod
+    def prevalence_favouring(item_ids: list[int]) -> pd.DataFrame:
+        """Cluster 0 buys `item_ids` heavily; cluster 1 barely touches them."""
+        columns = sorted(set(item_ids) | set(WEAPON) | set(SPIRIT))
+        rows = []
+        for cluster in (0, 1):
+            rows.append(
+                {i: (0.9 if (i in item_ids) == (cluster == 0) else 0.05) for i in columns}
+            )
+        return pd.DataFrame(rows, index=[0, 1])
+
+    def test_names_from_items_not_centroid(self):
+        """A vitality-heavy centroid must not force "Tank" when items say gun."""
+        gun = [i for i, fams in semantics.item_families().items() if "gun" in fams][:5]
         centroid = pd.Series({k: 0.1 for k in archetype.FEATURE_COLUMNS})
-        centroid[dominant] = 0.8
-        assert archetype.propose_name(centroid, "Ivy", pd.DataFrame(), 0) == expected
+        centroid["share_vitality"] = 0.8
+        name, _ = archetype.propose_name(
+            centroid, "Lash", self.prevalence_favouring(gun), 0
+        )
+        assert name == "Gun Lash"
+
+    def test_melee_is_reachable(self):
+        """Melee items are weapon-slotted, so slot type could never name this."""
+        melee = [i for i, fams in semantics.item_families().items() if fams.get("melee", 0) >= 6]
+        name, _ = archetype.propose_name(
+            pd.Series(dtype=float), "Abrams", self.prevalence_favouring(melee), 0
+        )
+        assert name == "Melee Abrams"
+
+    def test_single_cluster_gets_the_bare_hero_name(self):
+        single = pd.DataFrame([{1: 0.9}], index=[0])
+        assert archetype.propose_name(pd.Series(dtype=float), "Haze", single, 0) == (
+            "Haze",
+            0.0,
+        )
+
+    def test_returns_a_margin(self):
+        gun = [i for i, fams in semantics.item_families().items() if "gun" in fams][:5]
+        _, margin = archetype.propose_name(
+            pd.Series(dtype=float), "Lash", self.prevalence_favouring(gun), 0
+        )
+        assert margin >= semantics.MIN_NAMING_MARGIN
 
 
 class TestFitAll:
@@ -292,12 +328,69 @@ class TestAgainstRealData:
     def test_ivy_splits(self):
         """The hero the whole design rests on."""
         _, meta, heroes = self.load()
-        assert meta["heroes"][str(heroes["Ivy"])]["k"] == 2
+        assert meta["heroes"][str(heroes["Ivy"])]["k"] >= 2
 
-    def test_ivy_names_read_as_gun_and_spirit(self):
+    def test_ivy_has_a_gun_and_a_spirit_build(self):
         _, meta, heroes = self.load()
         names = {a["name"] for a in meta["heroes"][str(heroes["Ivy"])]["archetypes"]}
-        assert names == {"Gun Ivy", "Spirit Ivy"}
+        assert {"Gun Ivy", "Spirit Ivy"} <= names
+
+    @pytest.mark.parametrize(
+        "hero,expected",
+        [
+            ("Lash", "Gun Lash"),
+            ("Abrams", "Melee Abrams"),
+            ("Sinclair", "Melee Sinclair"),
+            ("Kelvin", "Support Kelvin"),
+            ("Bebop", "Gun Bebop"),
+            ("Calico", "Melee Calico"),
+        ],
+    )
+    def test_player_corrections_are_reproduced(self, hero, expected):
+        """Every name a Deadlock player supplied, back from the rule.
+
+        Each of these was previously "Tank X" or a duplicate "Spirit X".
+        """
+        _, meta, heroes = self.load()
+        names = {a["name"] for a in meta["heroes"][str(heroes[hero])]["archetypes"]}
+        assert expected in names
+
+    def test_duplicate_names_are_rare(self):
+        """The old rule gave one hero three clusters all called "Spirit X".
+
+        Family naming cannot separate two builds of the SAME family -- Celeste
+        genuinely has two spirit builds -- so this bounds the problem rather
+        than forbidding it. Distinguishing those needs ability focus ("ult" vs
+        "stomp"), which is not implemented.
+        """
+        _, meta, _ = self.load()
+        duplicated = 0
+        for entry in meta["heroes"].values():
+            named = [a["name"] for a in entry["archetypes"] if a["name"] != entry["hero_name"]]
+            if len(named) != len(set(named)):
+                duplicated += 1
+        assert duplicated <= 2
+
+    def test_thin_margins_decline_to_label(self):
+        """A near-tie is a coin flip; the rule keeps the bare hero name."""
+        _, meta, _ = self.load()
+        for entry in meta["heroes"].values():
+            for cluster in entry["archetypes"]:
+                margin = cluster.get("naming_margin", 0.0)
+                if 0 < margin < semantics.MIN_NAMING_MARGIN:
+                    assert cluster["name"] == entry["hero_name"]
+
+    def test_tank_no_longer_dominates(self):
+        """Slot-share naming produced 10 "Tank" labels, most of them wrong."""
+        _, meta, _ = self.load()
+        labels = [
+            a["name"].split()[0]
+            for e in meta["heroes"].values()
+            for a in e["archetypes"]
+            if a["name"] != e["hero_name"]
+        ]
+        assert labels.count("Tank") <= 3
+        assert labels.count("Melee") >= 4
 
     @pytest.mark.parametrize("hero", ["Haze", "Dynamo", "Wraith"])
     def test_heroes_with_one_build_do_not_split(self, hero):

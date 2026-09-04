@@ -72,9 +72,20 @@ def sheet(meta: dict, purchases: pd.DataFrame) -> str:
             shares = "  ".join(
                 f"{k.replace('share_', '')} {v:.0%}" for k, v in centroid.items()
             )
+            margin = cluster.get("naming_margin", 0.0)
+            if margin >= 1.3:
+                confidence = f", named at {margin:.1f}x over the runner-up"
+            elif margin:
+                confidence = ", **unnamed** — the families are too close to call"
+            else:
+                confidence = ""
             lines += [
                 f"**{cluster['name']}** — {cluster['share']:.0%} of players "
-                f"(n={cluster['n']:,}) — {shares}",
+                f"(n={cluster['n']:,}){confidence}",
+                "",
+                f"_Souls by shop tab: {shares}. Shown for reference only — the "
+                "name comes from what the items below do, not from the tab they "
+                "are sold in._",
                 "",
                 "| item | in this build | in the others |",
                 "|---|---|---|",

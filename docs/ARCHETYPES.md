@@ -21,7 +21,9 @@ overrule any of them.
 | separation | 0.857 | >= 0.45 |
 | smallest share | 0.330 | >= 0.15 |
 
-**Spirit Lady Geist** — 67% of players (n=3,987) — weapon 3%  vitality 26%  spirit 72%
+**Spirit Lady Geist** — 67% of players (n=3,987), named at 3.1x over the runner-up
+
+_Souls by shop tab: weapon 3%  vitality 26%  spirit 72%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -36,7 +38,9 @@ overrule any of them.
 | Spirit Lifesteal | 84% | 25% |
 | Sprint Boots | 70% | 10% |
 
-**Gun Lady Geist** — 33% of players (n=1,963) — weapon 42%  vitality 38%  spirit 21%
+**Gun Lady Geist** — 33% of players (n=1,963), named at 1.5x over the runner-up
+
+_Souls by shop tab: weapon 42%  vitality 38%  spirit 21%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -60,7 +64,9 @@ overrule any of them.
 | separation | 0.794 | >= 0.45 |
 | smallest share | 0.183 | >= 0.15 |
 
-**Tank Venator** — 18% of players (n=1,328) — weapon 31%  vitality 37%  spirit 32%
+**Support Venator** — 18% of players (n=1,328), named at 1.9x over the runner-up
+
+_Souls by shop tab: weapon 31%  vitality 37%  spirit 32%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -75,7 +81,9 @@ overrule any of them.
 | Titanic Magazine | 80% | 13% |
 | Extended Magazine | 80% | 18% |
 
-**Gun Venator** — 82% of players (n=5,913) — weapon 52%  vitality 43%  spirit 5%
+**Gun Venator** — 82% of players (n=5,913), named at 2.3x over the runner-up
+
+_Souls by shop tab: weapon 52%  vitality 43%  spirit 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -99,7 +107,9 @@ overrule any of them.
 | separation | 0.789 | >= 0.45 |
 | smallest share | 0.284 | >= 0.15 |
 
-**Spirit McGinnis** — 72% of players (n=3,332) — weapon 11%  vitality 23%  spirit 66%
+**Spirit McGinnis** — 72% of players (n=3,332), named at 3.5x over the runner-up
+
+_Souls by shop tab: weapon 11%  vitality 23%  spirit 66%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -114,7 +124,9 @@ overrule any of them.
 | Superior Cooldown | 58% | 2% |
 | Improved Spirit | 54% | 5% |
 
-**Gun McGinnis** — 28% of players (n=1,324) — weapon 46%  vitality 34%  spirit 19%
+**Gun McGinnis** — 28% of players (n=1,324), named at 3.6x over the runner-up
+
+_Souls by shop tab: weapon 46%  vitality 34%  spirit 19%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -138,7 +150,9 @@ overrule any of them.
 | separation | 0.778 | >= 0.45 |
 | smallest share | 0.373 | >= 0.15 |
 
-**Spirit Lash** — 63% of players (n=8,126) — weapon 12%  vitality 25%  spirit 63%
+**Spirit Lash** — 63% of players (n=8,126), named at 3.4x over the runner-up
+
+_Souls by shop tab: weapon 12%  vitality 25%  spirit 63%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -153,7 +167,9 @@ overrule any of them.
 | Mystic Shot | 41% | 3% |
 | Trophy Collector | 39% | 7% |
 
-**Tank Lash** — 37% of players (n=4,825) — weapon 32%  vitality 41%  spirit 27%
+**Gun Lash** — 37% of players (n=4,825), named at 3.8x over the runner-up
+
+_Souls by shop tab: weapon 32%  vitality 41%  spirit 27%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -177,7 +193,9 @@ overrule any of them.
 | separation | 0.716 | >= 0.45 |
 | smallest share | 0.176 | >= 0.15 |
 
-**Spirit Holliday** — 82% of players (n=3,986) — weapon 10%  vitality 25%  spirit 65%
+**Spirit Holliday** — 82% of players (n=3,986), named at 3.0x over the runner-up
+
+_Souls by shop tab: weapon 10%  vitality 25%  spirit 65%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -192,7 +210,9 @@ overrule any of them.
 | Extra Spirit | 91% | 49% |
 | Spirit Burn | 44% | 3% |
 
-**Gun Holliday** — 18% of players (n=853) — weapon 47%  vitality 26%  spirit 27%
+**Gun Holliday** — 18% of players (n=853), named at 5.1x over the runner-up
+
+_Souls by shop tab: weapon 47%  vitality 26%  spirit 27%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -216,7 +236,9 @@ overrule any of them.
 | separation | 0.707 | >= 0.45 |
 | smallest share | 0.209 | >= 0.15 |
 
-**Spirit Abrams** — 21% of players (n=1,898) — weapon 8%  vitality 37%  spirit 55%
+**Spirit Abrams** — 21% of players (n=1,898), named at 2.6x over the runner-up
+
+_Souls by shop tab: weapon 8%  vitality 37%  spirit 55%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -231,7 +253,9 @@ overrule any of them.
 | Mystic Expansion | 47% | 3% |
 | Duration Extender | 79% | 38% |
 
-**Tank Abrams** — 79% of players (n=7,184) — weapon 35%  vitality 47%  spirit 17%
+**Melee Abrams** — 79% of players (n=7,184), named at 2.4x over the runner-up
+
+_Souls by shop tab: weapon 35%  vitality 47%  spirit 17%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -255,7 +279,9 @@ overrule any of them.
 | separation | 0.677 | >= 0.45 |
 | smallest share | 0.318 | >= 0.15 |
 
-**Spirit Viscous** — 68% of players (n=4,194) — weapon 12%  vitality 27%  spirit 62%
+**Spirit Viscous** — 68% of players (n=4,194), named at 2.1x over the runner-up
+
+_Souls by shop tab: weapon 12%  vitality 27%  spirit 62%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -270,7 +296,9 @@ overrule any of them.
 | Mystic Shot | 46% | 14% |
 | Mystic Burst | 84% | 55% |
 
-**Gun Viscous** — 32% of players (n=1,958) — weapon 38%  vitality 26%  spirit 36%
+**Melee Viscous** — 32% of players (n=1,958), named at 4.4x over the runner-up
+
+_Souls by shop tab: weapon 38%  vitality 26%  spirit 36%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -294,7 +322,9 @@ overrule any of them.
 | separation | 0.620 | >= 0.45 |
 | smallest share | 0.151 | >= 0.15 |
 
-**Spirit Sinclair** — 85% of players (n=3,131) — weapon 5%  vitality 22%  spirit 72%
+**Spirit Sinclair** — 85% of players (n=3,131), named at 4.9x over the runner-up
+
+_Souls by shop tab: weapon 5%  vitality 22%  spirit 72%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -309,7 +339,9 @@ overrule any of them.
 | Greater Expansion | 86% | 62% |
 | Tankbuster | 24% | 3% |
 
-**Spirit Sinclair** — 15% of players (n=559) — weapon 21%  vitality 39%  spirit 40%
+**Melee Sinclair** — 15% of players (n=559), named at 2.4x over the runner-up
+
+_Souls by shop tab: weapon 21%  vitality 39%  spirit 40%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -333,7 +365,9 @@ overrule any of them.
 | separation | 0.602 | >= 0.45 |
 | smallest share | 0.355 | >= 0.15 |
 
-**Spirit Bebop** — 65% of players (n=8,399) — weapon 3%  vitality 37%  spirit 60%
+**Spirit Bebop** — 65% of players (n=8,399), named at 2.0x over the runner-up
+
+_Souls by shop tab: weapon 3%  vitality 37%  spirit 60%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -348,7 +382,9 @@ overrule any of them.
 | Mystic Reverb | 34% | 2% |
 | Compress Cooldown | 32% | 2% |
 
-**Gun Bebop** — 35% of players (n=4,618) — weapon 41%  vitality 37%  spirit 21%
+**Gun Bebop** — 35% of players (n=4,618), named at 2.1x over the runner-up
+
+_Souls by shop tab: weapon 41%  vitality 37%  spirit 21%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -372,7 +408,9 @@ overrule any of them.
 | separation | 0.581 | >= 0.45 |
 | smallest share | 0.319 | >= 0.15 |
 
-**Spirit Ivy** — 32% of players (n=2,618) — weapon 8%  vitality 14%  spirit 78%
+**Spirit Ivy** — 32% of players (n=2,618), named at 3.3x over the runner-up
+
+_Souls by shop tab: weapon 8%  vitality 14%  spirit 78%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -387,7 +425,9 @@ overrule any of them.
 | Duration Extender | 54% | 15% |
 | Mystic Expansion | 85% | 47% |
 
-**Spirit Ivy** — 36% of players (n=2,974) — weapon 30%  vitality 27%  spirit 43%
+**Ivy** — 36% of players (n=2,974), **unnamed** — the families are too close to call
+
+_Souls by shop tab: weapon 30%  vitality 27%  spirit 43%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -402,7 +442,9 @@ overrule any of them.
 | Healbane | 56% | 38% |
 | Spiritual Overflow | 20% | 2% |
 
-**Gun Ivy** — 32% of players (n=2,616) — weapon 53%  vitality 35%  spirit 12%
+**Gun Ivy** — 32% of players (n=2,616), named at 3.9x over the runner-up
+
+_Souls by shop tab: weapon 53%  vitality 35%  spirit 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -426,7 +468,9 @@ overrule any of them.
 | separation | 0.567 | >= 0.45 |
 | smallest share | 0.217 | >= 0.15 |
 
-**Spirit Graves** — 78% of players (n=6,456) — weapon 18%  vitality 22%  spirit 60%
+**Spirit Graves** — 78% of players (n=6,456), named at 2.6x over the runner-up
+
+_Souls by shop tab: weapon 18%  vitality 22%  spirit 60%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -441,7 +485,9 @@ overrule any of them.
 | Superior Cooldown | 42% | 4% |
 | Mystic Shot | 56% | 26% |
 
-**Gun Graves** — 22% of players (n=1,791) — weapon 45%  vitality 33%  spirit 21%
+**Gun Graves** — 22% of players (n=1,791), named at 2.6x over the runner-up
+
+_Souls by shop tab: weapon 45%  vitality 33%  spirit 21%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -465,7 +511,9 @@ overrule any of them.
 | separation | 0.496 | >= 0.45 |
 | smallest share | 0.330 | >= 0.15 |
 
-**Spirit Drifter** — 34% of players (n=3,958) — weapon 17%  vitality 26%  spirit 57%
+**Drifter** — 34% of players (n=3,958), **unnamed** — the families are too close to call
+
+_Souls by shop tab: weapon 17%  vitality 26%  spirit 57%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -480,7 +528,9 @@ overrule any of them.
 | Arctic Blast | 34% | 2% |
 | Duration Extender | 36% | 4% |
 
-**Tank Drifter** — 33% of players (n=3,904) — weapon 37%  vitality 40%  spirit 23%
+**Drifter** — 33% of players (n=3,904), **unnamed** — the families are too close to call
+
+_Souls by shop tab: weapon 37%  vitality 40%  spirit 23%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -495,7 +545,9 @@ overrule any of them.
 | Bullet Lifesteal | 29% | 17% |
 | Extra Stamina | 43% | 32% |
 
-**Gun Drifter** — 33% of players (n=3,879) — weapon 61%  vitality 34%  spirit 6%
+**Gun Drifter** — 33% of players (n=3,879), named at 2.5x over the runner-up
+
+_Souls by shop tab: weapon 61%  vitality 34%  spirit 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -519,7 +571,9 @@ overrule any of them.
 | separation | 0.491 | >= 0.45 |
 | smallest share | 0.206 | >= 0.15 |
 
-**Spirit Yamato** — 79% of players (n=4,986) — weapon 12%  vitality 25%  spirit 63%
+**Spirit Yamato** — 79% of players (n=4,986), named at 1.8x over the runner-up
+
+_Souls by shop tab: weapon 12%  vitality 25%  spirit 63%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -534,7 +588,9 @@ overrule any of them.
 | Spirit Burn | 25% | 2% |
 | Cold Front | 24% | 3% |
 
-**Tank Yamato** — 21% of players (n=1,294) — weapon 31%  vitality 35%  spirit 34%
+**Yamato** — 21% of players (n=1,294), **unnamed** — the families are too close to call
+
+_Souls by shop tab: weapon 31%  vitality 35%  spirit 34%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -558,7 +614,9 @@ overrule any of them.
 | separation | 0.487 | >= 0.45 |
 | smallest share | 0.266 | >= 0.15 |
 
-**Spirit Victor** — 73% of players (n=6,102) — weapon 3%  vitality 37%  spirit 61%
+**Spirit Victor** — 73% of players (n=6,102), named at 2.1x over the runner-up
+
+_Souls by shop tab: weapon 3%  vitality 37%  spirit 61%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -573,7 +631,9 @@ overrule any of them.
 | Compress Cooldown | 53% | 17% |
 | Infuser | 87% | 52% |
 
-**Tank Victor** — 27% of players (n=2,208) — weapon 18%  vitality 47%  spirit 35%
+**Gun Victor** — 27% of players (n=2,208), named at 2.1x over the runner-up
+
+_Souls by shop tab: weapon 18%  vitality 47%  spirit 35%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -597,7 +657,9 @@ overrule any of them.
 | separation | 0.485 | >= 0.45 |
 | smallest share | 0.197 | >= 0.15 |
 
-**Spirit Calico** — 80% of players (n=6,451) — weapon 10%  vitality 19%  spirit 71%
+**Spirit Calico** — 80% of players (n=6,451), named at 1.7x over the runner-up
+
+_Souls by shop tab: weapon 10%  vitality 19%  spirit 71%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -612,7 +674,9 @@ overrule any of them.
 | Escalating Exposure | 31% | 5% |
 | Cold Front | 99% | 78% |
 
-**Spirit Calico** — 20% of players (n=1,587) — weapon 26%  vitality 34%  spirit 40%
+**Melee Calico** — 20% of players (n=1,587), named at 1.7x over the runner-up
+
+_Souls by shop tab: weapon 26%  vitality 34%  spirit 40%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -636,7 +700,9 @@ overrule any of them.
 | separation | 0.483 | >= 0.45 |
 | smallest share | 0.279 | >= 0.15 |
 
-**Spirit Celeste** — 35% of players (n=2,411) — weapon 8%  vitality 26%  spirit 66%
+**Spirit Celeste** — 35% of players (n=2,411), named at 2.7x over the runner-up
+
+_Souls by shop tab: weapon 8%  vitality 26%  spirit 66%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -651,7 +717,9 @@ overrule any of them.
 | Stamina Mastery | 55% | 33% |
 | Extra Stamina | 49% | 30% |
 
-**Spirit Celeste** — 28% of players (n=1,934) — weapon 7%  vitality 46%  spirit 46%
+**Support Celeste** — 28% of players (n=1,934), named at 1.7x over the runner-up
+
+_Souls by shop tab: weapon 7%  vitality 46%  spirit 46%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -666,7 +734,9 @@ overrule any of them.
 | Tankbuster | 19% | 8% |
 | Mystic Regeneration | 93% | 82% |
 
-**Spirit Celeste** — 37% of players (n=2,586) — weapon 27%  vitality 34%  spirit 39%
+**Spirit Celeste** — 37% of players (n=2,586), named at 2.1x over the runner-up
+
+_Souls by shop tab: weapon 27%  vitality 34%  spirit 39%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -690,7 +760,9 @@ overrule any of them.
 | separation | 0.474 | >= 0.45 |
 | smallest share | 0.177 | >= 0.15 |
 
-**Spirit Apollo** — 82% of players (n=4,264) — weapon 1%  vitality 27%  spirit 72%
+**Spirit Apollo** — 82% of players (n=4,264), named at 2.3x over the runner-up
+
+_Souls by shop tab: weapon 1%  vitality 27%  spirit 72%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -705,7 +777,9 @@ overrule any of them.
 | Cold Front | 52% | 21% |
 | Spirit Burn | 41% | 11% |
 
-**Tank Apollo** — 18% of players (n=914) — weapon 17%  vitality 45%  spirit 38%
+**Melee Apollo** — 18% of players (n=914), named at 3.4x over the runner-up
+
+_Souls by shop tab: weapon 17%  vitality 45%  spirit 38%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -729,7 +803,9 @@ overrule any of them.
 | separation | 0.469 | >= 0.45 |
 | smallest share | 0.198 | >= 0.15 |
 
-**Spirit Vindicta** — 20% of players (n=1,713) — weapon 29%  vitality 20%  spirit 51%
+**Spirit Vindicta** — 20% of players (n=1,713), named at 3.1x over the runner-up
+
+_Souls by shop tab: weapon 29%  vitality 20%  spirit 51%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -744,7 +820,9 @@ overrule any of them.
 | Superior Duration | 20% | 1% |
 | Trophy Collector | 48% | 30% |
 
-**Gun Vindicta** — 80% of players (n=6,939) — weapon 52%  vitality 27%  spirit 21%
+**Gun Vindicta** — 80% of players (n=6,939), named at 2.5x over the runner-up
+
+_Souls by shop tab: weapon 52%  vitality 27%  spirit 21%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -768,7 +846,9 @@ overrule any of them.
 | separation | 0.467 | >= 0.45 |
 | smallest share | 0.160 | >= 0.15 |
 
-**Spirit Kelvin** — 84% of players (n=4,535) — weapon 1%  vitality 24%  spirit 74%
+**Spirit Kelvin** — 84% of players (n=4,535), named at 3.0x over the runner-up
+
+_Souls by shop tab: weapon 1%  vitality 24%  spirit 74%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
@@ -783,7 +863,9 @@ overrule any of them.
 | Spirit Burn | 36% | 11% |
 | Duration Extender | 37% | 14% |
 
-**Spirit Kelvin** — 16% of players (n=865) — weapon 7%  vitality 46%  spirit 47%
+**Support Kelvin** — 16% of players (n=865), named at 3.2x over the runner-up
+
+_Souls by shop tab: weapon 7%  vitality 46%  spirit 47%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|

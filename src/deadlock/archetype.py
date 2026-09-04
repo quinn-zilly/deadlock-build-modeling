@@ -52,7 +52,7 @@ from sklearn.cluster import KMeans
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import silhouette_score
 
-from . import assets, splits
+from . import assets, semantics, splits
 
 log = logging.getLogger(__name__)
 
@@ -417,17 +417,30 @@ def discriminative_items(
 
 def propose_name(
     centroid: pd.Series, hero_name: str, prevalence: pd.DataFrame, cluster: int
-) -> str:
-    """Auto-label a cluster from its dominant slot type.
+) -> tuple[str, float]:
+    """Auto-label a cluster from what its distinguishing items DO.
 
-    A proposal for a human to accept or overrule, not an answer. Ivy's two
-    clusters come back "Spirit Ivy" and "Gun Ivy", which is what a player
-    would call them.
+    Not from the centroid. Slot shares measure which shop tab the souls went
+    into, and 84 of 170 shopable items sit in a tab that does not match their
+    role -- so centroid naming called Lash's gun build "Tank" (Siphon Bullets
+    is vitality-slotted), Abrams' melee build "Tank" (melee items are
+    weapon-slotted), and Kelvin's support build "Tank" too. It also produced
+    duplicate names: three clusters of one hero all reading "Spirit X".
+
+    The label comes from the cluster's discriminative items, scored into build
+    families and weighted by how rare each family's evidence is. Returns the
+    name and the margin over the runner-up; a thin margin means the rule
+    declined to assert a family and the bare hero name came back.
+
+    A proposal for a human to accept or overrule, not an answer.
     """
-    labels = {"share_spirit": "Spirit", "share_weapon": "Gun", "share_vitality": "Tank"}
-    shares = {k: centroid.get(k, float("-inf")) for k in labels}
-    dominant = max(shares, key=shares.get)
-    return f"{labels[dominant]} {hero_name}"
+    if len(prevalence) < 2 or cluster not in prevalence.index:
+        return hero_name, 0.0
+    mine = prevalence.loc[cluster]
+    others = prevalence.drop(index=cluster).mean(axis=0)
+    lifts = (mine - others).to_dict()
+    name, _, margin = semantics.name_cluster(lifts, hero_name)
+    return name, margin
 
 
 def load_name_overrides(path: Path = NAMES_PATH) -> dict[str, str]:
@@ -469,8 +482,10 @@ def fit_all(
         clusters = []
         for cluster in sorted(fit.labels.unique()):
             centroid = fit.centroids.loc[cluster] if fit.split else pd.Series(dtype=float)
-            proposed = (
-                propose_name(centroid, name, prevalence, cluster) if fit.split else name
+            proposed, margin = (
+                propose_name(centroid, name, prevalence, cluster)
+                if fit.split
+                else (name, 0.0)
             )
             key = f"{hero_id}:{cluster}"
             top = (
@@ -483,6 +498,7 @@ def fit_all(
                     "archetype_id": int(cluster),
                     "name": overrides.get(key, proposed),
                     "proposed_name": proposed,
+                    "naming_margin": float(margin),
                     "n": int((fit.labels == cluster).sum()),
                     "share": float((fit.labels == cluster).mean()),
                     "centroid": {k: float(v) for k, v in centroid.items()},
