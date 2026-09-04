@@ -265,9 +265,7 @@ def top_k_accuracy(
     return hits / len(actuals)
 
 
-def score_baselines(
-    train: pd.DataFrame, test: pd.DataFrame, *, k: int = 1
-) -> pd.DataFrame:
+def score_baselines(train: pd.DataFrame, test: pd.DataFrame) -> pd.DataFrame:
     """Run all three baselines over the same held-out decisions.
 
     Each prediction excludes items the player already owns, since re-buying is

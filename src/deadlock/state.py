@@ -11,7 +11,7 @@ distinguish a 7-minute buy from a 3-minute one, and phase cannot.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from . import assets
 
@@ -46,6 +46,7 @@ class GameState:
     game_time_s: float
     souls_available: int
     owned_item_ids: frozenset[int] = frozenset()
+    purchased: tuple[int, ...] = ()
     enemy_hero_ids: tuple[int, ...] = ()
     badge: int | None = None
     archetype_posterior: dict[int, float] = field(default_factory=dict)
@@ -57,6 +58,35 @@ class GameState:
     @property
     def n_owned(self) -> int:
         return len(self.owned_item_ids)
+
+    @property
+    def n_bought(self) -> int:
+        """Purchases made, which is not the same as items held.
+
+        About 31% of purchases are components later absorbed into a composite,
+        so a player who has bought 15 items may hold only 11. Models keyed on
+        buy position want this number, not `n_owned`.
+        """
+        return len(self.purchased) or len(self.owned_item_ids)
+
+    @property
+    def last_items(self) -> tuple[int, ...]:
+        """The purchase sequence, most recent last.
+
+        Order carries the signal a bigram exploits, and a set cannot express
+        it. Falls back to the owned set when no order was supplied, which loses
+        the ordering but keeps the state usable.
+        """
+        return self.purchased or tuple(self.owned_item_ids)
+
+    def with_purchase(self, item_id: int, *, game_time_s: float | None = None) -> "GameState":
+        """The state after buying one item. The roll-forward step."""
+        return replace(
+            self,
+            owned_item_ids=self.owned_item_ids | {item_id},
+            purchased=self.purchased + (item_id,),
+            game_time_s=self.game_time_s if game_time_s is None else game_time_s,
+        )
 
 
 @dataclass(frozen=True)
@@ -88,11 +118,15 @@ def candidate_items(state: GameState, *, affordable_only: bool = True) -> list[i
     Filters to shopable items not already owned. No item is ever bought twice
     in the observed data, so ownership is a hard exclusion.
 
+    Shopable, not every asset: `load_items()` carries 251 entries, of which only
+    173 can be bought. The rest are components-as-assets and non-purchasable
+    entries, and recommending one is not a legal move.
+
     `affordable_only` gates on current souls. Turn it off when generating a
     full build ahead of a match, where the question is what to buy eventually
     rather than what is affordable this second.
     """
-    items = assets.load_items()
+    items = assets.shopable_items()
     return [
         item_id
         for item_id, item in items.items()
