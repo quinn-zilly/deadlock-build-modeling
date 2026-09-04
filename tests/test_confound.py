@@ -1,0 +1,123 @@
+"""Tests for the wealth-baseline gate and stratified adjustment."""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from deadlock import confound
+
+
+def _frame(n=600, seed=0):
+    """Synthetic purchases where wealth drives winning, as in the real data."""
+    rng = np.random.default_rng(seed)
+    n_matches = n // 12
+    match_id = np.repeat(np.arange(1000, 1000 + n_matches), 12)[:n]
+    nw = rng.uniform(1000, 40000, n)
+    # Win probability rises with wealth -- the confound we must detect.
+    won = rng.random(n) < (0.2 + 0.6 * (nw / 40000))
+    return pd.DataFrame(
+        {
+            "match_id": match_id,
+            "won": won,
+            "item_id": rng.choice([10, 20, 30], n),
+            "nw_at_buy": nw,
+            "nw_vs_match_median": nw / np.median(nw),
+            "nw_vs_team_avg": rng.normal(1, 0.1, n),
+            "nw_vs_enemy_avg": nw / np.median(nw),
+            "nw_rank_in_match": rng.random(n),
+            "average_badge": rng.integers(40, 100, n),
+            "duration_s": rng.integers(1200, 3000, n),
+            "buy_time_s": rng.integers(30, 3000, n),
+            "phase": rng.integers(0, 4, n),
+            "nw_quintile": rng.integers(0, 5, n),
+        }
+    )
+
+
+class TestSplits:
+    def test_match_split_shares_no_matches(self):
+        df = _frame()
+        train, test = confound.split_by_match(df, test_frac=0.25)
+        assert not set(train.match_id) & set(test.match_id)
+        assert len(train) + len(test) == len(df)
+
+    def test_match_split_keeps_players_together(self):
+        # Every row of a match must land on the same side, or the shared
+        # outcome leaks across the split.
+        df = _frame()
+        train, test = confound.split_by_match(df)
+        for part in (train, test):
+            for mid, grp in part.groupby("match_id"):
+                assert len(grp) == (df.match_id == mid).sum()
+
+    def test_time_split_is_ordered(self):
+        df = _frame()
+        train, test = confound.split_by_time(df, test_frac=0.25)
+        assert train.match_id.max() < test.match_id.min()
+
+    def test_splits_are_deterministic(self):
+        df = _frame()
+        a, _ = confound.split_by_match(df, seed=7)
+        b, _ = confound.split_by_match(df, seed=7)
+        assert a.index.equals(b.index)
+
+
+class TestWealthBaseline:
+    def test_detects_wealth_signal(self):
+        df = _frame(n=2400)
+        train, test = confound.split_by_match(df)
+        result = confound.wealth_baseline(train, test)
+        # Wealth genuinely predicts the synthetic outcome, so this must be
+        # well above chance -- that is the point of the baseline.
+        assert result.auc > 0.65
+        assert result.n_train > 0 and result.n_test > 0
+
+    def test_uses_no_item_features(self):
+        assert not any("item" in f for f in confound.BASELINE_FEATURES)
+
+    def test_missing_feature_raises(self):
+        df = _frame().drop(columns=["nw_at_buy"])
+        train, test = confound.split_by_match(df)
+        with pytest.raises(KeyError, match="nw_at_buy"):
+            confound.wealth_baseline(train, test)
+
+    def test_coefficients_returned_for_all_features(self):
+        df = _frame(n=2400)
+        train, test = confound.split_by_match(df)
+        result = confound.wealth_baseline(train, test)
+        assert set(result.coefficients.index) == set(confound.BASELINE_FEATURES)
+
+
+class TestStratifiedWinRate:
+    def test_adjustment_moves_toward_population(self):
+        df = _frame(n=6000)
+        rates = confound.stratified_item_winrate(df, min_matches=10)
+        assert not rates.empty
+        assert {"adjusted_win_rate", "raw_win_rate", "wealth_inflation"} <= set(rates.columns)
+        assert rates.adjusted_win_rate.between(0, 1).all()
+
+    def test_respects_min_matches(self):
+        df = _frame(n=6000)
+        rates = confound.stratified_item_winrate(df, min_matches=100_000)
+        assert rates.empty
+
+    def test_wealth_inflation_is_raw_minus_adjusted(self):
+        df = _frame(n=6000)
+        r = confound.stratified_item_winrate(df, min_matches=10)
+        assert np.allclose(r.wealth_inflation, r.raw_win_rate - r.adjusted_win_rate)
+
+
+class TestGate:
+    def test_flags_failure_when_no_lift(self):
+        base = confound.BaselineResult(0.700, 100, 50, pd.Series(dtype=float))
+        assert "FAILED GATE" in confound.report_gate(0.701, base)
+
+    def test_passes_with_real_lift(self):
+        base = confound.BaselineResult(0.700, 100, 50, pd.Series(dtype=float))
+        assert "passed gate" in confound.report_gate(0.760, base)
+
+    def test_boundary_is_not_a_pass(self):
+        base = confound.BaselineResult(0.700, 100, 50, pd.Series(dtype=float))
+        assert "FAILED GATE" in confound.report_gate(0.705, base, tolerance=0.005)
