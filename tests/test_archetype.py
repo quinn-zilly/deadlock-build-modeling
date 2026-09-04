@@ -344,7 +344,6 @@ class TestAgainstRealData:
             ("Kelvin", "Support Kelvin"),
             ("Bebop", "Gun Bebop"),
             ("Calico", "Melee Calico"),
-            ("Yamato", "Melee Yamato"),
         ],
     )
     def test_player_corrections_are_reproduced(self, hero, expected):
@@ -359,12 +358,11 @@ class TestAgainstRealData:
     def test_duplicate_names_are_rare(self):
         """The old rule gave one hero three clusters all called "Spirit X".
 
-        Family naming cannot separate two builds of the SAME family, and three
-        heroes genuinely have such a pair: Venator has two gun builds (one
-        hybrid gun/spirit, one bullet-lifesteal), Celeste two spirit, Drifter
-        two. This bounds the problem rather than forbidding it. Splitting those
-        needs ability focus -- "ult" versus "stomp" -- which is not
-        implemented.
+        A bare family label collapses two builds of the same family. The
+        hybrid prefix resolves the cases seen so far: Venator's two gun builds
+        become Gun and Hybrid-Gun, which is what a player calls them. Heroes
+        whose two builds are the same family AND equally pure would still
+        collide, and would need ability focus to separate.
         """
         _, meta, _ = self.load()
         duplicated = 0
@@ -372,7 +370,7 @@ class TestAgainstRealData:
             named = [a["name"] for a in entry["archetypes"] if a["name"] != entry["hero_name"]]
             if len(named) != len(set(named)):
                 duplicated += 1
-        assert duplicated <= 3
+        assert duplicated == 0
 
     def test_thin_margins_decline_to_label(self):
         """A near-tie is a coin flip; the rule keeps the bare hero name."""
@@ -383,6 +381,13 @@ class TestAgainstRealData:
                 if 0 < margin < semantics.MIN_NAMING_MARGIN:
                     assert cluster["name"] == entry["hero_name"]
 
+    def test_venator_has_a_gun_and_a_hybrid_gun_build(self):
+        """A player's naming: both are gun builds, one hybrid gun/spirit."""
+        _, meta, heroes = self.load()
+        names = {a["name"] for a in meta["heroes"][str(heroes["Venator"])]["archetypes"]}
+        assert "Gun Venator" in names
+        assert "Hybrid-Gun Venator" in names
+
     def test_venator_is_not_support(self):
         """A player correction: Venator's healing items are self-sustain for a
         gun carry -- Mystic/Radiant Regeneration heal you for dealing spirit
@@ -391,6 +396,24 @@ class TestAgainstRealData:
         _, meta, heroes = self.load()
         names = {a["name"] for a in meta["heroes"][str(heroes["Venator"])]["archetypes"]}
         assert not any(n.startswith("Support") for n in names)
+
+    def test_yamato_has_a_melee_build(self):
+        """Confirmed by a player. It reads Hybrid-Melee: melee leads but spirit
+        is close behind, which is what a hybrid label is for."""
+        _, meta, heroes = self.load()
+        names = {a["name"] for a in meta["heroes"][str(heroes["Yamato"])]["archetypes"]}
+        assert any("Melee Yamato" in n for n in names)
+
+    def test_hybrid_labels_are_rare(self):
+        """The word only means something if it is not on everything."""
+        _, meta, _ = self.load()
+        hybrids = sum(
+            1
+            for e in meta["heroes"].values()
+            for a in e["archetypes"]
+            if a["name"].startswith("Hybrid-")
+        )
+        assert hybrids <= 8
 
     def test_tank_no_longer_dominates(self):
         """Slot-share naming produced 10 "Tank" labels, most of them wrong."""

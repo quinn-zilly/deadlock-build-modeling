@@ -64,7 +64,7 @@ _Souls by shop tab: weapon 42%  vitality 38%  spirit 21%. Shown for reference on
 | separation | 0.794 | >= 0.45 |
 | smallest share | 0.183 | >= 0.15 |
 
-**Gun Venator** — 18% of players (n=1,328), named at 1.6x over the runner-up
+**Hybrid-Gun Venator** — 18% of players (n=1,328), named at 1.6x over the runner-up
 
 _Souls by shop tab: weapon 31%  vitality 37%  spirit 32%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -528,7 +528,7 @@ _Souls by shop tab: weapon 17%  vitality 26%  spirit 57%. Shown for reference on
 | Arctic Blast | 34% | 2% |
 | Duration Extender | 36% | 4% |
 
-**Melee Drifter** — 33% of players (n=3,904), named at 1.3x over the runner-up
+**Hybrid-Melee Drifter** — 33% of players (n=3,904), named at 1.3x over the runner-up
 
 _Souls by shop tab: weapon 37%  vitality 40%  spirit 23%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -588,7 +588,7 @@ _Souls by shop tab: weapon 12%  vitality 25%  spirit 63%. Shown for reference on
 | Spirit Burn | 25% | 2% |
 | Cold Front | 24% | 3% |
 
-**Melee Yamato** — 21% of players (n=1,294), named at 1.4x over the runner-up
+**Hybrid-Melee Yamato** — 21% of players (n=1,294), named at 1.4x over the runner-up
 
 _Souls by shop tab: weapon 31%  vitality 35%  spirit 34%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -657,7 +657,7 @@ _Souls by shop tab: weapon 18%  vitality 47%  spirit 35%. Shown for reference on
 | separation | 0.485 | >= 0.45 |
 | smallest share | 0.197 | >= 0.15 |
 
-**Spirit Calico** — 80% of players (n=6,451), named at 1.4x over the runner-up
+**Hybrid-Spirit Calico** — 80% of players (n=6,451), named at 1.4x over the runner-up
 
 _Souls by shop tab: weapon 10%  vitality 19%  spirit 71%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -734,7 +734,7 @@ _Souls by shop tab: weapon 7%  vitality 46%  spirit 46%. Shown for reference onl
 | Tankbuster | 19% | 8% |
 | Mystic Regeneration | 93% | 82% |
 
-**Spirit Celeste** — 37% of players (n=2,586), named at 1.4x over the runner-up
+**Hybrid-Spirit Celeste** — 37% of players (n=2,586), named at 1.4x over the runner-up
 
 _Souls by shop tab: weapon 27%  vitality 34%  spirit 39%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 

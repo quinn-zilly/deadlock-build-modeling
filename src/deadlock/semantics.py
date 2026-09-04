@@ -100,6 +100,16 @@ NAMING_FAMILIES = ("gun", "spirit", "melee", "support", "tank")
 # player. Below this the cluster keeps the bare hero name.
 MIN_NAMING_MARGIN = 1.3
 
+# Below this the winning family leads, but a second carries enough weight to be
+# part of the build's identity. A player calls that a hybrid -- Venator's two
+# clusters are both gun builds, and what separates them is that one runs spirit
+# and healing alongside the gun; without this they collapse to one label.
+#
+# Set low on purpose. The margins have a natural break at 2.0, but marking
+# everything below it labels nine of 38 clusters "Hybrid-", which drains the
+# word of meaning. At 1.7 it flags only genuinely close calls.
+HYBRID_MARGIN = 1.7
+
 # Stat -> (family, weight). Weight 2 defines a family, 1 supports it.
 FAMILY_WEIGHTS: dict[str, tuple[str, int]] = {
     # --- gun
@@ -498,7 +508,16 @@ def name_cluster(
     margin = best[0] / runner_up[0] if runner_up[0] > 0 else float("inf")
     if margin < min_margin:
         return hero_name, scores, margin
-    return f"{DISPLAY[best[1]]} {hero_name}", scores, margin
+
+    label = DISPLAY[best[1]]
+    if margin < HYBRID_MARGIN:
+        # A second family with real weight behind the winner. Venator's two
+        # clusters are both gun builds; what separates them is that one leans
+        # on spirit and healing alongside the gun, which a player calls a
+        # "hybrid gun" build. Naming it that way distinguishes a pair the bare
+        # family label collapses.
+        label = f"Hybrid-{label}"
+    return f"{label} {hero_name}", scores, margin
 
 
 @functools.lru_cache(maxsize=1)

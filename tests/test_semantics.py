@@ -225,6 +225,25 @@ class TestNaming:
         _, scores, _ = semantics.name_cluster(self.lifts_for(["Melee Charge"]), "Abrams")
         assert scores["melee"] > 0
 
+    def test_a_close_second_family_reads_as_hybrid(self):
+        """Venator has two gun builds; what separates them is that one runs
+        spirit and healing alongside the gun. A player calls that hybrid-gun,
+        and without it both clusters collapse to the same label."""
+        # Gun evidence leading, spirit close behind.
+        name, _, margin = semantics.name_cluster(
+            {BY_NAME["Siphon Bullets"]: 0.5, BY_NAME["Boundless Spirit"]: 0.3},
+            "Venator",
+        )
+        assert semantics.MIN_NAMING_MARGIN <= margin < semantics.HYBRID_MARGIN
+        assert name.startswith("Hybrid-")
+
+    def test_a_clear_winner_is_not_hybrid(self):
+        name, _, margin = semantics.name_cluster(
+            self.lifts_for(["Melee Charge", "Crushing Fists"]), "Abrams"
+        )
+        assert margin >= semantics.HYBRID_MARGIN
+        assert not name.startswith("Hybrid-")
+
     def test_margin_is_reported(self):
         _, _, margin = semantics.name_cluster(
             self.lifts_for(["Melee Charge", "Crushing Fists"]), "Abrams"
