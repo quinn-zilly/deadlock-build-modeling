@@ -204,18 +204,43 @@ def placebo_test(
     return rates[rates.index.isin(item_ids)]
 
 
-def report_gate(item_auc: float, baseline: BaselineResult, tolerance: float = 0.005) -> str:
-    """One-line verdict on whether an item model cleared the wealth floor."""
+def auc_standard_error(auc: float, n_test: int) -> float:
+    """Rough standard error of an AUC estimate.
+
+    Hanley-McNeil style approximation assuming balanced classes. Good enough
+    to tell "within noise" from "small but real", which is the only question
+    the gate needs answered.
+    """
+    n_per_class = max(n_test / 2, 1)
+    return float(np.sqrt(auc * (1 - auc) / n_per_class))
+
+
+def report_gate(
+    item_auc: float,
+    baseline: BaselineResult,
+    tolerance: float | None = None,
+    *,
+    n_sigma: float = 3.0,
+) -> str:
+    """Verdict on whether an item model cleared the wealth floor.
+
+    The threshold scales with sample size rather than being fixed. A +0.003
+    lift is noise on 20k test rows and a solid result on 800k, so a constant
+    tolerance either passes junk on small samples or rejects real effects on
+    large ones. Pass an explicit `tolerance` to override.
+    """
     lift = item_auc - baseline.auc
-    # math.isclose guards the boundary: 0.705 - 0.700 evaluates to
-    # 0.0050000000000000044, so a bare <= would call that a pass.
-    if lift < tolerance or math.isclose(lift, tolerance, rel_tol=1e-9):
+    se = auc_standard_error(item_auc, baseline.n_test)
+    threshold = tolerance if tolerance is not None else n_sigma * se
+
+    if lift < threshold or math.isclose(lift, threshold, rel_tol=1e-9):
         return (
             f"FAILED GATE: item AUC {item_auc:.4f} vs wealth baseline "
-            f"{baseline.auc:.4f} (lift {lift:+.4f}). The item model has not "
-            f"demonstrably learned anything beyond wealth."
+            f"{baseline.auc:.4f} (lift {lift:+.4f}, threshold {threshold:.4f} "
+            f"= {n_sigma:g}x SE). Not distinguishable from wealth alone."
         )
     return (
         f"passed gate: item AUC {item_auc:.4f} vs wealth baseline "
-        f"{baseline.auc:.4f} (lift {lift:+.4f})."
+        f"{baseline.auc:.4f} (lift {lift:+.4f} = {lift / se:.1f} SE, "
+        f"threshold {threshold:.4f})."
     )

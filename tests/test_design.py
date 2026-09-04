@@ -101,3 +101,31 @@ class TestBuildDesign:
         df = _purchases()
         _, y, _, players = design.build_design(df, ITEMS, HEROES)
         assert list(y) == [int(w) for w in players.won]
+
+
+class TestMediatorControls:
+    """Controls must not absorb the effect being measured.
+
+    Net worth aggregated over the same window as the purchases is a mediator
+    of item effects, not merely a confounder: items help a player farm, which
+    raises net worth, which predicts winning. Measured on 25k matches,
+    including those aggregates drops item lift from +0.0052 to +0.0008.
+    """
+
+    def test_default_controls_exclude_window_aggregates(self):
+        assert not set(design.CONTROL_COLUMNS) & set(design.MEDIATOR_COLUMNS)
+
+    def test_mediators_are_named(self):
+        assert "nw_vs_enemy_avg_mean" in design.MEDIATOR_COLUMNS
+
+    def test_controls_are_pre_decision(self):
+        # Every default control must be knowable before the modeled purchases.
+        assert set(design.CONTROL_COLUMNS) <= {
+            "nw_vs_enemy_avg_early", "average_badge", "assigned_lane",
+        }
+
+    def test_player_level_still_exposes_mediators(self):
+        # They remain available for description, just not as controls.
+        players = design.player_level(_purchases())
+        for col in design.MEDIATOR_COLUMNS:
+            assert col in players.columns

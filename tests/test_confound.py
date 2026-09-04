@@ -110,17 +110,40 @@ class TestStratifiedWinRate:
 
 
 class TestGate:
+    """The gate threshold scales with sample size.
+
+    A +0.003 AUC lift is noise on 20k test rows and a solid result on 800k.
+    A fixed tolerance either waves through junk on small samples or rejects
+    real effects on large ones.
+    """
+
     def test_flags_failure_when_no_lift(self):
-        base = confound.BaselineResult(0.700, 100, 50, pd.Series(dtype=float))
-        assert "FAILED GATE" in confound.report_gate(0.701, base)
+        base = confound.BaselineResult(0.700, 100_000, 50_000, pd.Series(dtype=float))
+        assert "FAILED GATE" in confound.report_gate(0.7001, base)
 
     def test_passes_with_real_lift(self):
-        base = confound.BaselineResult(0.700, 100, 50, pd.Series(dtype=float))
+        base = confound.BaselineResult(0.700, 100_000, 50_000, pd.Series(dtype=float))
         assert "passed gate" in confound.report_gate(0.760, base)
 
-    def test_boundary_is_not_a_pass(self):
-        base = confound.BaselineResult(0.700, 100, 50, pd.Series(dtype=float))
-        assert "FAILED GATE" in confound.report_gate(0.705, base, tolerance=0.005)
+    def test_small_lift_fails_on_small_sample(self):
+        base = confound.BaselineResult(0.700, 2_000, 1_000, pd.Series(dtype=float))
+        assert "FAILED GATE" in confound.report_gate(0.7030, base)
+
+    def test_same_small_lift_passes_on_large_sample(self):
+        # Identical lift, 800x the data: now many SE from zero.
+        base = confound.BaselineResult(0.700, 2_000_000, 800_000, pd.Series(dtype=float))
+        assert "passed gate" in confound.report_gate(0.7030, base)
+
+    def test_explicit_tolerance_overrides(self):
+        base = confound.BaselineResult(0.700, 2_000_000, 800_000, pd.Series(dtype=float))
+        assert "FAILED GATE" in confound.report_gate(0.7030, base, tolerance=0.05)
+
+    def test_standard_error_shrinks_with_n(self):
+        assert confound.auc_standard_error(0.7, 1_000) > confound.auc_standard_error(0.7, 1_000_000)
+
+    def test_reports_lift_in_standard_errors(self):
+        base = confound.BaselineResult(0.700, 2_000_000, 800_000, pd.Series(dtype=float))
+        assert "SE" in confound.report_gate(0.760, base)
 
 
 class TestLeakageGuard:
