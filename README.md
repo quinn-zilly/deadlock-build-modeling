@@ -27,11 +27,36 @@ build serving neither. Archetypes are fit per hero, and heroes that do not
 genuinely split (Haze, Dynamo) stay single.
 
 The model is a **backoff frequency table**, deliberately not a neural network.
-Conditioning on hero × archetype leaves roughly 3,900 sequences per cell, and
-the measured headroom is modest — a bigram already reaches 0.328 next-item
-top-1 against 0.198 for the positional baseline. Every recommendation is
-traceable to a table row with its observation count, which matters in a project
-that was already burned once by a model that produced a number and no recourse.
+Conditioning on hero × archetype leaves a median of 3,313 player-matches per
+cell, and every recommendation stays traceable to a table row with its
+observation count — which matters in a project already burned once by a model
+that produced a number and no recourse.
+
+Six levels, most specific first, interpolated rather than hard-switched:
+
+    L0  (hero, archetype, last two items, time bucket)
+    L1  (hero, archetype, last item, time bucket)
+    L2  (hero, archetype, purchases so far, time bucket)
+    L3  (hero, archetype, purchases so far)
+    L4  (hero, purchases so far)
+    L5  (hero)
+
+### Measured, held out, owned items excluded
+
+| | all heroes | Wraith |
+|---|---|---|
+| popularity | 0.137 | 0.141 |
+| modal at position | 0.220 | 0.263 |
+| bigram (the bar) | 0.267 | 0.277 |
+| **backoff chain** | **0.391** | **0.406** |
+
+The match-vs-account gap is 0.009, so the model is learning strategy rather
+than memorising individual players; the match-vs-time gap is 0.021, which is
+patch drift.
+
+All **75 hero × archetype builds** carry every item ≥70% of that archetype's
+players buy, at median Kendall tau +0.809 against the population's own
+purchase order.
 
 ## Setup
 
@@ -81,8 +106,36 @@ model.
 | `src/deadlock/dataset.py` | Purchase-level table assembly |
 | `src/deadlock/splits.py` | Train/test splits and leakage rules |
 | `src/deadlock/state.py` | The buy decision point and its legal moves |
+| `src/deadlock/semantics.py` | What items do, read from their tooltips |
+| `src/deadlock/kits.py` | What abilities do, read from their descriptions |
+| `src/deadlock/archetype.py` | Per-hero build archetypes, and inferring one mid-match |
+| `src/deadlock/evaluate.py` | The prevalence gate and order metrics |
+| `src/deadlock/sequence.py` | The backoff model |
+| `src/deadlock/build.py` | Generation, with component absorption |
+| `src/deadlock/counters.py` | Items bought because of the enemy team |
 | `src/deadlock/buildfmt.py` | Build representation and in-game export |
+| `src/deadlock/cli.py` | The command line |
 | `tests/` | Regression tests for known source-data defects |
+
+## Using it
+
+```bash
+deadlock heroes --archetypes                     # what can be built
+deadlock build --hero Ivy --archetype gun        # a full ordered build
+deadlock build --hero Ivy --archetype gun --export ivy.json   # importable
+deadlock next  --hero Ivy --owned "Extra Spirit,Mystic Burst" --time 8:30
+deadlock next  --hero Wraith --owned "..." --enemies "Lash,Vindicta"
+deadlock watch --hero Ivy                        # a session; "+ Ricochet"
+deadlock why   --hero Ivy --item Ricochet --owned "..." --time 8:30
+```
+
+Declare your archetype when you know it. Without one the tool infers it from
+what you have bought and, while the evidence is thin, shows the plausible
+archetypes *separately* rather than blending them — a blend can recommend an
+item that neither build actually wants.
+
+`why` prints the whole backoff chain for one item: the context at each level,
+the raw count, the mixture weight, and which level carried the mass.
 
 ## Source data caveats
 
@@ -118,3 +171,14 @@ than trusted, so a patch change fails loudly:
 - **No item is ever bought twice** by the same player.
 - **Median player makes 17 purchases but holds 11–12 items**; 37.3% are sold.
   A build is a purchase sequence, not an inventory.
+- **Most selling is component absorption, not a change of mind.** Sold rate is
+  70.6% for items that are a component of something against 6.4% for items
+  that are not (86.6% at tier 1, 1.1% at tier 4). Only ~6% of purchases are a
+  genuine strategic sell. This is the mechanism that fits 17 purchases into 12
+  slots — and the reason membership checks run over the purchase sequence, not
+  held items: Mystic Burst is bought by 96% of one archetype and sold by 95%.
+- **Buy time is linear in buy index**, about 110s per purchase. Timing is a
+  lookup, not a model.
+- **Item ids exceed int32.** 73 of the 173 shopable ids do. Stored narrower
+  they wrap negative, still sort, still aggregate, and still win an argmax —
+  so the failure is silent and looks like a merely mediocre model.
