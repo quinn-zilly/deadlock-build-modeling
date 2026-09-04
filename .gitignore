@@ -221,3 +221,4 @@ __marimo__/
 data/
 *.parquet
 models/
+data/builds/
