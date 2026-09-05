@@ -1,0 +1,241 @@
+<title>Deadlock Build Orders</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#E8E1D3; --surface:#F2EDE2; --raised:#FBF8F1;
+  --edge:#D2C7B2; --edge-soft:#E0D8C7;
+  --text:#1E1A15; --muted:#655C50; --faint:#8B8073;
+  --brass:#8A5F1E; --brass-bright:#B8863B;
+  --good:#4A6B3D; --warn:#8A6A1F;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#12100E; --surface:#191612; --raised:#221D18;
+    --edge:#342D25; --edge-soft:#2A241E;
+    --text:#EDE6D9; --muted:#A79B8A; --faint:#7C7264;
+    --brass:#C9973F; --brass-bright:#E0B15C;
+    --good:#8FB37A; --warn:#C9A24A;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#12100E; --surface:#191612; --raised:#221D18;
+  --edge:#342D25; --edge-soft:#2A241E;
+  --text:#EDE6D9; --muted:#A79B8A; --faint:#7C7264;
+  --brass:#C9973F; --brass-bright:#E0B15C;
+  --good:#8FB37A; --warn:#C9A24A;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--text);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.55;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px 64px}
+
+header.top{border-bottom:1px solid var(--edge);margin-bottom:28px;background:var(--surface)}
+.masthead{display:flex;flex-wrap:wrap;align-items:flex-end;gap:22px 36px;padding:38px 0 22px}
+h1{
+  font-family:Cinzel,Georgia,serif; font-weight:700; letter-spacing:.02em;
+  font-size:clamp(30px,4.2vw,44px); line-height:1.06; margin:0; text-wrap:balance;
+}
+h1 .sub{display:block;font-family:"IBM Plex Sans",sans-serif;font-weight:500;
+  font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--brass);
+  margin-bottom:11px}
+.lede{margin:12px 0 0;color:var(--muted);max-width:60ch}
+.facts{display:flex;gap:28px;margin-left:auto;flex-wrap:wrap}
+.fact{display:flex;flex-direction:column;gap:1px}
+.fact b{font-family:"IBM Plex Mono",monospace;font-size:23px;font-weight:500;
+  font-variant-numeric:tabular-nums;color:var(--brass);line-height:1.2}
+.fact span{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+
+.cols{display:grid;grid-template-columns:264px 1fr;gap:36px;align-items:start}
+@media(max-width:880px){.cols{grid-template-columns:1fr}}
+
+.rail{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;
+  border:1px solid var(--edge);background:var(--surface);border-radius:2px}
+@media(max-width:880px){.rail{position:static;max-height:320px}}
+.search{width:100%;border:0;border-bottom:1px solid var(--edge);background:transparent;
+  color:var(--text);padding:12px 14px;font:inherit;font-size:14px}
+.search::placeholder{color:var(--faint)}
+.search:focus{outline:2px solid var(--brass);outline-offset:-2px}
+.railgroup{border-bottom:1px solid var(--edge-soft)}
+.railgroup:last-child{border-bottom:0}
+.railhero{font-family:Cinzel,Georgia,serif;font-weight:500;font-size:11.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--faint);padding:12px 14px 3px}
+.pick{display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;border:0;
+  background:transparent;color:var(--text);font:inherit;font-size:14px;padding:6px 14px 8px;
+  cursor:pointer;border-left:3px solid transparent}
+.pick:hover{background:var(--raised)}
+.pick:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+.pick[aria-current="true"]{border-left-color:var(--brass);background:var(--raised);font-weight:600}
+.pick .sh{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;
+  color:var(--faint);font-variant-numeric:tabular-nums}
+
+.buildhead{display:flex;flex-wrap:wrap;gap:14px 26px;align-items:flex-end;
+  padding-bottom:14px;border-bottom:2px solid var(--brass)}
+h2{font-family:Cinzel,Georgia,serif;font-weight:700;font-size:29px;margin:0;line-height:1.1;
+  text-wrap:balance}
+.stat{display:flex;flex-direction:column}
+.stat b{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:500;
+  font-variant-numeric:tabular-nums}
+.stat span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.gate{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;
+  color:var(--good)}
+.gate::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--good);flex:none}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;padding:13px 0 16px;font-size:12px;
+  color:var(--muted)}
+.legend i{font-style:normal;display:inline-flex;align-items:center;gap:6px}
+.key{width:9px;height:9px;border-radius:50%;background:var(--brass);display:inline-block;flex:none}
+.key.plain{background:var(--edge)}
+
+.rows{position:relative;padding-left:72px}
+.rows::before{content:"";position:absolute;left:72px;top:8px;bottom:8px;width:1px;
+  background:var(--edge)}
+.row{position:relative;display:grid;grid-template-columns:1fr auto;gap:3px 18px;
+  padding:11px 0 12px;border-bottom:1px solid var(--edge-soft)}
+.row:last-child{border-bottom:0}
+.clock{position:absolute;left:-72px;top:12px;width:50px;text-align:right;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.dot{position:absolute;left:-4.5px;top:17px;width:9px;height:9px;border-radius:50%;
+  background:var(--edge);border:2px solid var(--ground)}
+.row.staple .dot{background:var(--brass)}
+.name{font-weight:500;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.tag{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:1px 6px;
+  border-radius:2px;white-space:nowrap}
+.tag.staple{color:var(--brass);border:1px solid var(--brass)}
+.tag.sold{color:var(--faint);border:1px solid var(--edge)}
+.tag.thin{color:var(--warn);border:1px solid var(--warn)}
+.meta{grid-column:1;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--faint);
+  font-variant-numeric:tabular-nums}
+.cost{grid-row:1/3;grid-column:2;text-align:right;font-family:"IBM Plex Mono",monospace;
+  font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted);align-self:center;
+  min-width:92px}
+.bar{display:block;height:3px;background:var(--brass);opacity:.45;margin:5px 0 0 auto;
+  border-radius:2px}
+
+footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--edge);
+  color:var(--faint);font-size:12.5px;max-width:74ch}
+@media(prefers-reduced-motion:no-preference){
+  .row{animation:in .2s ease-out both}
+}
+@keyframes in{from{opacity:.6}to{opacity:1}}
+</style>
+
+<header class="top"><div class="wrap"><div class="masthead">
+  <div>
+    <h1><span class="sub">Deadlock &middot; imitation model</span>Build Orders</h1>
+    <p class="lede">What players actually buy, and <em>when</em>. Every purchase carries the
+    evidence behind it &mdash; how many matches back it, and how specific that evidence was.</p>
+  </div>
+  <div class="facts">
+    <div class="fact"><b>75</b><span>builds</span></div>
+    <div class="fact"><b>0.391</b><span>top-1 &middot; bigram 0.267</span></div>
+    <div class="fact"><b>296k</b><span>player-matches</span></div>
+  </div>
+</div></div></header>
+
+<div class="wrap"><div class="cols">
+  <nav class="rail" aria-label="Builds">
+    <input class="search" id="q" type="search" placeholder="Filter heroes&hellip;" aria-label="Filter heroes">
+    <div id="list"></div>
+  </nav>
+  <main id="panel"></main>
+</div>
+
+<footer>
+  Built by a backoff frequency model over 5,095,598 purchases, conditioned on hero and archetype.
+  Buy times are population medians at each position. An item marked <strong>absorbed</strong> is a
+  component consumed by a later composite: it frees its inventory slot, which is how a
+  17&#8209;purchase build fits in 12 slots. Every build here carries each item that at least 70% of
+  that archetype&rsquo;s players buy.
+</footer>
+</div>
+
+<script>
+const clock = s => Math.floor(s / 60) + ":" + String(Math.round(s) % 60).padStart(2, "0");
+const list = document.getElementById("list");
+const panel = document.getElementById("panel");
+let current = 0;
+
+const byHero = {};
+BUILDS.forEach((b, i) => { (byHero[b.hero] = byHero[b.hero] || []).push(Object.assign({ i: i }, b)); });
+
+function renderList(filter) {
+  const f = (filter || "").trim().toLowerCase();
+  list.replaceChildren();
+  Object.keys(byHero).sort().forEach(hero => {
+    const rows = byHero[hero].filter(b =>
+      !f || hero.toLowerCase().includes(f) || b.archetype.toLowerCase().includes(f));
+    if (!rows.length) return;
+    const g = document.createElement("div");
+    g.className = "railgroup";
+    const h = document.createElement("div");
+    h.className = "railhero";
+    h.textContent = hero;
+    g.appendChild(h);
+    rows.forEach(b => {
+      const btn = document.createElement("button");
+      btn.className = "pick";
+      btn.type = "button";
+      btn.setAttribute("aria-current", b.i === current ? "true" : "false");
+      const label = document.createElement("span");
+      label.textContent = b.archetype === hero ? "single build" : b.archetype;
+      const share = document.createElement("span");
+      share.className = "sh";
+      share.textContent = Math.round((b.share || 0) * 100) + "%";
+      btn.append(label, share);
+      btn.onclick = () => { current = b.i; renderList(f); renderBuild(); };
+      g.appendChild(btn);
+    });
+    list.appendChild(g);
+  });
+}
+
+function renderBuild() {
+  const b = BUILDS[current];
+  const total = b.items.reduce((s, i) => s + i.cost, 0);
+  const held = b.items.filter(i => !i.sold).length;
+  const win = b.win_rate ? (b.win_rate * 100).toFixed(1) + "%" : "—";
+
+  panel.innerHTML =
+    '<div class="buildhead">' +
+      "<h2>" + (b.archetype === b.hero ? b.hero : b.archetype) + "</h2>" +
+      stat((b.n || 0).toLocaleString(), "players") +
+      stat(win, "win rate") +
+      stat(b.items.length, "purchases") +
+      stat(held, "held") +
+      stat(total.toLocaleString(), "souls") +
+      '<div class="gate">' + b.n_staples + " staples, all present</div>" +
+    "</div>" +
+    '<div class="legend">' +
+      '<i><span class="key"></span> bought by 70% or more of these players</i>' +
+      '<i><span class="key plain"></span> the model&rsquo;s own pick</i>' +
+      "<i>n = matches behind the pick &middot; L0&ndash;L5 = how specific the evidence was</i>" +
+    "</div>" +
+    '<div class="rows">' + b.items.map(renderRow).join("") + "</div>";
+}
+
+const stat = (value, label) =>
+  '<div class="stat"><b>' + value + "</b><span>" + label + "</span></div>";
+
+function renderRow(it) {
+  const tags =
+    (it.staple ? '<span class="tag staple">staple</span>' : "") +
+    (it.sold ? '<span class="tag sold">absorbed ' + clock(it.sold) + "</span>" : "") +
+    (it.n < 30 ? '<span class="tag thin">thin evidence</span>' : "");
+  return '<div class="row' + (it.staple ? " staple" : "") + '">' +
+    '<span class="clock">' + clock(it.time) + '</span><span class="dot"></span>' +
+    '<div class="name">' + it.name + tags + "</div>" +
+    '<div class="meta">p=' + it.p.toFixed(3) + " &middot; n=" + it.n.toLocaleString() +
+      " &middot; " + it.level + "</div>" +
+    '<div class="cost">' + it.cost.toLocaleString() +
+      '<span class="bar" style="width:' + Math.max(8, Math.round(86 * it.cost / 6400)) + 'px"></span>' +
+    "</div></div>";
+}
+
+document.getElementById("q").addEventListener("input", e => renderList(e.target.value));
+renderList("");
+renderBuild();
+</script>
