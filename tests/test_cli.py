@@ -7,6 +7,7 @@ unusable regardless of how good the model underneath is.
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from deadlock import archetype, assets, cli
@@ -188,3 +189,38 @@ class TestAbilityPointArguments:
             cli._print_ability_points(
                 self.hero(), 0, self.Args("Powder Keg," * 5)
             )
+
+
+class TestImbueTargets:
+    """`deadlock build` has to say what to do with an imbueable item.
+
+    The exported JSON has carried the target since it was built, but the
+    command line printed nothing about it -- and the command line is what a
+    player reads before a match.
+    """
+
+    def test_no_cell_means_no_targets(self):
+        """No purchase table is item-only advice, not a crash."""
+        assert cli.load_imbue_targets(None, [1, 2, 3]) == []
+
+    def test_a_build_with_no_imbueable_item_prints_nothing(self):
+        """Guarded: without the table this passes through the absent-file
+        branch instead of the filter it is here to cover, and `data/` is
+        gitignored, so on a fresh clone it would pass having tested nothing."""
+        if not cli.IMBUES_PATH.exists():
+            pytest.skip("requires the imbue table")
+        cell = pd.DataFrame({"match_id": [1], "player_slot": [0]})
+        monster_rounds = assets.resolve_item("Monster Rounds")
+        assert cli.load_imbue_targets(cell, [monster_rounds]) == []
+
+    def test_a_real_cell_names_an_ability(self):
+        if not cli.IMBUES_PATH.exists() or not cli.PURCHASES.exists():
+            pytest.skip("requires the imbue and purchase tables")
+        imbues = pd.read_parquet(cli.IMBUES_PATH)
+        item_id = int(imbues["item_id"].value_counts().idxmax())
+        cell = imbues[["match_id", "player_slot"]].drop_duplicates().head(5000)
+        got = cli.load_imbue_targets(cell, [item_id])
+        assert len(got) == 1
+        assert got[0].ability_id is not None and got[0].ability_id > 0
+        assert got[0].ability_name and not got[0].ability_name.isdigit()
+        assert 0.0 < got[0].share <= 1.0

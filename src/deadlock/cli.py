@@ -32,6 +32,7 @@ from . import (
     buildfmt,
     counters,
     evaluate,
+    imbue,
     sequence,
 )
 from .state import GameState
@@ -40,6 +41,7 @@ ABILITIES_PATH = Path("data/processed/abilities.parquet")
 ABILITY_MODEL_PATH = Path("data/processed/ability_model.npz")
 MODEL_PATH = Path("data/processed/sequence_model.npz")
 COUNTERS_PATH = Path("data/processed/counter_lifts.parquet")
+IMBUES_PATH = Path("data/processed/imbues.parquet")
 PURCHASES = Path("data/processed/purchases.parquet")
 COLUMNS = [
     "match_id",
@@ -158,6 +160,32 @@ def cmd_heroes(args: argparse.Namespace) -> int:
     return 0
 
 
+def load_imbue_targets(
+    cell: pd.DataFrame | None, item_ids: list[int]
+) -> list[imbue.ImbueTarget]:
+    """Which ability this cell points each recommended imbueable item at.
+
+    Nine shopable items can be imbued, and for those the item is only half the
+    advice -- Mystic Reverb aimed at the wrong ability is a wasted 3,200 souls.
+    Restricted to the same (hero, archetype) rows the build was generated from,
+    because the target is a property of the build and not of the item: Dynamo's
+    ult cluster and its stomp cluster aim the same item at different abilities.
+
+    Returns nothing when the imbue table has not been built, so the tool
+    degrades to item-only advice the way the ability order does.
+    """
+    if cell is None or not IMBUES_PATH.exists():
+        return []
+    imbues = pd.read_parquet(
+        IMBUES_PATH,
+        columns=["match_id", "player_slot", "item_id", "imbued_ability_id"],
+    ).merge(
+        cell[["match_id", "player_slot"]].drop_duplicates(),
+        on=["match_id", "player_slot"],
+    )
+    return imbue.targets_for_build(imbues, item_ids)
+
+
 def cmd_build(args: argparse.Namespace) -> int:
     hero_id = assets.resolve_hero(args.hero)
     labels, meta = archetype.load()
@@ -165,6 +193,7 @@ def cmd_build(args: argparse.Namespace) -> int:
     model = load_model(refit=args.refit)
 
     staples = None
+    cell = None
     if PURCHASES.exists():
         purchases = pd.read_parquet(PURCHASES, columns=COLUMNS)
         cell = purchases[purchases["hero_id"] == hero_id].merge(
@@ -209,6 +238,12 @@ def cmd_build(args: argparse.Namespace) -> int:
         for line in abilityorder.format_order(ability_order).splitlines():
             print("  " + line)
 
+    targets = load_imbue_targets(cell, [item.item_id for item in generated.items])
+    if targets:
+        print("\nimbue:")
+        for target in targets:
+            print(f"  {target}")
+
     if args.explain:
         print("\nwhy each pick:")
         inventory = build.Inventory()
@@ -230,6 +265,9 @@ def cmd_build(args: argparse.Namespace) -> int:
             generated,
             args.export,
             ability_order=ability_order,
+            imbue_targets={
+                t.item_id: t.ability_id for t in targets if t.ability_id is not None
+            },
             description=(
                 "Purchase order. Only held items are exported: the build schema "
                 "cannot express a sale, and about a third of these purchases are "

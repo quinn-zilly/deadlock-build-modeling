@@ -40,12 +40,15 @@ cover each other's blind spots rather than repeating each other.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from . import assets
+from .state import THIN_EVIDENCE
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +68,12 @@ N_SIGNATURE_SLOTS = 4
 # imbues a single Mystic Expansion, and shares alone flatten that. Scaled by
 # this so the count lands in roughly the same range as a share.
 MAX_EXPECTED_IMBUES = 4.0
+
+# Below this, the most common target is not what most players pick. Ivy's
+# spirit build aims Compress Cooldown at Air Drop 39% of the time -- still the
+# mode, still a minority, and a build that printed it like Wraith's 100% Card
+# Trick would be overstating what the population agrees on.
+MAJORITY = 0.5
 
 
 def imbueable_items(shopable_only: bool = True) -> dict[int, str]:
@@ -217,9 +226,111 @@ def target_for_item(df: pd.DataFrame, item_id: int) -> int | None:
 
 
 def dominant_targets(df: pd.DataFrame) -> dict[int, int]:
-    """item id -> the ability that population imbues it into most often."""
+    """item id -> the ability that population imbues it into most often.
+
+    The export's view of `targets_for_build`, and deliberately the same code
+    underneath: two mode implementations break ties differently, so the same
+    (hero, archetype) exported from the CLI and from `generate_builds.py`
+    could carry different targets for the same item.
+    """
     if not len(df):
         return {}
-    counts = df.groupby(["item_id", "imbued_ability_id"]).size().rename("n").reset_index()
-    best = counts.sort_values("n", ascending=False).drop_duplicates("item_id")
-    return {int(r.item_id): int(r.imbued_ability_id) for r in best.itertuples()}
+    return {
+        target.item_id: target.ability_id
+        for target in targets_for_build(df, df["item_id"].unique())
+        if target.ability_id is not None
+    }
+
+
+@dataclass(frozen=True)
+class ImbueTarget:
+    """The ability a build points one imbueable item at, named and evidenced.
+
+    `ability_id` is None when the population made no imbue of this item at all.
+    That is not the same as a weak preference and is not printed as one: every
+    imbueable purchase carries a target, so no rows means the cell is too thin
+    to speak rather than a build that declined to choose.
+    """
+
+    item_id: int
+    item_name: str
+    ability_id: int | None
+    ability_name: str
+    n: int
+    share: float
+
+    @property
+    def split(self) -> bool:
+        """Most-common but not most players -- a preference, not a rule."""
+        return self.ability_id is not None and self.share < MAJORITY
+
+    @property
+    def thin(self) -> bool:
+        """Too few imbues behind this to state plainly.
+
+        The same bar every other recommendation in the tool is held to, and
+        marked the same way rather than hidden: a target from four imbues may
+        still be the right ability, and there is nothing to put in its place.
+        """
+        return self.ability_id is not None and self.n < THIN_EVIDENCE
+
+    def __str__(self) -> str:
+        if self.ability_id is None:
+            return f"{self.item_name:26s} -> (no imbue seen in this cell)"
+        line = (
+            f"{self.item_name:26s} -> {self.ability_name:22s} "
+            f"{self.share:.0%} of {self.n:,} imbues"
+        )
+        if self.split:
+            line += "  [split]"
+        if self.thin:
+            line += "  [thin]"
+        return line
+
+
+def targets_for_build(
+    df: pd.DataFrame,
+    item_ids: Iterable[int],
+    *,
+    item_names: dict[int, str] | None = None,
+    ability_names: dict[int, str] | None = None,
+    imbueable: dict[int, str] | None = None,
+) -> list[ImbueTarget]:
+    """What to imbue each imbueable item in a build into, in build order.
+
+    Non-imbueable items are left out entirely: two thirds of a build cannot be
+    imbued and a line saying so for each of them would bury the nine that can.
+    """
+    imbueable = imbueable_items() if imbueable is None else imbueable
+    if item_names is None:
+        item_names = {i: item.name for i, item in assets.load_items().items()}
+    if ability_names is None:
+        ability_names = {i: a.name for i, a in assets.load_abilities().items()}
+
+    counts = (
+        df.groupby(["item_id", "imbued_ability_id"]).size() if len(df)
+        else pd.Series(dtype=int)
+    )
+    out: list[ImbueTarget] = []
+    for item_id in dict.fromkeys(int(i) for i in item_ids):
+        if item_id not in imbueable:
+            continue
+        rows = counts[item_id] if item_id in counts.index.get_level_values(0) else None
+        if rows is None or not len(rows):
+            out.append(
+                ImbueTarget(item_id, item_names.get(item_id, str(item_id)), None, "", 0, 0.0)
+            )
+            continue
+        ability_id = int(rows.idxmax())
+        total = int(rows.sum())
+        out.append(
+            ImbueTarget(
+                item_id=item_id,
+                item_name=item_names.get(item_id, str(item_id)),
+                ability_id=ability_id,
+                ability_name=ability_names.get(ability_id, str(ability_id)),
+                n=total,
+                share=int(rows.max()) / total,
+            )
+        )
+    return out

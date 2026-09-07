@@ -113,6 +113,8 @@ model.
 | `src/deadlock/sequence.py` | The backoff model |
 | `src/deadlock/build.py` | Generation, with component absorption |
 | `src/deadlock/counters.py` | Items bought because of the enemy team |
+| `src/deadlock/abilityorder.py` | The order ability points are spent in |
+| `src/deadlock/imbue.py` | Which ability an imbueable item is pointed at |
 | `src/deadlock/buildfmt.py` | Build representation and in-game export |
 | `src/deadlock/cli.py` | The command line |
 | `tests/` | Regression tests for known source-data defects |
@@ -128,6 +130,12 @@ deadlock next  --hero Wraith --owned "..." --enemies "Lash,Vindicta"
 deadlock watch --hero Ivy                        # a session; "+ Ricochet"
 deadlock why   --hero Ivy --item Ricochet --owned "..." --time 8:30
 ```
+
+`build` prints three things: the purchase order, the ability-point order, and
+the imbue targets — for each of the nine imbueable items it recommends, the
+ability that archetype actually points it at, with the count behind it. An
+imbueable item is half an instruction without that, and the export carries the
+same target in `imbue_target_ability_id`.
 
 Declare your archetype when you know it. Without one the tool infers it from
 what you have bought and, while the evidence is thin, shows the plausible

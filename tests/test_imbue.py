@@ -188,3 +188,138 @@ class TestAgainstRealData:
         assert (df["item_id"] > 0).all()
         assert (df["imbued_ability_id"] > 0).all()
         assert set(df["item_id"].unique()) <= set(imbue.imbueable_items())
+
+
+class TestTargetsForBuild:
+    """What `deadlock build` puts in front of the player.
+
+    A recommendation to buy Mystic Reverb is half an instruction: the item does
+    nothing until it is pointed at an ability. `dominant_targets` already knew
+    which one; this is the same fact with the names and the evidence attached,
+    which is what a player can actually read.
+    """
+
+    ITEM_NAMES = {MYSTIC_REVERB: "Mystic Reverb", DURATION_EXTENDER: "Duration Extender",
+                  MONSTER_ROUNDS: "Monster Rounds"}
+    ABILITY_NAMES = {901: "Kinetic Pulse", 903: "Singularity"}
+
+    def targets(self, rows, item_ids):
+        return imbue.targets_for_build(
+            frame(rows),
+            item_ids,
+            item_names=self.ITEM_NAMES,
+            ability_names=self.ABILITY_NAMES,
+            imbueable=IMBUEABLE,
+        )
+
+    def test_names_the_ability_with_the_evidence_behind_it(self):
+        rows = [(0, 3, MYSTIC_REVERB, "active")] * 3 + [(1, 1, MYSTIC_REVERB, "active")]
+        got = self.targets(rows, [MYSTIC_REVERB])
+        assert len(got) == 1
+        assert got[0].ability_id == 903
+        assert got[0].ability_name == "Singularity"
+        assert got[0].n == 4
+        assert got[0].share == pytest.approx(0.75)
+        assert "Singularity" in str(got[0])
+
+    def test_items_that_cannot_be_imbued_are_absent(self):
+        """Most of a build is not imbueable, and saying so for every line is noise."""
+        rows = [(0, 3, MYSTIC_REVERB, "active")]
+        got = self.targets(rows, [MONSTER_ROUNDS, MYSTIC_REVERB])
+        assert [t.item_id for t in got] == [MYSTIC_REVERB]
+
+    def test_an_imbueable_item_the_population_never_imbued_says_so(self):
+        """Silence, not a guess.
+
+        Every imbueable purchase carries a target, so a recommended imbueable
+        item with no rows means the cell is too thin to speak -- and a build
+        that invented an ability there would be worse than one that admits it.
+        """
+        got = self.targets([(0, 3, MYSTIC_REVERB, "active")], [DURATION_EXTENDER])
+        assert [t.item_id for t in got] == [DURATION_EXTENDER]
+        assert got[0].ability_id is None
+        assert got[0].n == 0
+        assert "no imbue" in str(got[0])
+
+    def test_order_follows_the_build(self):
+        rows = [(0, 3, MYSTIC_REVERB, "active"), (0, 1, DURATION_EXTENDER, "modifier")]
+        got = self.targets(rows, [DURATION_EXTENDER, MYSTIC_REVERB])
+        assert [t.item_id for t in got] == [DURATION_EXTENDER, MYSTIC_REVERB]
+
+    def test_a_repeated_item_is_reported_once(self):
+        rows = [(0, 3, MYSTIC_REVERB, "active")]
+        got = self.targets(rows, [MYSTIC_REVERB, MYSTIC_REVERB])
+        assert len(got) == 1
+
+    def test_an_empty_population_leaves_every_target_unknown(self):
+        got = self.targets([], [MYSTIC_REVERB])
+        assert got[0].ability_id is None
+
+    def test_ability_ids_stay_wide(self):
+        """Item and ability ids both exceed int32; a narrowed id wraps negative."""
+        wide = 3577481646
+        rows = pd.DataFrame(
+            [{"match_id": 1, "player_slot": 0, "item_id": MYSTIC_REVERB,
+              "imbued_ability_id": wide, "signature_slot": 2,
+              "imbue_group": "active", "game_time_s": 100}]
+        )
+        got = imbue.targets_for_build(
+            rows, [MYSTIC_REVERB], item_names=self.ITEM_NAMES,
+            ability_names={}, imbueable=IMBUEABLE
+        )
+        assert got[0].ability_id == wide
+
+    def test_a_split_population_is_marked_rather_than_stated_flatly(self):
+        """39% is a majority of nothing.
+
+        Ivy's spirit build points Compress Cooldown at Air Drop 39% of the
+        time, which is the most common choice and still not what most players
+        do. Printing that identically to Wraith's 100% Card Trick would sell a
+        coin flip as a rule.
+        """
+        rows = (
+            [(0, 3, MYSTIC_REVERB, "active")] * 2
+            + [(1, 1, MYSTIC_REVERB, "active")] * 2
+            + [(2, 4, MYSTIC_REVERB, "active")]
+        )
+        split = self.targets(rows, [MYSTIC_REVERB])[0]
+        assert split.split and "[split]" in str(split)
+
+        agreed = self.targets([(0, 3, MYSTIC_REVERB, "active")] * 5, [MYSTIC_REVERB])[0]
+        assert not agreed.split and "[split]" not in str(agreed)
+
+    def test_a_target_from_four_imbues_is_marked_thin(self):
+        """Dynamo's stomp cluster points Echo Shard somewhere on 4 imbues.
+
+        75% of 4 and 75% of 4,000 print identically otherwise, which is the
+        misplaced confidence `THIN_EVIDENCE` exists to prevent everywhere else
+        in the tool. Marked rather than hidden: it may still be the right
+        ability, and there is nothing else to offer in its place.
+        """
+        thin = self.targets([(0, 3, MYSTIC_REVERB, "active")] * 4, [MYSTIC_REVERB])[0]
+        assert thin.thin and "[thin]" in str(thin)
+
+        solid = self.targets(
+            [(0, 3, MYSTIC_REVERB, "active")] * 40, [MYSTIC_REVERB]
+        )[0]
+        assert not solid.thin and "[thin]" not in str(solid)
+
+    def test_an_absent_target_is_not_called_thin(self):
+        """No rows is a different statement from few rows."""
+        got = self.targets([], [MYSTIC_REVERB])[0]
+        assert not got.thin
+
+
+class TestOneModeImplementation:
+    def test_the_export_and_the_printed_line_agree_on_a_tie(self):
+        """Two mode implementations break ties differently.
+
+        The CLI and `generate_builds.py` export the same (hero, archetype)
+        build, and a build whose printed imbue target differs from the one in
+        its own exported JSON is worse than either answer alone.
+        """
+        tied = frame(
+            [(0, 1, MYSTIC_REVERB, "active"), (1, 3, MYSTIC_REVERB, "active")]
+        )
+        printed = imbue.targets_for_build(tied, [MYSTIC_REVERB])[0]
+        assert imbue.dominant_targets(tied)[MYSTIC_REVERB] == printed.ability_id
