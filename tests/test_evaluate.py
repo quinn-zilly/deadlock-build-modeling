@@ -183,6 +183,114 @@ class TestBaselines:
 
 @pytest.mark.data
 @pytest.mark.skipif(not PURCHASES.exists(), reason="needs purchases.parquet")
+class TestMembershipVsPlayers:
+    """Membership must be scored against players, not the median-order list."""
+
+    CORE = list(range(1, 9))
+    TAIL = list(range(100, 108))
+
+    @classmethod
+    def cell(cls, n: int = 200) -> pd.DataFrame:
+        """Players sharing 8 core items and picking 4 tail items unevenly.
+
+        Two properties matter, and the first two versions of this fixture each
+        missed one. The disagreement must fall inside the Jaccard@12 window --
+        players who differ only from buy 13 onward are identical to this
+        metric. And the tail must be *skewed*: when every player draws tail
+        items uniformly, a consensus build and another player are equally close,
+        so the fixture cannot show the effect it exists to show.
+        """
+        rng = np.random.default_rng(1)
+        weights = np.arange(len(cls.TAIL), 0, -1, dtype=float)
+        weights /= weights.sum()
+        builds = {
+            p: cls.CORE + list(rng.choice(cls.TAIL, 4, replace=False, p=weights))
+            for p in range(n)
+        }
+        return purchases(builds)
+
+    @staticmethod
+    def consensus(cell: pd.DataFrame, k: int = 12) -> list[int]:
+        """The k most prevalent items -- what a good build should look like."""
+        return (
+            cell.drop_duplicates(["match_id", "player_slot", "item_id"])
+            .item_id.value_counts()
+            .index[:k]
+            .tolist()
+        )
+
+    def test_a_consensus_build_beats_the_ceiling(self):
+        """The point of the metric: a consensus build beats any one player.
+
+        Players agree on a core and disagree on a skewed tail, so two players
+        overlap less than the consensus overlaps either of them. A metric that
+        cannot show this cannot tell a good build from a bad one -- which is
+        exactly how J@12 0.143 went unquestioned.
+        """
+        cell = self.cell()
+        result = evaluate.membership_vs_players(self.consensus(cell), cell)
+        assert result.generated > result.ceiling
+        assert result.ratio > 1.0
+
+    def test_identical_players_give_a_ceiling_of_one(self):
+        """A population with no disagreement has nothing above it to reach."""
+        builds = {p: list(range(1, 13)) for p in range(20)}
+        result = evaluate.membership_vs_players(list(range(1, 13)), purchases(builds))
+        assert result.ceiling == pytest.approx(1.0)
+        assert result.generated == pytest.approx(1.0)
+        assert result.ratio == pytest.approx(1.0)
+
+    def test_a_disjoint_build_scores_zero(self):
+        result = evaluate.membership_vs_players(list(range(900, 912)), self.cell())
+        assert result.generated == pytest.approx(0.0)
+        assert result.ceiling > 0.0
+
+    def test_too_few_players_is_nan_not_a_number(self):
+        result = evaluate.membership_vs_players([1, 2], purchases({0: list(range(1, 13))}))
+        assert np.isnan(result.generated)
+        assert result.n_players == 1
+
+    def test_short_sequences_are_dropped(self):
+        """Jaccard@12 over a 5-buy match measures match length, not the build."""
+        builds = {p: list(range(1, 13)) for p in range(10)}
+        builds.update({50 + p: [1, 2, 3] for p in range(10)})
+        assert len(evaluate.player_sequences(purchases(builds))) == 10
+
+    def test_median_order_reference_understates_membership(self):
+        """The bug this metric replaces, pinned on real data.
+
+        `population_order`'s top 12 are the items bought earliest -- cheap
+        components that are absorbed. Scoring against it reported J@12 0.143;
+        against real players the same builds beat the player-vs-player ceiling.
+        """
+        if not PURCHASES.exists():
+            pytest.skip("requires the processed purchase table")
+        from deadlock import assets
+
+        heroes = assets.load_heroes()
+        hero_id = next(h for h, v in heroes.items() if v.name == "Wraith")
+        df = pd.read_parquet(
+            PURCHASES,
+            columns=["match_id", "player_slot", "hero_id", "item_id", "buy_index"],
+        )
+        cell = df[df.hero_id == hero_id]
+        sequences = evaluate.player_sequences(cell)
+        consensus = (
+            cell.drop_duplicates(["match_id", "player_slot", "item_id"])
+            .item_id.value_counts()
+            .index[:12]
+            .tolist()
+        )
+        median_order = evaluate.population_order(cell).index.tolist()
+
+        against_players = evaluate.membership_vs_players(consensus, cell)
+        against_median = np.mean(
+            [evaluate._jaccard(median_order, seq, 12) for seq in sequences[:300]]
+        )
+        assert against_players.generated > against_players.ceiling
+        assert against_median < against_players.ceiling
+
+
 class TestAgainstRealData:
     """The regression the pivot exists to prevent."""
 

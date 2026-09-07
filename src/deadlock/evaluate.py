@@ -20,6 +20,12 @@ Membership is necessary but not sufficient: a build carrying all nine Wraith
 staples in a nonsensical order passes the prevalence gate and is still wrong.
 Kendall tau against the population's median order is what catches that.
 
+Membership is measured against real players, never against that median order.
+The median-order reference ranks items by when they are bought, so its top 12
+are the earliest -- cheap components that are absorbed within minutes. Scoring
+set overlap against it reported J@12 0.143 for builds that beat the
+player-vs-player ceiling in 72 of 75 cells. See `membership_vs_players`.
+
 Baselines are measured, not assumed. On Wraith, held out by match:
 
     popularity, excluding owned        0.144
@@ -199,6 +205,87 @@ def order_distance(generated: list[int], reference: list[int]) -> OrderResult:
         jaccard_6=_jaccard(generated, reference, 6),
         jaccard_12=_jaccard(generated, reference, 12),
     )
+
+
+def player_sequences(cell: pd.DataFrame, *, min_length: int = 12) -> list[list[int]]:
+    """Each player's purchase sequence in a cell, longest-first ties by buy order.
+
+    Players with fewer than `min_length` purchases are dropped, since Jaccard@12
+    over a 5-item sequence measures how short the match was, not how the player
+    built.
+    """
+    grouped = (
+        cell.sort_values("buy_index")
+        .groupby(["match_id", "player_slot"])["item_id"]
+        .apply(list)
+    )
+    return [seq for seq in grouped if len(seq) >= min_length]
+
+
+@dataclass
+class MembershipResult:
+    """Set overlap against real players, with the ceiling real players set."""
+
+    generated: float
+    ceiling: float
+    n_players: int
+
+    @property
+    def ratio(self) -> float:
+        """Above 1.0 the build matches a player better than players match."""
+        return self.generated / self.ceiling if self.ceiling else float("nan")
+
+    def __str__(self) -> str:
+        return (
+            f"J@12 {self.generated:.3f} vs ceiling {self.ceiling:.3f} "
+            f"({self.ratio:.2f}x, n={self.n_players})"
+        )
+
+
+def membership_vs_players(
+    generated: list[int],
+    cell: pd.DataFrame,
+    *,
+    k: int = 12,
+    sample: int = 300,
+    seed: int = 0,
+) -> MembershipResult:
+    """Jaccard@k of a build against real players, against the player-vs-player bar.
+
+    **Do not score membership against `population_order`.** That ranks items by
+    median buy position, so its top 12 are the twelve items bought *earliest* --
+    Close Quarters, Headshot Booster, Healing Rite, cheap tier 1 components that
+    are absorbed almost immediately. A real player's first twelve purchases are
+    their staples. The two sets cannot overlap much whatever the model does, and
+    scoring that way reported J@12 0.143 for builds that are in fact closer to a
+    real player than two real players are to each other:
+
+        reference by median buy position, vs a player   0.140
+        real player vs real player                      0.336   <- the ceiling
+        generated build vs a player                     0.412
+
+    Measured over all 75 cells; the build beat the ceiling in 72 of them. The
+    same correction `docs/DIAGNOSIS.md` records for the next-item baselines --
+    a metric is only a bar once you know what the honest bar is.
+
+    Players disagree with each other, so the ceiling is not 1.0 and a build that
+    reached 1.0 would be overfitting to one player rather than describing the
+    population.
+    """
+    rng = np.random.default_rng(seed)
+    sequences = player_sequences(cell, min_length=k)
+    if len(sequences) < 2:
+        return MembershipResult(float("nan"), float("nan"), len(sequences))
+
+    size = min(sample, len(sequences))
+    drawn = [sequences[i] for i in rng.choice(len(sequences), size, replace=False)]
+    against = float(np.mean([_jaccard(generated, seq, k) for seq in drawn]))
+
+    pairs = rng.choice(size, (sample, 2))
+    ceiling = float(
+        np.mean([_jaccard(drawn[i], drawn[j], k) for i, j in pairs if i != j])
+    )
+    return MembershipResult(against, ceiling, len(sequences))
 
 
 # --- Next-item baselines -------------------------------------------------
