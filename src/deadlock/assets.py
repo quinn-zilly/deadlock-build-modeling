@@ -35,6 +35,15 @@ class Item:
     slot_type: str | None   # weapon | vitality | spirit
     tier: int | None        # 1..5
     cost: int
+    # None for all but 11 shopable items. "imbue_active" empowers or copies the
+    # ability, "imbue_modifier_value" buffs its numbers, and
+    # "imbue_active_non_ult" cannot target the ultimate at all -- so choosing
+    # Echo Shard over Mystic Reverb says the build is not about the ult.
+    imbue: str | None = None
+
+    @property
+    def imbueable(self) -> bool:
+        return self.imbue is not None
 
 
 @dataclass(frozen=True)
@@ -68,6 +77,7 @@ def load_items(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Item]:
             slot_type=entry.get("item_slot_type"),
             tier=entry.get("item_tier"),
             cost=entry.get("cost") or 0,
+            imbue=entry.get("imbue"),
         )
     return items
 
@@ -120,6 +130,35 @@ def load_abilities(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Ability]:
 
 
 @lru_cache(maxsize=1)
+def hero_signatures(cache_dir: Path = DEFAULT_CACHE) -> dict[int, dict[int, Ability]]:
+    """Map hero id -> {signature slot 1..4 -> the ability in it}.
+
+    `signature_slots` answers "which slot is this ability", which is all the
+    feature path needs. Naming an ability point for a player needs the other
+    direction: slot 3 of Holliday is Crackshot, and "put your next point in
+    slot 3" is not advice anyone can follow.
+
+    A hero missing a signature simply has no entry for that slot, the same way
+    `signature_slots` leaves Silver's reworked abilities unmapped rather than
+    guessing at them.
+    """
+    heroes: list[dict[str, Any]] = api.get("/v1/assets/heroes", cache_dir=cache_dir)
+    abilities = load_abilities(cache_dir)
+    by_class = {a.class_name: a for a in abilities.values()}
+
+    out: dict[int, dict[int, Ability]] = {}
+    for hero in heroes:
+        signatures = hero.get("items") or {}
+        slots: dict[int, Ability] = {}
+        for slot in range(1, 5):
+            ability = by_class.get(signatures.get(f"signature{slot}"))
+            if ability is not None:
+                slots[slot] = ability
+        if slots:
+            out[int(hero["id"])] = slots
+    return out
+
+
 def signature_slots(cache_dir: Path = DEFAULT_CACHE) -> dict[int, int]:
     """Map ability id -> signature slot (1..4).
 
