@@ -24,9 +24,20 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import archetype, assets, build, buildfmt, counters, evaluate, sequence
+from . import (
+    abilityorder,
+    archetype,
+    assets,
+    build,
+    buildfmt,
+    counters,
+    evaluate,
+    sequence,
+)
 from .state import GameState
 
+ABILITIES_PATH = Path("data/processed/abilities.parquet")
+ABILITY_MODEL_PATH = Path("data/processed/ability_model.npz")
 MODEL_PATH = Path("data/processed/sequence_model.npz")
 COUNTERS_PATH = Path("data/processed/counter_lifts.parquet")
 PURCHASES = Path("data/processed/purchases.parquet")
@@ -61,6 +72,31 @@ def load_model(*, refit: bool = False) -> sequence.SequenceModel:
     model = sequence.fit(purchases, labels)
     model.save(MODEL_PATH)
     return model
+
+
+def load_ability_model(*, refit: bool = False):
+    """The ability-order model and the point frame its timings come from.
+
+    Returns (None, None) when the ability table has not been built, so the tool
+    degrades to item-only advice rather than failing. The frame comes back
+    alongside the model because the clock is part of every deep context -- see
+    `abilityorder.generate_order`.
+    """
+    if not ABILITIES_PATH.exists():
+        return None, None
+    raw = pd.read_parquet(ABILITIES_PATH)
+    labels, _ = archetype.load()
+    frame = abilityorder.point_frame(raw).merge(
+        labels[["match_id", "player_slot", "archetype_id"]],
+        on=["match_id", "player_slot"],
+        how="left",
+    )
+    if ABILITY_MODEL_PATH.exists() and not refit:
+        return sequence.SequenceModel.load(ABILITY_MODEL_PATH), frame
+    print("fitting the ability-order model...", file=sys.stderr)
+    model = abilityorder.fit(raw, labels)
+    model.save(ABILITY_MODEL_PATH)
+    return model, frame
 
 
 def load_counters(*, refit: bool = False) -> pd.DataFrame:
@@ -159,6 +195,20 @@ def cmd_build(args: argparse.Namespace) -> int:
     for item in generated.items:
         print(f"  {item}")
 
+    ability_order = []
+    ability_model, ability_frame = load_ability_model(refit=args.refit)
+    if ability_model is not None:
+        try:
+            ability_order = abilityorder.generate_order(
+                ability_model, ability_frame, hero_id, archetype_id
+            )
+        except ValueError as exc:
+            print(f"\nno ability order: {exc}")
+    if ability_order:
+        print("\nability points:")
+        for line in abilityorder.format_order(ability_order).splitlines():
+            print("  " + line)
+
     if args.explain:
         print("\nwhy each pick:")
         inventory = build.Inventory()
@@ -179,6 +229,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         path = buildfmt.export_build(
             generated,
             args.export,
+            ability_order=ability_order,
             description=(
                 "Purchase order. Only held items are exported: the build schema "
                 "cannot express a sale, and about a third of these purchases are "
@@ -224,6 +275,51 @@ def _print_recommendations(
         print(line)
 
 
+def _print_ability_points(hero_id: int, archetype_id: int, args) -> None:
+    """Where the next point goes, given the points already spent.
+
+    The points so far have to be supplied: a slot at level 4 is the only
+    illegal move in an ability order, and without knowing the current levels
+    the tool would happily recommend a fifth point in a maxed ability.
+    """
+    spent = _split(getattr(args, "points", None))
+    if not spent:
+        return
+    model, frame = load_ability_model(refit=args.refit)
+    if model is None:
+        print("\n  (no ability table built)")
+        return
+
+    signatures = assets.hero_signatures().get(hero_id, {})
+    by_name = {ability.name.lower(): slot for slot, ability in signatures.items()}
+    slots = []
+    for name in spent:
+        slot = by_name.get(name.lower())
+        if slot is None:
+            options = ", ".join(a.name for a in signatures.values())
+            raise SystemExit(f"no ability {name!r} on this hero. Options: {options}")
+        slots.append(slot)
+
+    levels = {slot: slots.count(slot) for slot in set(slots)}
+    over = [signatures[s].name for s, n in levels.items() if n > abilityorder.MAX_LEVEL]
+    if over:
+        raise SystemExit(f"more than four points in: {', '.join(over)}")
+
+    state = GameState(
+        hero_id=hero_id,
+        game_time_s=parse_time(args.time),
+        souls_available=0,
+        purchased=tuple(slots),
+        archetype_posterior={archetype_id: 1.0},
+    )
+    ranked = abilityorder.recommend(model, state, levels=levels)
+    print(f"\nnext ability point ({len(slots)} spent):")
+    if not ranked:
+        print("  (nothing legal left -- every ability is maxed)")
+    for point in ranked:
+        print("  " + str(point))
+
+
 def cmd_next(args: argparse.Namespace) -> int:
     hero_id = assets.resolve_hero(args.hero)
     _, meta = archetype.load()
@@ -244,6 +340,7 @@ def cmd_next(args: argparse.Namespace) -> int:
         _print_recommendations(
             model, state, lifts, top=args.top, item_names=item_names, hero_names=hero_names
         )
+        _print_ability_points(hero_id, archetype_id, args)
         return 0
 
     # No declaration: infer, and when the evidence is thin show each archetype
@@ -405,6 +502,11 @@ def main(argv: list[str] | None = None) -> int:
     nxt.add_argument("--souls", type=int, default=0)
     nxt.add_argument("--enemies", default="")
     nxt.add_argument("--top", type=int, default=5)
+    nxt.add_argument(
+        "--points",
+        default="",
+        help="ability points already spent, in order, comma separated",
+    )
     nxt.add_argument("--min-share", type=float, default=0.25)
     nxt.set_defaults(func=cmd_next)
 

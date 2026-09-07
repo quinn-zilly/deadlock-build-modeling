@@ -92,15 +92,55 @@ class Build:
         return "\n".join(lines)
 
 
-def to_deadlock_json(build: Build, *, name: str | None = None, description: str = "") -> dict:
+def ability_order_json(order: list) -> dict:
+    """The ability order, in the shape `/v1/builds` returns it.
+
+    `details.ability_order.currency_changes` is a flat ordered list of 16
+    entries, one per point, each naming the ability and what the point cost.
+    Verified against the live endpoint: entry order *is* spend order, and each
+    ability's own levels appear in ascending order within it -- one real build
+    reads `1111234223432434` when levels are printed in entry order.
+
+    Unlocking spends one point of currency type 2; levels 2, 3 and 4 spend 1, 2
+    and 5 of type 1. Those costs come from the endpoint rather than from us.
+    """
+    from . import abilityorder
+
+    return {
+        "currency_changes": [
+            {
+                "ability_id": point.ability_id,
+                "currency_type": abilityorder.LEVEL_COST[point.level][0],
+                "delta": abilityorder.LEVEL_COST[point.level][1],
+                "annotation": (
+                    f"~{int(point.game_time_s) // 60}min "
+                    f"(p={point.probability:.2f}, n={point.n})"
+                ),
+            }
+            for point in order
+        ]
+    }
+
+
+def to_deadlock_json(
+    build: Build,
+    *,
+    name: str | None = None,
+    description: str = "",
+    ability_order: list | None = None,
+    imbue_targets: dict[int, int] | None = None,
+) -> dict:
     """Serialize to the hero-build schema Deadlock's build browser accepts.
 
     Mirrors the structure returned by /v1/builds: `mod_categories` holding
-    named groups of `mods`, each keyed by `ability_id` (the item id).
+    named groups of `mods`, each keyed by `ability_id` (the item id), and
+    `ability_order` holding the point sequence.
 
     Only held items are exported. The schema has no way to say "buy this, then
     sell it", so an exported build is the surviving inventory in purchase
-    order; the sell advice lives in the human-readable view.
+    order; the sell advice lives in the human-readable view. The ability order
+    has no such loss: a point once spent is never refunded, so the sequence
+    exports whole.
     """
     held = build.held_items()
     categories = []
@@ -120,7 +160,14 @@ def to_deadlock_json(build: Build, *, name: str | None = None, description: str 
                         ),
                         "required_flex_slots": None,
                         "sell_priority": None,
-                        "imbue_target_ability_id": None,
+                        # Deadlock's own schema has always had this field and
+                        # this exporter always sent null, so every build it
+                        # produced left the imbue choice to the reader. Only
+                        # 9 shopable items can be imbued, and for those the
+                        # target is what the population actually picks.
+                        "imbue_target_ability_id": (imbue_targets or {}).get(
+                            item.item_id
+                        ),
                     }
                     for item in group
                 ],
@@ -142,7 +189,14 @@ def to_deadlock_json(build: Build, *, name: str | None = None, description: str 
             "language": 0,
             "version": 1,
             "tags": [],
-            "details": {"mod_categories": categories},
+            "details": (
+                {"mod_categories": categories}
+                if not ability_order
+                else {
+                    "mod_categories": categories,
+                    "ability_order": ability_order_json(ability_order),
+                }
+            ),
         }
     }
 

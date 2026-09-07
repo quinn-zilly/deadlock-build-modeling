@@ -160,3 +160,31 @@ class TestThinEvidence:
         solid = Recommendation(2, "Common", 0.37, 1635, "L2", 3200)
         assert thin.thin and "[thin]" in str(thin)
         assert not solid.thin and "[thin]" not in str(solid)
+
+
+class TestAbilityPointArguments:
+    """The guardrails on `--points`, which the model cannot enforce itself."""
+
+    class Args:
+        def __init__(self, points, time="5:00", refit=False):
+            self.points = points
+            self.time = time
+            self.refit = refit
+
+    def hero(self) -> int:
+        return assets.resolve_hero("Holliday")
+
+    def test_no_points_prints_nothing(self, capsys):
+        cli._print_ability_points(self.hero(), 0, self.Args(""))
+        assert capsys.readouterr().out == ""
+
+    def test_an_unknown_ability_names_the_real_ones(self):
+        with pytest.raises(SystemExit, match="Powder Keg"):
+            cli._print_ability_points(self.hero(), 0, self.Args("Fireball"))
+
+    def test_a_fifth_point_in_one_ability_is_refused(self):
+        """Four levels is the cap, and a fifth point is not a legal build."""
+        with pytest.raises(SystemExit, match="more than four"):
+            cli._print_ability_points(
+                self.hero(), 0, self.Args("Powder Keg," * 5)
+            )

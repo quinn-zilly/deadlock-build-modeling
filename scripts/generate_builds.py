@@ -21,9 +21,20 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from deadlock import archetype, assets, build, buildfmt, evaluate, sequence  # noqa: E402
+from deadlock import (  # noqa: E402
+    abilityorder,
+    imbue,
+    archetype,
+    assets,
+    build,
+    buildfmt,
+    evaluate,
+    sequence,
+)
 
 PURCHASES = Path("data/processed/purchases.parquet")
+ABILITIES = Path("data/processed/abilities.parquet")
+IMBUES = Path("data/processed/imbues.parquet")
 COLUMNS = [
     "match_id",
     "player_slot",
@@ -55,6 +66,30 @@ def main() -> int:
         df = df[df["hero_id"] == wanted]
 
     model = sequence.fit(df, labels)
+
+    # The ability order is the other half of a build, and it is a separate
+    # sequence over the same players -- same chain, four outcomes instead of
+    # 173. Absent only if the ability table has not been built.
+    ability_model = None
+    ability_frame = None
+    if ABILITIES.exists():
+        raw = pd.read_parquet(ABILITIES)
+        if args.hero:
+            raw = raw[raw["hero_id"] == wanted]
+        ability_model = abilityorder.fit(raw, labels)
+        ability_frame = abilityorder.point_frame(raw).merge(
+            labels[["match_id", "player_slot", "archetype_id"]],
+            on=["match_id", "player_slot"],
+            how="left",
+        )
+    else:
+        print("no ability table; builds will export without an ability order")
+
+    # Which ability the population points each imbueable item at. Nine items,
+    # so this is a small lookup, but it is the difference between exporting a
+    # build that says "buy Mystic Reverb" and one that says what to do with it.
+    imbues = pd.read_parquet(IMBUES) if IMBUES.exists() else pd.DataFrame()
+
     args.export.mkdir(parents=True, exist_ok=True)
 
     passed = failed = inconclusive = 0
@@ -103,17 +138,20 @@ def main() -> int:
                 archetype_id=archetype_id,
             )
 
+            generated_ids = [item.item_id for item in generated.items]
             reference = evaluate.population_order(cell).index.tolist()
-            order = evaluate.order_distance(
-                [item.item_id for item in generated.items], reference
-            )
+            order = evaluate.order_distance(generated_ids, reference)
+            # Order comes from the median-buy-position reference; membership
+            # must not. See evaluate.membership_vs_players for why.
+            membership = evaluate.membership_vs_players(generated_ids, cell)
             order_rows.append(
                 {
                     "build": generated.label,
                     "kendall_tau": order.kendall_tau,
                     "n_shared": order.n_shared,
-                    "jaccard_6": order.jaccard_6,
-                    "jaccard_12": order.jaccard_12,
+                    "jaccard_12": membership.generated,
+                    "ceiling_12": membership.ceiling,
+                    "ratio": membership.ratio,
                     "reliable": order.reliable,
                 }
             )
@@ -136,9 +174,27 @@ def main() -> int:
                 f"{len(result.staples):2d} staples, tau={order.kendall_tau:+.2f}"
             )
 
+            ability_order = []
+            if ability_model is not None:
+                try:
+                    ability_order = abilityorder.generate_order(
+                        ability_model, ability_frame, int(hero_id), archetype_id
+                    )
+                except ValueError as exc:
+                    # A cell with no ability points is a data gap, not a build
+                    # that happens to have no order. Say which, and move on.
+                    print(f"  no ability order for {generated.label}: {exc}")
+
             buildfmt.export_build(
                 generated,
                 args.export / f"{hero_name}_{archetype_id}.json".replace(" ", "_"),
+                ability_order=ability_order,
+                imbue_targets=imbue.dominant_targets(
+                    imbues.merge(
+                        cell[["match_id", "player_slot"]].drop_duplicates(),
+                        on=["match_id", "player_slot"],
+                    )
+                ) if len(imbues) else None,
                 description=(
                     "Purchase order. Only held items are exported: the build "
                     "schema cannot express a sale, and roughly a third of these "
@@ -157,9 +213,17 @@ def main() -> int:
     print(f"\n{passed} passed, {failed} failed, {inconclusive} inconclusive")
     if len(reliable):
         print(
-            f"order vs population: median tau {reliable['kendall_tau'].median():+.3f}, "
-            f"median jaccard@12 {reliable['jaccard_12'].median():.3f} "
+            f"order vs population: median tau {reliable['kendall_tau'].median():+.3f} "
             f"({len(reliable)} of {len(orders)} reliable)"
+        )
+    scored = orders.dropna(subset=["ratio"])
+    if len(scored):
+        print(
+            f"membership vs real players: mean J@12 "
+            f"{scored['jaccard_12'].mean():.3f} against a player-vs-player "
+            f"ceiling of {scored['ceiling_12'].mean():.3f} "
+            f"({int((scored['ratio'] >= 1.0).sum())} of {len(scored)} cells "
+            f"at or above the ceiling)"
         )
     for line in failures:
         print(f"  {line}")
