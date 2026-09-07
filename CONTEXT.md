@@ -157,6 +157,56 @@ around 480s, never at the end.
 A hero's fourth signature ability. Colloquially the **ult**. Builds oriented
 around it are **ult builds**. See [[ability focus]].
 
+## Imbue
+
+Pointing an item at one of a hero's four signature abilities, chosen at the
+shop counter when the item is bought. Nine shopable items can be imbued — two
+more exist at tier 5, and nothing buys tier 5. Mystic Reverb aimed at
+Singularity is not the same purchase as Mystic Reverb aimed at Kinetic Pulse,
+so an item recommendation without a target is half an instruction.
+
+**An imbue is never missing.** The game makes the choice at the counter, so all
+452,103 imbues carry a target. A hero with a low imbue rate is a hero that
+rarely buys imbueable items, not a hero with missing data: Silver buys one on
+21.0% of matches and imbues on 21%, Wraith on 99.9% and 100%. Those are the
+same number, and imputing anything for a player who imbued nothing would invent
+a statement they never made.
+
+Three kinds exist in the shop, grouped as two:
+
+- **active** — the item empowers or copies the ability itself
+  (`imbue_active`), or does so but cannot target the [[ultimate]]
+  (`imbue_active_non_ult`, which is Echo Shard alone). The restriction is
+  itself a signal: choosing Echo Shard over Mystic Reverb says the build is
+  not about the ult.
+- **modifier** — the item buffs the ability's numbers
+  (`imbue_modifier_value`).
+
+"I want a second Singularity" and "I want my Singularity to last longer" are
+different builds, which is why the two groups are kept apart.
+
+## Imbue target
+
+The ability one build points an imbueable item at. A property of the
+[[archetype]], not of the item: Dynamo's ult build imbues Singularity 3.6x
+more than its stomp build, and its stomp build imbues Kinetic Pulse 3.0x more.
+Reported as the most common target in that hero-and-archetype's population,
+with the count behind it.
+
+Two qualifications are marked rather than hidden, as [[thin evidence]] is:
+
+- **split** — the most common target is below 50%, so it is the mode and still
+  not what most players do. Spirit Ivy points Compress Cooldown at Air Drop
+  39% of the time.
+- **thin** — fewer than 30 imbues stand behind it.
+
+A population that never imbued an item has no target for it, and says so. That
+is a different statement from a weak preference: because an imbue is never
+missing, no rows means the population is too small to speak.
+
+See [[ability focus]], which is the same question asked of a whole build rather
+than of one item.
+
 ## Staple
 
 An item bought by at least 70% of a hero-and-archetype's players. A generated
