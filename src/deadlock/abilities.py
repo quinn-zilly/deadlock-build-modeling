@@ -186,6 +186,82 @@ def order_index(df: pd.DataFrame) -> pd.DataFrame:
     return wide.fillna(0.0)
 
 
+def point_order_features(
+    df: pd.DataFrame, levels: tuple[int, ...] = (2, 3, 4)
+) -> pd.DataFrame:
+    """How far into a player's spending each slot reached each level.
+
+    Twelve columns, `pt_1_l2` .. `pt_4_l4`: the point at which signature slot
+    *s* reached level *L*, as a fraction of that player's total ability points.
+    A slot never reaching a level reads 1.0, which sorts after every slot that
+    did -- "not by the end" is the honest reading, and it keeps the column
+    ordered rather than punching a hole in it.
+
+    **This is the ability feature that carries playstyle, and it is not
+    `ability_features`.** That one reads levels at a fixed instant, which is a
+    snapshot of state; `CONTEXT.md` says of items that a build is a sequence and
+    not an inventory, and the same holds here. State was measured and rejected
+    for the archetype clustering (see the module docstring in `archetype.py`),
+    but what was measured was state. Order was never tried, and it separates
+    clusters state could not -- on Ivy, 67% of one cluster maxes Stone Form
+    first against 9% of another, where the largest gap in levels at 480s was
+    0.48 of 4.
+
+    Ordering by point rather than by clock because players level at different
+    speeds; the fifth point is the fifth decision whenever it was taken.
+
+    Level *L* is read as the first point where the recorded level is **at least**
+    L, not exactly L. 7.9% of players have a missing level row, and exact
+    matching would report those slots as never reaching a level they plainly
+    reached.
+    """
+    keys = ["match_id", "player_slot"]
+    ordered = df.sort_values(keys + ["game_time_s"]).copy()
+    ordered["pt_index"] = ordered.groupby(keys).cumcount()
+    totals = ordered.groupby(keys).size().rename("n_points")
+
+    everyone = ordered[keys].drop_duplicates().set_index(keys).index
+    valid = ordered[ordered["signature_slot"] != UNMAPPED_SLOT]
+
+    out = pd.DataFrame(index=everyone)
+    for level in levels:
+        reached = (
+            valid[valid["level"] >= level]
+            .groupby(keys + ["signature_slot"])["pt_index"]
+            .min()
+            .unstack("signature_slot")
+            .reindex(columns=range(1, N_SIGNATURE_SLOTS + 1))
+            .reindex(everyone)
+        )
+        scaled = reached.div(totals.reindex(everyone), axis=0)
+        for slot in range(1, N_SIGNATURE_SLOTS + 1):
+            out[f"pt_{slot}_l{level}"] = scaled[slot].fillna(1.0).clip(0.0, 1.0)
+    return out
+
+
+def first_maxed_slot(df: pd.DataFrame) -> pd.Series:
+    """Which signature slot each player took to level 4 first.
+
+    The single most legible summary of an ability order, and the one a player
+    would recognise: the ability maxed first is maxed for most of the match,
+    the one maxed last for a few minutes. Reported for review sheets and
+    archetype naming rather than fed to the clustering, which reads the full
+    `point_order_features` instead.
+
+    Players who max nothing get 0.
+    """
+    keys = ["match_id", "player_slot"]
+    valid = df[df["signature_slot"] != UNMAPPED_SLOT]
+    maxed = (
+        valid[valid["level"] >= MAX_ABILITY_LEVEL]
+        .sort_values("game_time_s")
+        .groupby(keys)["signature_slot"]
+        .first()
+    )
+    everyone = df[keys].drop_duplicates().set_index(keys).index
+    return maxed.reindex(everyone).fillna(0).astype(int).rename("first_maxed")
+
+
 def reconcile(
     n_purchases: int, n_abilities: int, n_raw: int
 ) -> tuple[bool, str]:

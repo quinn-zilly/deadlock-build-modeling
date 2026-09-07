@@ -197,6 +197,98 @@ class TestOrderIndex:
         assert got["order_2"].iloc[0] == 2
 
 
+class TestPointOrderFeatures:
+    """The feature that separates archetypes where ability *state* could not."""
+
+    def test_position_is_a_fraction_of_the_player_s_points(self):
+        rows = table(
+            [(0, 1, 1, 10), (0, 1, 2, 20), (0, 2, 1, 30), (0, 2, 2, 40)]
+        )
+        got = abilities.point_order_features(rows)
+        # Four points; slot 1 hits level 2 on the second (index 1) -> 1/4.
+        assert got["pt_1_l2"].iloc[0] == pytest.approx(0.25)
+        assert got["pt_2_l2"].iloc[0] == pytest.approx(0.75)
+
+    def test_a_level_never_reached_reads_one(self):
+        """Not by the end sorts after every slot that got there."""
+        rows = table([(0, 1, 1, 10), (0, 1, 2, 20)])
+        got = abilities.point_order_features(rows)
+        assert got["pt_1_l4"].iloc[0] == 1.0
+        assert got["pt_3_l2"].iloc[0] == 1.0
+
+    def test_a_missing_level_row_does_not_hide_the_level(self):
+        """7.9% of players skip a level row; exact matching would lose them.
+
+        A player recorded at level 1 then level 3 plainly passed level 2, and
+        reporting 'never reached level 2' would be wrong about the game.
+        """
+        rows = table([(0, 1, 1, 10), (0, 1, 3, 20)])
+        got = abilities.point_order_features(rows)
+        assert got["pt_1_l2"].iloc[0] < 1.0
+        assert got["pt_1_l2"].iloc[0] == got["pt_1_l3"].iloc[0]
+
+    def test_ordered_by_point_not_by_clock(self):
+        """Two players who level identically but at different speeds match."""
+        fast = table([(0, 1, 1, 10), (0, 1, 2, 20), (0, 2, 1, 30)])
+        slow = table([(0, 1, 1, 100), (0, 1, 2, 400), (0, 2, 1, 900)])
+        assert abilities.point_order_features(fast).values.tolist() == (
+            abilities.point_order_features(slow).values.tolist()
+        )
+
+    def test_every_player_gets_a_row(self):
+        rows = table([(0, 1, 1, 10), (1, 2, 1, 10)])
+        assert len(abilities.point_order_features(rows)) == 2
+
+    def test_twelve_columns(self):
+        rows = table([(0, 1, 1, 10)])
+        got = abilities.point_order_features(rows)
+        assert list(got.columns) == [
+            f"pt_{slot}_l{level}" for level in (2, 3, 4) for slot in (1, 2, 3, 4)
+        ]
+
+    def test_unmapped_slots_are_ignored_but_still_count_as_points(self):
+        """An unmapped ability is a spent point even if it has no slot."""
+        rows = table([(0, abilities.UNMAPPED_SLOT, 1, 5), (0, 1, 2, 10)])
+        got = abilities.point_order_features(rows)
+        assert got["pt_1_l2"].iloc[0] == pytest.approx(0.5)
+
+    def test_separates_a_real_hero_the_state_features_could_not(self):
+        """Holliday's gun archetype takes its third slot far earlier.
+
+        Pinned on real data because this is the claim the whole ability
+        reversal rests on: order carries playstyle where levels at 480s did
+        not. If this stops holding, the feature has stopped earning its place.
+        """
+        if not ABILITIES.exists():
+            pytest.skip("requires the processed ability table")
+        import json
+
+        meta = json.loads(Path("data/processed/archetype_meta.json").read_text())
+        hero_id = next(
+            int(h) for h, v in meta["heroes"].items() if v["hero_name"] == "Holliday"
+        )
+        df = pd.read_parquet(ABILITIES)
+        labels = pd.read_parquet("data/processed/archetypes.parquet").set_index(
+            ["match_id", "player_slot"]
+        )
+        features = abilities.point_order_features(df[df.hero_id == hero_id])
+        joined = features.join(labels["archetype_id"], how="inner")
+        means = joined.groupby("archetype_id")["pt_3_l2"].mean()
+        assert means.max() - means.min() > 0.4
+
+
+class TestFirstMaxedSlot:
+    def test_reports_the_slot_taken_to_four_first(self):
+        rows = table(
+            [(0, 1, 4, 300), (0, 2, 4, 100), (0, 3, 1, 10)]
+        )
+        assert abilities.first_maxed_slot(rows).iloc[0] == 2
+
+    def test_a_player_who_maxes_nothing_is_zero(self):
+        rows = table([(0, 1, 3, 10)])
+        assert abilities.first_maxed_slot(rows).iloc[0] == 0
+
+
 class TestReconcile:
     def test_exact_partition_passes(self):
         ok, message = abilities.reconcile(100, 90, 190)
