@@ -218,7 +218,18 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Project data (large API pulls + derived artifacts)
-data/
+data/*
 *.parquet
 models/
 data/builds/
+
+# The archetype fit is the exception. Everything downstream conditions on these
+# clusters, the regression tests read them, and regenerating them takes a full
+# refit over 5M purchases -- so an experiment that overwrites them is otherwise
+# irreversible. Small enough to track: ~280KB of JSON and ~850KB of labels.
+# A negation cannot escape an excluded parent directory, which is why the rule
+# above is `data/*` rather than `data/`.
+!data/processed/
+data/processed/*
+!data/processed/archetype_meta.json
+!data/processed/archetypes.parquet
