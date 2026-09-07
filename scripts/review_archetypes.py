@@ -22,7 +22,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from deadlock import archetype, assets
+from deadlock import abilities, archetype, assets, imbue
+
+IMBUES = Path("data/processed/imbues.parquet")
+ABILITIES = Path("data/processed/abilities.parquet")
+
+# Full mass: the imbue block carries as much weight as the build families.
+# Measured better than 0.25 and 0.5, which found three of the five new
+# archetypes rather than all five.
+IMBUE_WEIGHT = 1.0
 
 PURCHASES = Path("data/processed/purchases.parquet")
 COLUMNS = ["match_id", "player_slot", "hero_id", "item_id", "won"]
@@ -118,7 +126,48 @@ def main() -> int:
     purchases = pd.read_parquet(PURCHASES, columns=COLUMNS)
     logging.info("fitting %s heroes...", purchases["hero_id"].nunique())
 
-    labels, fits, meta = archetype.fit_all(purchases)
+    # Imbue joins the fit; ability order does not. Measured over 11 heroes at
+    # weights 0/0.25/0.5/1.0: imbue gains an archetype on Dynamo, Bebop,
+    # Wraith, The Doorman and Rem and loses none, while ability order adds
+    # nothing imbue does not already add and costs Pocket's split when the two
+    # are combined. Ability order earns its place in the recommendation and the
+    # naming instead, which is where it measured strongly.
+    #
+    # Note the comparison that says so is "does the fit still clear every
+    # criterion, and at what k" -- not `separation`, which is a minimum over
+    # cluster pairs and so falls whenever k rises, and which reports a rejected
+    # candidate's score when a hero ends at k=1.
+    extra = None
+    if IMBUES.exists():
+        players = (
+            purchases[["match_id", "player_slot"]]
+            .drop_duplicates()
+            .set_index(["match_id", "player_slot"])
+            .index
+        )
+        extra = archetype.scale_block(
+            imbue.imbue_features(pd.read_parquet(IMBUES), players=players),
+            IMBUE_WEIGHT,
+        )
+        logging.info("imbue features in the fit at weight %.2f", IMBUE_WEIGHT)
+    else:
+        logging.info("no imbue table; fitting on build families alone")
+
+    # Naming inputs. Imbue says what a build is aimed at; the ability levelled
+    # first says the same thing for builds that buy no imbueable item.
+    imbue_rows = pd.read_parquet(IMBUES) if IMBUES.exists() else None
+    imbue_indexed = (
+        imbue_rows.set_index(["match_id", "player_slot"]) if imbue_rows is not None else None
+    )
+    first_maxed = (
+        abilities.first_maxed_slot(pd.read_parquet(ABILITIES))
+        if ABILITIES.exists()
+        else None
+    )
+
+    labels, fits, meta = archetype.fit_all(
+        purchases, extra=extra, imbues=imbue_indexed, first_maxed=first_maxed
+    )
 
     # Win rate per archetype: descriptive only. It says who plays a build, not
     # whether the build is better, so it informs the reader and nothing else.

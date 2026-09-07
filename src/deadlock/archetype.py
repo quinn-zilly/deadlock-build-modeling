@@ -297,13 +297,43 @@ def archetype_posterior(
     return {a: score / total for a, score in scores.items()}
 
 
-def feature_matrix(purchases: pd.DataFrame) -> pd.DataFrame:
+def scale_block(block: pd.DataFrame, weight: float) -> pd.DataFrame | None:
+    """Put an extra feature block on the same footing as the family shares.
+
+    Family shares sum to 1 for every player, so their mean row L1 norm is
+    exactly 1. A block is divided by its own mean row L1 and multiplied by
+    `weight`, which makes `weight=1.0` mean "this block carries as much total
+    mass as the families do" and makes a sweep over weights comparable across
+    blocks of different widths.
+
+    Scaled, never z-scored. Z-scoring inflates whichever column happens to have
+    low variance for a hero, which is the same reason the family shares are
+    left unstandardized -- see the module docstring.
+    """
+    if block is None or weight <= 0 or not len(block):
+        return None
+    scale = float(block.abs().sum(axis=1).mean())
+    if scale <= 0:
+        return None
+    return block * (weight / scale)
+
+
+def feature_matrix(
+    purchases: pd.DataFrame, extra: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """Per-player archetype features: souls-weighted build-family shares.
 
     Left unstandardized on purpose -- see the module docstring. The shares
     already sum to 1, and z-scoring them measurably degrades every hero tried.
+
+    `extra` carries already-scaled ability blocks. Pass them through
+    `scale_block` first; joining a raw block would let its width rather than
+    its content decide how much it moves the fit.
     """
-    return family_shares(purchases).fillna(0.0)
+    features = family_shares(purchases).fillna(0.0)
+    if extra is None or not len(extra):
+        return features
+    return features.join(extra.reindex(features.index).fillna(0.0), how="left").fillna(0.0)
 
 
 def _silhouette(features: pd.DataFrame, labels: np.ndarray) -> float:
@@ -468,6 +498,7 @@ def fit_hero(
     hero_id: int,
     hero_name: str = "",
     candidate_k: tuple[int, ...] = CANDIDATE_K,
+    extra: pd.DataFrame | None = None,
 ) -> ArchetypeFit:
     """Select k for one hero, accepting a split only on all four criteria.
 
@@ -476,7 +507,7 @@ def fit_hero(
     k=2 for Ivy, but only this one finds Kelvin's support build -- it lives in a
     k=3 fit whose other two clusters are one archetype on a gradient.
     """
-    features = feature_matrix(purchases)
+    features = feature_matrix(purchases, extra)
     n = len(features)
     single = ArchetypeFit(
         hero_id=hero_id,
@@ -602,6 +633,165 @@ def propose_name(
     return name, margin
 
 
+# A cluster's ability focus has to be its own, not the hero's. Every Dynamo
+# imbues something; only one of Dynamo's clusters imbues Singularity 95% of the
+# time against 8% elsewhere.
+MIN_FOCUS_SHARE = 0.50
+MIN_FOCUS_LIFT = 0.20
+MIN_FOCUS_ROWS = 30
+
+
+def ability_focus(
+    members: pd.Index,
+    others: pd.Index,
+    imbues: pd.DataFrame | None,
+    first_maxed: pd.Series | None,
+) -> tuple[int, float] | None:
+    """Which signature slot a cluster is built around, if any.
+
+    Returns (slot, share) for the ability this cluster points at far more than
+    the hero's other clusters do, or None when no ability stands out.
+
+    Imbue leads, and the ability levelled first is the fallback. Imbue is the
+    sharper statement -- a player spends 6,400 souls to put Mystic Reverb on
+    one ability -- but only builds that buy imbueable items make it, so a
+    cluster that buys none is read from its levelling instead.
+
+    Two guards, both learned the hard way. `MIN_FOCUS_ROWS` because a share
+    over 24 rows is not a finding: a Bebop cluster of 5,110 players had 24
+    imbues, and 23 of them agreeing looked like a 96% signal. And a *lift*
+    requirement, not just a share, because "every Wraith imbues Card Trick"
+    describes the hero, not the build, and would name both of its clusters the
+    same thing.
+    """
+    for source, dominant in (
+        ("imbue", _dominant_imbue(members, others, imbues)),
+        ("levelling", _dominant_first_maxed(members, others, first_maxed)),
+    ):
+        if dominant is not None:
+            return dominant
+    return None
+
+
+def _dominant_imbue(
+    members: pd.Index, others: pd.Index, imbues: pd.DataFrame | None
+) -> tuple[int, float] | None:
+    if imbues is None or not len(imbues):
+        return None
+    mine = imbues[imbues.index.isin(members)]
+    if len(mine) < MIN_FOCUS_ROWS:
+        return None
+    theirs = imbues[imbues.index.isin(others)]
+    shares = mine["signature_slot"].value_counts(normalize=True)
+    slot = int(shares.index[0])
+    share = float(shares.iloc[0])
+    elsewhere = 0.0
+    if len(theirs):
+        other_shares = theirs["signature_slot"].value_counts(normalize=True)
+        elsewhere = float(other_shares.get(slot, 0.0))
+    if share < MIN_FOCUS_SHARE or share - elsewhere < MIN_FOCUS_LIFT:
+        return None
+    return slot, share - elsewhere
+
+
+def _dominant_first_maxed(
+    members: pd.Index, others: pd.Index, first_maxed: pd.Series | None
+) -> tuple[int, float] | None:
+    if first_maxed is None or not len(first_maxed):
+        return None
+    mine = first_maxed[first_maxed.index.isin(members)]
+    mine = mine[mine > 0]
+    if len(mine) < MIN_FOCUS_ROWS:
+        return None
+    theirs = first_maxed[first_maxed.index.isin(others)]
+    theirs = theirs[theirs > 0]
+    shares = mine.value_counts(normalize=True)
+    slot = int(shares.index[0])
+    share = float(shares.iloc[0])
+    elsewhere = float(theirs.value_counts(normalize=True).get(slot, 0.0)) if len(theirs) else 0.0
+    if share < MIN_FOCUS_SHARE or share - elsewhere < MIN_FOCUS_LIFT:
+        return None
+    return slot, share - elsewhere
+
+
+def focus_label(slot: int, signatures: dict) -> str:
+    """What a player calls a build aimed at this ability.
+
+    Slot 4 is the ultimate, and `CONTEXT.md` records that players say "ult
+    build" rather than naming the ability. Every other slot is called by the
+    ability's own name.
+    """
+    if slot == 4:
+        return "Ult"
+    ability = signatures.get(slot)
+    return getattr(ability, "name", f"Slot {slot}")
+
+
+def item_label(prevalence: pd.DataFrame, cluster: int, item_names: dict[int, str]) -> str | None:
+    """The one item that most separates this cluster, in a form a player says.
+
+    The last word of the item name: a player says "the Reverb build", not "the
+    Mystic Reverb build". Discriminative items are the honest signal about what
+    a cluster is -- more so than its centroid, which measures only where souls
+    went.
+    """
+    top = discriminative_items(prevalence, cluster, top=1)
+    if not len(top):
+        return None
+    name = item_names.get(int(top.iloc[0]["item_id"]))
+    return name.split()[-1] if name else None
+
+
+def make_unique(
+    proposed: dict[int, str],
+    hero_name: str,
+    *,
+    focus: dict[int, str] | None = None,
+    items: dict[int, str] | None = None,
+) -> dict[int, str]:
+    """Give every cluster of one hero a name that selects only it.
+
+    Two clusters sharing a name is a user-visible defect, not an aesthetic
+    one: `--archetype Spirit` silently picks the first, so a third of Lady
+    Geist players had a build they could not reach. Uniqueness is the floor.
+
+    Disambiguation runs in the order a player would find informative:
+    the build family first, then what the build is aimed at, then the item that
+    most sets it apart. A trailing number is the last resort and means the rule
+    ran out of things to say -- which is a signal the clusters may not be two
+    builds at all.
+    """
+    focus = focus or {}
+    items = items or {}
+    counts: dict[str, list[int]] = {}
+    for cluster, name in proposed.items():
+        counts.setdefault(name, []).append(cluster)
+
+    out = dict(proposed)
+    for name, clusters in counts.items():
+        if len(clusters) < 2:
+            continue
+        for source in (focus, items):
+            candidates = {c: source.get(c) for c in clusters}
+            distinct = [v for v in candidates.values() if v]
+            if len(set(distinct)) == len(clusters):
+                for cluster, extra in candidates.items():
+                    out[cluster] = f"{extra} {name}" if extra else out[cluster]
+                break
+        else:
+            for index, cluster in enumerate(sorted(clusters), start=1):
+                out[cluster] = f"{name} {index}"
+
+    # Disambiguating one group can collide with another group's name.
+    seen: dict[str, int] = {}
+    for cluster in sorted(out):
+        name = out[cluster]
+        if name in seen:
+            out[cluster] = f"{name} {seen[name] + 1}"
+        seen[name] = seen.get(name, 0) + 1
+    return out
+
+
 def load_name_overrides(path: Path = NAMES_PATH) -> dict[str, str]:
     """Human-accepted archetype names, keyed "<hero_id>:<archetype_id>".
 
@@ -618,11 +808,15 @@ def fit_all(
     *,
     hero_names: dict[int, str] | None = None,
     overrides: dict[str, str] | None = None,
+    extra: pd.DataFrame | None = None,
+    imbues: pd.DataFrame | None = None,
+    first_maxed: pd.Series | None = None,
 ) -> tuple[pd.DataFrame, list[ArchetypeFit], dict]:
     """Fit every hero, returning labels, per-hero fits, and reviewable metadata."""
     hero_names = hero_names or {h: v.name for h, v in assets.load_heroes().items()}
     overrides = load_name_overrides() if overrides is None else overrides
     item_names = {i: it.name for i, it in assets.load_items().items()}
+    all_signatures = assets.hero_signatures()
 
     labels: list[pd.DataFrame] = []
     fits: list[ArchetypeFit] = []
@@ -630,7 +824,7 @@ def fit_all(
 
     for hero_id, group in purchases.groupby("hero_id"):
         name = hero_names.get(int(hero_id), str(hero_id))
-        fit = fit_hero(group, hero_id=int(hero_id), hero_name=name)
+        fit = fit_hero(group, hero_id=int(hero_id), hero_name=name, extra=extra)
         fits.append(fit)
 
         frame = fit.labels.rename("archetype_id").reset_index()
@@ -638,14 +832,42 @@ def fit_all(
         labels.append(frame)
 
         prevalence = cluster_prevalence(group, fit.labels) if fit.split else pd.DataFrame()
-        clusters = []
+        signatures = all_signatures.get(int(hero_id), {})
+
+        # Name every cluster of this hero together, not one at a time. Two
+        # clusters sharing a name is only visible across the hero, and it is
+        # what made a third of Lady Geist players unable to select their build.
+        proposed_names: dict[int, str] = {}
+        margins: dict[int, float] = {}
+        focus_labels: dict[int, str] = {}
+        item_labels: dict[int, str] = {}
         for cluster in sorted(fit.labels.unique()):
             centroid = fit.centroids.loc[cluster] if fit.split else pd.Series(dtype=float)
-            proposed, margin = (
+            proposed_names[cluster], margins[cluster] = (
                 propose_name(centroid, name, prevalence, cluster)
                 if fit.split
                 else (name, 0.0)
             )
+            if not fit.split:
+                continue
+            members = fit.labels[fit.labels == cluster].index
+            others = fit.labels[fit.labels != cluster].index
+            found = ability_focus(members, others, imbues, first_maxed)
+            if found is not None:
+                focus_labels[cluster] = focus_label(found[0], signatures)
+            label = item_label(prevalence, cluster, item_names)
+            if label:
+                item_labels[cluster] = label
+
+        unique = make_unique(
+            proposed_names, name, focus=focus_labels, items=item_labels
+        )
+
+        clusters = []
+        for cluster in sorted(fit.labels.unique()):
+            centroid = fit.centroids.loc[cluster] if fit.split else pd.Series(dtype=float)
+            proposed = unique[cluster]
+            margin = margins[cluster]
             key = f"{hero_id}:{cluster}"
             top = (
                 discriminative_items(prevalence, cluster)
@@ -657,6 +879,8 @@ def fit_all(
                     "archetype_id": int(cluster),
                     "name": overrides.get(key, proposed),
                     "proposed_name": proposed,
+                    "family_name": proposed_names[cluster],
+                    "ability_focus": focus_labels.get(cluster),
                     "naming_margin": float(margin),
                     "n": int((fit.labels == cluster).sum()),
                     "share": float((fit.labels == cluster).mean()),

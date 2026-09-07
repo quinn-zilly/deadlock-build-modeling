@@ -119,10 +119,64 @@ class TestFeatureMatrix:
         assert list(features.columns) == list(semantics.FAMILIES)
         assert not any(c.startswith("share_") for c in features.columns)
 
-    def test_excludes_abilities(self):
-        """Abilities measurably degrade the clustering; they are not inputs."""
+    def test_excludes_ability_state(self):
+        """Ability *state* degrades the clustering and is not an input.
+
+        Levels at a fixed instant were measured and rejected: Ivy fell 0.508 ->
+        0.274 as their weight went 0 -> 1.0. That verdict stands, and it is
+        specifically about state. Ability *order* is a different feature and
+        arrives through `extra`, so this asserts on the `lvl_` prefix rather
+        than on abilities in general.
+        """
         features = archetype.feature_matrix(build_population(10))
         assert not any(c.startswith("lvl_") for c in features.columns)
+
+    def test_extra_blocks_join_on_the_player_index(self):
+        base = archetype.feature_matrix(build_population(10))
+        extra = pd.DataFrame(0.5, index=base.index, columns=["pt_1_l2"])
+        joined = archetype.feature_matrix(build_population(10), extra)
+        assert "pt_1_l2" in joined.columns
+        assert len(joined) == len(base)
+
+    def test_a_player_missing_from_an_extra_block_reads_zero(self):
+        """A block that does not cover everyone must not drop players."""
+        base = archetype.feature_matrix(build_population(10))
+        extra = pd.DataFrame(0.5, index=base.index[:5], columns=["imb_active_1"])
+        joined = archetype.feature_matrix(build_population(10), extra)
+        assert len(joined) == len(base)
+        assert joined["imb_active_1"].iloc[-1] == 0.0
+
+
+class TestScaleBlock:
+    """Blocks are scaled to the family block, never z-scored."""
+
+    def frame(self, value: float = 2.0, columns: int = 4) -> pd.DataFrame:
+        return pd.DataFrame(
+            value, index=pd.RangeIndex(10), columns=[f"c{i}" for i in range(columns)]
+        )
+
+    def test_weight_one_matches_the_family_block_mass(self):
+        """Family shares sum to 1 per player, so their mean row L1 is 1.0."""
+        scaled = archetype.scale_block(self.frame(), 1.0)
+        assert scaled.abs().sum(axis=1).mean() == pytest.approx(1.0)
+
+    def test_weight_scales_linearly(self):
+        half = archetype.scale_block(self.frame(), 0.5)
+        assert half.abs().sum(axis=1).mean() == pytest.approx(0.5)
+
+    def test_width_does_not_decide_influence(self):
+        """A 12-column block must not outweigh a 4-column one by being wider."""
+        narrow = archetype.scale_block(self.frame(columns=4), 1.0)
+        wide = archetype.scale_block(self.frame(columns=12), 1.0)
+        assert narrow.abs().sum(axis=1).mean() == pytest.approx(
+            wide.abs().sum(axis=1).mean()
+        )
+
+    def test_zero_weight_is_no_block_at_all(self):
+        assert archetype.scale_block(self.frame(), 0.0) is None
+
+    def test_an_all_zero_block_is_dropped_rather_than_dividing_by_zero(self):
+        assert archetype.scale_block(self.frame(value=0.0), 1.0) is None
 
 
 class TestFitHero:
