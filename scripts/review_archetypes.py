@@ -22,15 +22,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from deadlock import abilities, archetype, assets, imbue
+from deadlock import abilities, archetype
 
 IMBUES = Path("data/processed/imbues.parquet")
 ABILITIES = Path("data/processed/abilities.parquet")
-
-# Full mass: the imbue block carries as much weight as the build families.
-# Measured better than 0.25 and 0.5, which found three of the five new
-# archetypes rather than all five.
-IMBUE_WEIGHT = 1.0
 
 PURCHASES = Path("data/processed/purchases.parquet")
 COLUMNS = ["match_id", "player_slot", "hero_id", "item_id", "won"]
@@ -45,14 +40,21 @@ def sheet(meta: dict, purchases: pd.DataFrame) -> str:
     lines = [
         "# Archetype review",
         "",
-        "Fitted per hero on souls-weighted item slot-type shares. A hero splits",
-        "only if all four criteria pass; otherwise it stays single, which is a",
-        "result and not a failure.",
+        "Fitted per hero on souls-weighted build-family shares -- how a player's",
+        "souls divided across gun, spirit, melee, support, tank, sustain, control",
+        "and mobility. A hero splits only if all four criteria pass; otherwise it",
+        "stays single, which is a result and not a failure.",
+        "",
+        "Imbue is **not** in the fit. It was tried in two forms and rejected under",
+        "a rule fixed before the numbers -- see",
+        "`docs/adr/0001-imbue-out-of-the-clustering.md`. It names clusters below",
+        "and tells the player what to imbue; it does not find clusters.",
         "",
         f"**{len(split)} of {len(heroes)} heroes split.** "
         f"Seed {meta['seed']}, so a refit reproduces this exactly.",
         "",
-        "Names below are proposed from each cluster's dominant slot type. Edit",
+        "Names below are proposed from what each cluster's discriminative items",
+        "do, sharpened by its ability focus where two would otherwise collide. Edit",
         "`data/archetype_names.json` (keyed `\"<hero_id>:<archetype_id>\"`) to",
         "overrule any of them.",
         "",
@@ -80,9 +82,19 @@ def sheet(meta: dict, purchases: pd.DataFrame) -> str:
             shares = "  ".join(
                 f"{k.replace('share_', '')} {v:.0%}" for k, v in centroid.items()
             )
+            # The margin scores the FAMILY half of the name only. A cluster can
+            # decline a family and still be named by its ability focus --
+            # "Ult Dynamo" is what players call that build -- so reporting a
+            # named cluster as unnamed because its families tied is a
+            # contradiction the reader can see on the same line.
             margin = cluster.get("naming_margin", 0.0)
+            named_by_focus = cluster["name"] != cluster.get("family_name", "")
             if margin >= 1.3:
                 confidence = f", named at {margin:.1f}x over the runner-up"
+            elif margin and named_by_focus:
+                confidence = (
+                    ", named by what it imbues — the families are too close to call"
+                )
             elif margin:
                 confidence = ", **unnamed** — the families are too close to call"
             else:
@@ -126,32 +138,12 @@ def main() -> int:
     purchases = pd.read_parquet(PURCHASES, columns=COLUMNS)
     logging.info("fitting %s heroes...", purchases["hero_id"].nunique())
 
-    # Imbue joins the fit; ability order does not. Measured over 11 heroes at
-    # weights 0/0.25/0.5/1.0: imbue gains an archetype on Dynamo, Bebop,
-    # Wraith, The Doorman and Rem and loses none, while ability order adds
-    # nothing imbue does not already add and costs Pocket's split when the two
-    # are combined. Ability order earns its place in the recommendation and the
-    # naming instead, which is where it measured strongly.
-    #
-    # Note the comparison that says so is "does the fit still clear every
-    # criterion, and at what k" -- not `separation`, which is a minimum over
-    # cluster pairs and so falls whenever k rises, and which reports a rejected
-    # candidate's score when a hero ends at k=1.
-    extra = None
-    if IMBUES.exists():
-        players = (
-            purchases[["match_id", "player_slot"]]
-            .drop_duplicates()
-            .set_index(["match_id", "player_slot"])
-            .index
-        )
-        extra = archetype.scale_block(
-            imbue.imbue_features(pd.read_parquet(IMBUES), players=players),
-            IMBUE_WEIGHT,
-        )
-        logging.info("imbue features in the fit at weight %.2f", IMBUE_WEIGHT)
-    else:
-        logging.info("no imbue table; fitting on build families alone")
+    # **Imbue is not in the fit**, in either of the two forms that were tried.
+    # The rule was fixed before the numbers and the numbers are recorded in
+    # docs/adr/0001-imbue-out-of-the-clustering.md, next to the sheet the
+    # experiment wrote. It still earns its place below, in naming and in the
+    # advice: which ability a cluster points its items at is what names
+    # Dynamo's two builds, and the items cannot.
 
     # Naming inputs. Imbue says what a build is aimed at; the ability levelled
     # first says the same thing for builds that buy no imbueable item.
@@ -166,7 +158,7 @@ def main() -> int:
     )
 
     labels, fits, meta = archetype.fit_all(
-        purchases, extra=extra, imbues=imbue_indexed, first_maxed=first_maxed
+        purchases, extra=None, imbues=imbue_indexed, first_maxed=first_maxed
     )
 
     # Win rate per archetype: descriptive only. It says who plays a build, not

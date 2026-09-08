@@ -19,13 +19,11 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from deadlock import assets, evaluate, sequence, splits  # noqa: E402
-from deadlock.state import GameState  # noqa: E402
 
 PURCHASES = Path("data/processed/purchases.parquet")
 ARCHETYPES = Path("data/processed/archetypes.parquet")
@@ -53,65 +51,6 @@ def load(matches: int | None, hero_id: int | None) -> tuple[pd.DataFrame, pd.Dat
     return df, archetypes
 
 
-def score_model(
-    model: sequence.SequenceModel,
-    test: pd.DataFrame,
-    archetypes: pd.DataFrame,
-    *,
-    limit: int | None = None,
-) -> dict:
-    """Teacher-forced next-item accuracy, and which level carried each call."""
-    labels = archetypes.set_index(["match_id", "player_slot"])["archetype_id"]
-    test = test.sort_values(["match_id", "player_slot", "buy_index"])
-
-    hits1 = hits3 = total = 0
-    levels: dict[str, int] = {}
-    for (match_id, slot), g in test.groupby(["match_id", "player_slot"], sort=False):
-        if limit and total >= limit:
-            break
-        hero = int(g["hero_id"].iloc[0])
-        archetype = int(labels.get((match_id, slot), 0))
-        items = g["item_id"].tolist()
-        times = g["buy_time_s"].tolist()
-
-        state = GameState(
-            hero_id=hero,
-            game_time_s=float(times[0]),
-            souls_available=10**9,
-            archetype_posterior={archetype: 1.0},
-        )
-        for idx, actual in enumerate(items):
-            state = GameState(
-                hero_id=hero,
-                game_time_s=float(times[idx]),
-                souls_available=10**9,
-                owned_item_ids=frozenset(items[:idx]),
-                purchased=tuple(items[:idx]),
-                archetype_posterior={archetype: 1.0},
-            )
-            ids, probability = model.distribution(state)
-            if not len(ids):
-                total += 1
-                continue
-            order = np.argsort(-probability)
-            ranked = ids[order][:3].tolist()
-            if ranked and ranked[0] == actual:
-                hits1 += 1
-                trace = model.evidence(state, actual)
-                if trace:
-                    levels[trace.level] = levels.get(trace.level, 0) + 1
-            if actual in ranked:
-                hits3 += 1
-            total += 1
-
-    return {
-        "top1": hits1 / total if total else float("nan"),
-        "top3": hits3 / total if total else float("nan"),
-        "n_decisions": total,
-        "levels": levels,
-    }
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--matches", type=int, default=20000)
@@ -136,7 +75,7 @@ def main() -> int:
         train, test = split(df)
         started = time.time()
         model = sequence.fit(train, archetypes)
-        result = score_model(model, test, archetypes, limit=args.limit)
+        result = evaluate.next_item_accuracy(model, test, archetypes, limit=args.limit)
         baselines = evaluate.score_baselines(train, test)
 
         print(f"\n--- split by {name} ---")
@@ -158,7 +97,9 @@ def main() -> int:
         print("\n--- kappa sweep (match split) ---")
         for kappa in (5.0, 10.0, 20.0, 40.0, 80.0):
             model = sequence.fit(train, archetypes, kappa=kappa)
-            got = score_model(model, test, archetypes, limit=args.limit)
+            got = evaluate.next_item_accuracy(
+                model, test, archetypes, limit=args.limit
+            )
             print(f"  kappa={kappa:5.0f}  top1={got['top1']:.4f}  top3={got['top3']:.4f}")
 
         print("\n--- level ablation (match split) ---")
@@ -168,7 +109,9 @@ def main() -> int:
             ("no L0,L1", (2, 3, 4, 5)),
         ):
             model = sequence.fit(train, archetypes, levels=levels)
-            got = score_model(model, test, archetypes, limit=args.limit)
+            got = evaluate.next_item_accuracy(
+                model, test, archetypes, limit=args.limit
+            )
             rows = sum(len(level.item_ids) for level in model.levels)
             print(f"  {label:10s} top1={got['top1']:.4f}  rows={rows:,}")
 

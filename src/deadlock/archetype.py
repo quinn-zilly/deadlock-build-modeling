@@ -32,6 +32,19 @@ mean ability-level gap is 0.48 of 4. Abilities do vary with archetype, but far
 too weakly to carry four extra dimensions, so they add noise. They remain
 available in `abilities.py` for the sequence model.
 
+**Imbue was tried in the fit and rejected too**, under a rule fixed before the
+numbers. It splits heroes on *whether* they bought one of the nine imbueable
+items rather than on what they aimed it at: with the conditional block the
+separating item is imbueable for 24 of 29 split heroes, against 2 of 28 under
+families alone, and nine heroes lose a split. Imbue names clusters and tells
+the player what to imbue; it does not find clusters.
+`docs/adr/0001-imbue-out-of-the-clustering.md` is the decision, and every other
+statement of it in this repo points there rather than repeating the numbers.
+
+Ability *order* -- how far into a player's spending each ability reached each
+level -- is a different feature from ability state, and it has never been
+tested here. Neither result above stands in for measuring it.
+
 Shares are left unstandardized. They already sum to 1, so they are commensurate;
 z-scoring inflates whichever family happens to have low variance for that hero
 and distorts the geometry.
@@ -162,6 +175,23 @@ def slot_shares(purchases: pd.DataFrame, items: dict[int, assets.Item] | None = 
     shares = spend.div(total, axis=0).fillna(0.0)
     shares.columns = [f"share_{c}" for c in shares.columns]
     return shares
+
+
+def player_index(purchases: pd.DataFrame) -> pd.MultiIndex:
+    """Every (match_id, player_slot) in a purchase table, once each.
+
+    An extra feature block has to be reindexed over the whole population or the
+    players it says nothing about vanish from the join instead of reading as
+    silent. Every caller that builds a block needs this, so it lives here.
+    """
+    keys = ["match_id", "player_slot"]
+    return purchases[keys].drop_duplicates().set_index(keys).index
+
+
+def hero_of(purchases: pd.DataFrame) -> pd.Series:
+    """Which hero each player played, indexed like `player_index`."""
+    keys = ["match_id", "player_slot"]
+    return purchases[keys + ["hero_id"]].drop_duplicates().set_index(keys)["hero_id"]
 
 
 def family_shares(
@@ -458,6 +488,28 @@ def _separation(prevalence: pd.DataFrame) -> float:
         for a, b in itertools.combinations(clusters, 2)
     ]
     return min(gaps) if gaps else float("nan")
+
+
+def separating_item(prevalence: pd.DataFrame) -> tuple[int, float] | None:
+    """The item carrying the weakest pair's separation, and by how much.
+
+    `_separation` returns the score; this returns the claim behind it. Which
+    item does the work is what says whether a feature block found a playstyle
+    or found ownership of the items the block itself was built from, and no
+    score reports that. It is how the imbue block was judged; see
+    `docs/adr/0001-imbue-out-of-the-clustering.md` for the figures.
+    """
+    if len(prevalence) < 2:
+        return None
+    pairs = [
+        (a, b, float((prevalence.loc[a] - prevalence.loc[b]).abs().max()))
+        for a, b in itertools.combinations(sorted(prevalence.index), 2)
+    ]
+    if not pairs:
+        return None
+    a, b, gap = min(pairs, key=lambda p: p[2])
+    diffs = (prevalence.loc[a] - prevalence.loc[b]).abs()
+    return int(diffs.idxmax()), gap
 
 
 def merge_indistinct(

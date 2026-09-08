@@ -213,12 +213,16 @@ class TestAgainstRealData:
         labels = pd.read_parquet("data/processed/archetypes.parquet")
         model = abilityorder.fit(df[df.hero_id == hero_id], labels)
 
-        names = {
-            entry["archetype_id"]: entry["name"]
+        # Keyed on the family half of the name, not the shipped name: two of
+        # Holliday's clusters are spirit builds and are told apart by what they
+        # imbue, so "the spirit one" is not a single archetype any more.
+        families = {
+            entry["archetype_id"]: entry["family_name"]
             for entry in meta["heroes"][str(hero_id)]["archetypes"]
         }
-        gun = next(a for a, n in names.items() if n.startswith("Gun"))
-        spirit = next(a for a, n in names.items() if n.startswith("Spirit"))
+        gun = next(a for a, n in families.items() if n.startswith("Gun"))
+        spirits = [a for a, n in families.items() if n.startswith("Spirit")]
+        assert spirits
 
         frame = abilityorder.point_frame(df[df.hero_id == hero_id]).merge(
             labels[["match_id", "player_slot", "archetype_id"]],
@@ -234,7 +238,10 @@ class TestAgainstRealData:
                 if point.slot == crackshot and point.level == 2
             )
 
-        assert position_of_second_point(gun) < position_of_second_point(spirit)
+        assert all(
+            position_of_second_point(gun) < position_of_second_point(spirit)
+            for spirit in spirits
+        )
 
     def test_the_model_is_a_sequence_model_not_a_new_one(self):
         """Reuse is the design: no second model to keep in step with the first."""

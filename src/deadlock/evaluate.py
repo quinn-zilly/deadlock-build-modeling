@@ -42,6 +42,13 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from typing import TYPE_CHECKING
+
+from .state import GameState
+
+if TYPE_CHECKING:  # pragma: no cover - import only for the annotation
+    from . import sequence
+
 log = logging.getLogger(__name__)
 
 # An item bought by this fraction of a population is a staple for it. Below
@@ -398,3 +405,72 @@ def score_baselines(train: pd.DataFrame, test: pd.DataFrame) -> pd.DataFrame:
             for name, preds in rows.items()
         ]
     )
+
+
+def next_item_accuracy(
+    model: "sequence.SequenceModel",
+    test: pd.DataFrame,
+    archetypes: pd.DataFrame,
+    *,
+    limit: int | None = None,
+) -> dict:
+    """Teacher-forced next-item accuracy over held-out decisions.
+
+    Every decision is made from the player's real prefix, so a model is never
+    scored on a trajectory it invented. `limit` caps the number of decisions,
+    which is what makes two archetype fits comparable: the same run, the same
+    test frame and the same cap score the same decisions under both.
+
+    Lives here rather than in a script because a figure recorded from one run
+    configuration and compared against another is not a comparison -- and that
+    mistake has already been made once in this work.
+    """
+    labels = (
+        archetypes.set_index(["match_id", "player_slot"])["archetype_id"]
+        if len(archetypes)
+        else pd.Series(dtype=int)
+    )
+    test = test.sort_values(["match_id", "player_slot", "buy_index"])
+
+    hits1 = hits3 = total = 0
+    levels: dict[str, int] = {}
+    for (match_id, slot), g in test.groupby(["match_id", "player_slot"], sort=False):
+        if limit and total >= limit:
+            break
+        hero = int(g["hero_id"].iloc[0])
+        archetype = int(labels.get((match_id, slot), 0)) if len(labels) else 0
+        items = g["item_id"].tolist()
+        times = g["buy_time_s"].tolist()
+
+        for idx, actual in enumerate(items):
+            if limit and total >= limit:
+                break
+            state = GameState(
+                hero_id=hero,
+                game_time_s=float(times[idx]),
+                souls_available=10**9,
+                owned_item_ids=frozenset(items[:idx]),
+                purchased=tuple(items[:idx]),
+                archetype_posterior={archetype: 1.0},
+            )
+            ids, probability = model.distribution(state)
+            if not len(ids):
+                total += 1
+                continue
+            order = np.argsort(-probability)
+            ranked = ids[order][:3].tolist()
+            if ranked[0] == actual:
+                hits1 += 1
+                trace = model.evidence(state, actual)
+                if trace is not None:
+                    levels[trace.level] = levels.get(trace.level, 0) + 1
+            if actual in ranked:
+                hits3 += 1
+            total += 1
+
+    return {
+        "top1": hits1 / total if total else float("nan"),
+        "top3": hits3 / total if total else float("nan"),
+        "n_decisions": total,
+        "levels": levels,
+    }

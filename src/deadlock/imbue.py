@@ -138,6 +138,17 @@ def conditional_features(
 
     `has_imbue` and a depth count are deliberately absent for the same reason:
     both encode ownership, which is not what imbue is being asked about here.
+
+    **Measured, and it did not work.** Removing the ownership columns did not
+    remove the effect: 24 of 29 split heroes still separate on one of the nine
+    imbueable items, against 2 of 28 under build families alone, and nine
+    heroes lose a split they had without the block. Direction is only defined
+    for builds that buy those items, so the block still moves exactly those
+    players while everyone else sits at a per-hero constant carrying no
+    within-hero signal. Kept because the experiment is reproducible from it --
+    see `scripts/compare_imbue_fits.py` and
+    `docs/adr/0001-imbue-out-of-the-clustering.md`. Not used by the shipped
+    fit, which clusters on build family shares alone.
     """
     base = imbue_features(df, players=players)
     shares = base[[c for c in base.columns if c.startswith("imb_")

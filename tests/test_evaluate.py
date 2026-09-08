@@ -340,3 +340,84 @@ class TestAgainstRealData:
         df, _, by_name = self.wraith()
         build = [by_name[n] for n in WRAITH_STAPLES]
         assert evaluate.prevalence_gate(build, df, hero_id=7).passed
+
+
+class FakeModel:
+    """A model that always ranks `ranking`, so scoring is checkable by hand."""
+
+    def __init__(self, ranking: list[int]):
+        self.ranking = ranking
+        self.seen: list[frozenset[int]] = []
+
+    def distribution(self, state):
+        self.seen.append(state.owned_item_ids)
+        ids = np.array(self.ranking, dtype=np.int64)
+        probability = np.linspace(1.0, 0.1, len(ids))
+        return ids, probability
+
+    def evidence(self, state, item_id):
+        """The backoff trace, which this stand-in has nothing to say about."""
+        return None
+
+
+class TestNextItemAccuracy:
+    """Teacher-forced next-item accuracy, shared by every script that scores.
+
+    Two archetype fits are only comparable when they are scored on the same
+    held-out decisions in the same run, so the loop lives here rather than in
+    whichever script measured it last.
+    """
+
+    @staticmethod
+    def frame(items: list[int]) -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {
+                    "match_id": 1,
+                    "player_slot": 0,
+                    "hero_id": 7,
+                    "item_id": item,
+                    "buy_index": i,
+                    "buy_time_s": 60.0 * i,
+                }
+                for i, item in enumerate(items)
+            ]
+        )
+
+    @staticmethod
+    def labels(archetype_id: int = 0) -> pd.DataFrame:
+        return pd.DataFrame(
+            [{"match_id": 1, "player_slot": 0, "archetype_id": archetype_id}]
+        )
+
+    def test_counts_a_hit_only_when_the_top_item_is_the_one_bought(self):
+        model = FakeModel([11, 22, 33])
+        got = evaluate.next_item_accuracy(model, self.frame([11, 44]), self.labels())
+        assert got["n_decisions"] == 2
+        assert got["top1"] == pytest.approx(0.5)
+
+    def test_top3_is_looser_than_top1(self):
+        model = FakeModel([11, 22, 33])
+        got = evaluate.next_item_accuracy(model, self.frame([33, 33]), self.labels())
+        assert got["top1"] == 0.0
+        assert got["top3"] == pytest.approx(1.0)
+
+    def test_the_model_sees_what_the_player_already_owns(self):
+        """Teacher forcing: each decision is made from the real prefix."""
+        model = FakeModel([11, 22])
+        evaluate.next_item_accuracy(model, self.frame([11, 22, 33]), self.labels())
+        assert model.seen == [frozenset(), frozenset({11}), frozenset({11, 22})]
+
+    def test_limit_stops_early_so_two_fits_score_the_same_decisions(self):
+        model = FakeModel([11])
+        got = evaluate.next_item_accuracy(
+            model, self.frame([11, 11, 11, 11]), self.labels(), limit=2
+        )
+        assert got["n_decisions"] == 2
+
+    def test_an_unlabelled_player_falls_back_to_the_hero_wide_archetype(self):
+        model = FakeModel([11])
+        got = evaluate.next_item_accuracy(
+            model, self.frame([11]), pd.DataFrame(columns=["match_id", "player_slot", "archetype_id"])
+        )
+        assert got["top1"] == pytest.approx(1.0)

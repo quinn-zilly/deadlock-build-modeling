@@ -323,3 +323,71 @@ class TestOneModeImplementation:
         )
         printed = imbue.targets_for_build(tied, [MYSTIC_REVERB])[0]
         assert imbue.dominant_targets(tied)[MYSTIC_REVERB] == printed.ability_id
+
+
+class TestConditionalFeatures:
+    """Direction only: given the build imbued, which ability did it point at.
+
+    The non-conditional block put `has_imbue` and a depth count in the
+    clustering, and heroes split on *whether* a build bought Mystic Reverb
+    rather than on what it aimed at. This block carries neither, and it places
+    a build that imbued nothing at its hero's mean so it says nothing rather
+    than joining every other non-imbuer at the origin.
+    """
+
+    def heroes(self, slots: list[int], hero_id: int = 11) -> pd.Series:
+        index = pd.MultiIndex.from_tuples(
+            [(1, s) for s in slots], names=["match_id", "player_slot"]
+        )
+        return pd.Series(hero_id, index=index)
+
+    def test_carries_direction_and_nothing_about_ownership(self):
+        hero_of = self.heroes([0])
+        got = imbue.conditional_features(
+            frame([(0, 1, MYSTIC_REVERB, "active")]), hero_of.index, hero_of
+        )
+        assert "has_imbue" not in got.columns
+        assert not [c for c in got.columns if c.startswith("imb_depth")]
+        assert len(got.columns) == 8
+        assert got["imb_active_1"].iloc[0] == pytest.approx(1.0)
+
+    def test_a_build_that_imbued_nothing_sits_at_its_heros_mean(self):
+        """Not at zero: zero is a coordinate, and every non-imbuer shares it."""
+        hero_of = self.heroes([0, 1, 2])
+        got = imbue.conditional_features(
+            frame(
+                [
+                    (0, 1, MYSTIC_REVERB, "active"),
+                    (1, 3, MYSTIC_REVERB, "active"),
+                ]
+            ),
+            hero_of.index,
+            hero_of,
+        )
+        silent = got.loc[(1, 2)]
+        assert silent["imb_active_1"] == pytest.approx(0.5)
+        assert silent["imb_active_3"] == pytest.approx(0.5)
+
+    def test_the_mean_is_the_heros_own_not_the_populations(self):
+        first = self.heroes([0, 1], hero_id=11)
+        second = self.heroes([2, 3], hero_id=12)
+        hero_of = pd.concat([first, second])
+        got = imbue.conditional_features(
+            frame(
+                [
+                    (0, 1, MYSTIC_REVERB, "active"),
+                    (2, 4, MYSTIC_REVERB, "active"),
+                ]
+            ),
+            hero_of.index,
+            hero_of,
+        )
+        assert got.loc[(1, 1), "imb_active_1"] == pytest.approx(1.0)
+        assert got.loc[(1, 3), "imb_active_4"] == pytest.approx(1.0)
+        assert got.loc[(1, 3), "imb_active_1"] == pytest.approx(0.0)
+
+    def test_a_hero_nobody_imbued_stays_at_zero(self):
+        """No imbuer to average, so there is no mean to place them at."""
+        hero_of = self.heroes([0, 1])
+        got = imbue.conditional_features(frame([]), hero_of.index, hero_of)
+        assert (got == 0.0).all().all()

@@ -228,6 +228,35 @@ class TestFitHero:
         )
         assert archetype._separation(prevalence) == pytest.approx(0.05)
 
+    def test_separating_item_names_what_carries_the_weakest_pair(self):
+        """The score is a number; the item behind it is the falsifiable claim.
+
+        A block that splits heroes on nine imbueable items out of 173 shopable
+        is splitting them on ownership of those items, and only naming the
+        item shows that.
+        """
+        prevalence = pd.DataFrame(
+            {
+                11: [1.0, 0.95, 0.0],  # 0 vs 1 differ by 0.05; 0 vs 2 by 1.0
+                22: [0.0, 0.02, 0.9],
+            },
+            index=[0, 1, 2],
+        )
+        item_id, gap = archetype.separating_item(prevalence)
+        assert item_id == 11
+        assert gap == pytest.approx(0.05)
+
+    def test_separating_item_is_absent_when_there_is_no_pair(self):
+        prevalence = pd.DataFrame({11: [1.0]}, index=[0])
+        assert archetype.separating_item(prevalence) is None
+
+    def test_separating_item_agrees_with_the_separation_score(self):
+        df = build_population()
+        fit = archetype.fit_hero(df, hero_id=1, hero_name="Test")
+        prevalence = archetype.cluster_prevalence(df, fit.labels)
+        _, gap = archetype.separating_item(prevalence)
+        assert gap == pytest.approx(fit.separation)
+
     def test_two_near_duplicate_clusters_do_not_split(self):
         """Differing only slightly is one archetype on a gradient, not two.
 
@@ -455,13 +484,24 @@ class TestAgainstRealData:
         assert duplicated <= 3
 
     def test_thin_margins_decline_to_label(self):
-        """A near-tie is a coin flip; the rule keeps the bare hero name."""
+        """A near-tie is a coin flip, so no family is asserted.
+
+        The shipped name may still carry the cluster's ability focus -- Dynamo
+        splits into "Kinetic Pulse Dynamo" and "Ult Dynamo", which is what a
+        player calls those two builds and is not a claim about families. The
+        family half of the name is what has to stay bare.
+        """
         _, meta, _ = self.load()
         for entry in meta["heroes"].values():
             for cluster in entry["archetypes"]:
                 margin = cluster.get("naming_margin", 0.0)
                 if 0 < margin < semantics.MIN_NAMING_MARGIN:
-                    assert cluster["name"] == entry["hero_name"]
+                    assert cluster["family_name"] == entry["hero_name"]
+                    focus = cluster.get("ability_focus")
+                    assert cluster["name"] in (
+                        entry["hero_name"],
+                        f"{focus} {entry['hero_name']}",
+                    )
 
     def test_venator_has_a_gun_build_and_a_hybrid(self):
         """A player's naming: both are gun builds, one hybrid gun/spirit.

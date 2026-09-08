@@ -33,14 +33,22 @@ build, so a cluster too small to represent a playstyle is discarded.
 
 An archetype belongs to a hero. There is no global "gun build" — there is Gun
 Ivy and Gun Lash, and they have different items. Not every hero has more than
-one: Haze, Dynamo, and Wraith have a single archetype, and that is a finding,
-not a failure to split.
+one: Wraith, Pocket and eight others have a single archetype, and that is a
+finding, not a failure to split.
 
 Archetypes are discovered by clustering on [[build family]] shares -- how a
 player's souls divided across gun, spirit, melee, support, tank, sustain,
 control and mobility -- and named by what the build *does*.
 The label is a claim about playstyle a player would recognize, not a summary of
 the clustering.
+
+**Nothing about abilities is in the clustering.** Ability state at a fixed
+instant was measured and degrades every hero tried; [[imbue]] was tried in two
+forms and rejected, because it splits heroes on whether they bought one of the
+nine imbueable items rather than on what they aimed it at. Both still name
+clusters, which is a different job -- see [[ability focus]] and
+`docs/adr/0001-imbue-out-of-the-clustering.md`. Ability *order* is a third
+feature and has never been tested as a clustering input.
 
 Two clusters are only two archetypes if a player would call them different
 builds. Differing by [[counter-pick]]s alone does not qualify: Kelvin's two

@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 """What the imbue-augmented fit actually found, for a person to judge.
 
+**The fit this reviews was rejected** --
+`docs/adr/0001-imbue-out-of-the-clustering.md` holds the decision and the
+numbers. This script stays because it is how a candidate block gets judged by a
+player rather than by a score, and any future block should be read the same way.
+
 The numbers cannot answer the question that matters here. Every new cluster
 clears every acceptance criterion, but `docs/DIAGNOSIS.md` records a model that
 passed five aggregate gates and still produced unusable builds, and `CONTEXT.md`

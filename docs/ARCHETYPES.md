@@ -1,12 +1,19 @@
 # Archetype review
 
-Fitted per hero on souls-weighted item slot-type shares. A hero splits
-only if all four criteria pass; otherwise it stays single, which is a
-result and not a failure.
+Fitted per hero on souls-weighted build-family shares -- how a player's
+souls divided across gun, spirit, melee, support, tank, sustain, control
+and mobility. A hero splits only if all four criteria pass; otherwise it
+stays single, which is a result and not a failure.
+
+Imbue is **not** in the fit. It was tried in two forms and rejected under
+a rule fixed before the numbers -- see
+`docs/adr/0001-imbue-out-of-the-clustering.md`. It names clusters below
+and tells the player what to imbue; it does not find clusters.
 
 **28 of 38 heroes split.** Seed 0, so a refit reproduces this exactly.
 
-Names below are proposed from each cluster's dominant slot type. Edit
+Names below are proposed from what each cluster's discriminative items
+do, sharpened by its ability focus where two would otherwise collide. Edit
 `data/archetype_names.json` (keyed `"<hero_id>:<archetype_id>"`) to
 overrule any of them.
 
@@ -64,7 +71,7 @@ _Souls by shop tab: gun 52%  spirit 7%  melee 0%  support 1%  tank 17%  sustain 
 | separation | 0.770 | >= 0.45 |
 | smallest share | 0.141 | >= 0.12 |
 
-**Spirit Holliday** — 43% of players (n=2,069), named at 2.8x over the runner-up
+**Rush Spirit Holliday** — 43% of players (n=2,069), named at 2.8x over the runner-up
 
 _Souls by shop tab: gun 10%  spirit 35%  melee 0%  support 0%  tank 23%  sustain 14%  control 1%  mobility 17%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -81,7 +88,7 @@ _Souls by shop tab: gun 10%  spirit 35%  melee 0%  support 0%  tank 23%  sustain
 | Sprint Boots | 55% | 35% |
 | Mystic Vulnerability | 40% | 21% |
 
-**Spirit Holliday** — 43% of players (n=2,089), named at 3.0x over the runner-up
+**Burn Spirit Holliday** — 43% of players (n=2,089), named at 3.0x over the runner-up
 
 _Souls by shop tab: gun 7%  spirit 34%  melee 0%  support 0%  tank 21%  sustain 13%  control 12%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -167,7 +174,7 @@ _Souls by shop tab: gun 19%  spirit 11%  melee 14%  support 1%  tank 30%  sustai
 | separation | 0.687 | >= 0.45 |
 | smallest share | 0.294 | >= 0.12 |
 
-**Dynamo** — 29% of players (n=2,304), **unnamed** — the families are too close to call
+**Kinetic Pulse Dynamo** — 29% of players (n=2,304), named by what it imbues — the families are too close to call
 
 _Souls by shop tab: gun 11%  spirit 32%  melee 0%  support 2%  tank 20%  sustain 21%  control 4%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -184,7 +191,7 @@ _Souls by shop tab: gun 11%  spirit 32%  melee 0%  support 2%  tank 20%  sustain
 | Rapid Recharge | 82% | 66% |
 | Spirit Burn | 22% | 7% |
 
-**Dynamo** — 71% of players (n=5,524), **unnamed** — the families are too close to call
+**Ult Dynamo** — 71% of players (n=5,524), named by what it imbues — the families are too close to call
 
 _Souls by shop tab: gun 6%  spirit 29%  melee 0%  support 1%  tank 40%  sustain 15%  control 2%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -399,7 +406,7 @@ _Souls by shop tab: gun 8%  spirit 31%  melee 0%  support 0%  tank 30%  sustain 
 | Improved Spirit | 39% | 1% |
 | Monster Rounds | 49% | 15% |
 
-**Gun Paradox** — 46% of players (n=4,401), named at 2.6x over the runner-up
+**Burn Gun Paradox** — 46% of players (n=4,401), named at 2.6x over the runner-up
 
 _Souls by shop tab: gun 26%  spirit 18%  melee 0%  support 0%  tank 15%  sustain 18%  control 11%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -416,7 +423,7 @@ _Souls by shop tab: gun 26%  spirit 18%  melee 0%  support 0%  tank 15%  sustain
 | Glass Cannon | 30% | 10% |
 | Mystic Shot | 73% | 55% |
 
-**Gun Paradox** — 40% of players (n=3,837), named at 7.6x over the runner-up
+**Sharpshooter Gun Paradox** — 40% of players (n=3,837), named at 7.6x over the runner-up
 
 _Souls by shop tab: gun 35%  spirit 12%  melee 0%  support 0%  tank 17%  sustain 15%  control 3%  mobility 17%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -803,7 +810,7 @@ _Souls by shop tab: gun 43%  spirit 17%  melee 0%  support 1%  tank 13%  sustain
 | separation | 0.556 | >= 0.45 |
 | smallest share | 0.321 | >= 0.12 |
 
-**Spirit Lady Geist** — 35% of players (n=2,072), named at 3.6x over the runner-up
+**Reverb Spirit Lady Geist** — 35% of players (n=2,072), named at 3.6x over the runner-up
 
 _Souls by shop tab: gun 1%  spirit 33%  melee 0%  support 0%  tank 25%  sustain 30%  control 5%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
@@ -820,7 +827,7 @@ _Souls by shop tab: gun 1%  spirit 33%  melee 0%  support 0%  tank 25%  sustain 
 | Improved Spirit | 79% | 42% |
 | Transcendent Cooldown | 50% | 14% |
 
-**Spirit Lady Geist** — 32% of players (n=1,908), named at 2.5x over the runner-up
+**Exposure Spirit Lady Geist** — 32% of players (n=1,908), named at 2.5x over the runner-up
 
 _Souls by shop tab: gun 6%  spirit 32%  melee 0%  support 0%  tank 30%  sustain 19%  control 6%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
