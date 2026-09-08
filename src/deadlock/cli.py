@@ -12,8 +12,17 @@ Five commands, matching the two products:
 point of this project: every number here traces to a literal table row with a
 count you can check.
 
+Every command that gives advice takes `--badge`, which weights the tables
+toward a bracket. It defaults high rather than to the population median: a
+build tool exists to show what strong players do, and for a long time the
+kernel that does this was implemented, tested, and never passed by any caller,
+so the advice imitated the median player. `--badge all` asks for the whole
+population instead.
+
 The model is fitted once and cached under data/processed, since fitting takes
-about a minute over 5M purchases and nobody wants that mid-match.
+about a minute over 5M purchases and nobody wants that mid-match. Each bracket
+caches its own file, and a cached model records the bracket it was fitted for,
+so two brackets cannot quietly share one set of tables.
 """
 
 from __future__ import annotations
@@ -65,18 +74,73 @@ def parse_time(value: str) -> float:
     return float(value)
 
 
-def load_model(*, refit: bool = False) -> sequence.SequenceModel:
-    if MODEL_PATH.exists() and not refit:
-        return sequence.SequenceModel.load(MODEL_PATH)
+def target_badge(args: argparse.Namespace) -> float | None:
+    """The bracket the advice should imitate, from `--badge`.
+
+    A number weights the tables toward that badge; `all` asks for the whole
+    population. The default is high rather than average on purpose -- a build
+    tool exists to show what strong players do, and until this was wired the
+    tool imitated the median player instead.
+
+    Every command built by `build_parser` carries `--badge`, so the fallback is
+    for callers that build a namespace by hand -- the tests do, and a namespace
+    missing one field should not crash a command that never needed it.
+    """
+    if "badge" not in vars(args):
+        return sequence.DEFAULT_TARGET_BADGE
+    return args.badge
+
+
+def badge_argument(raw: str) -> float | None:
+    """`--badge` as argparse sees it, refusing anything that is not a bracket."""
+    try:
+        return sequence.parse_target_badge(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"takes a number or 'all', not {raw!r}"
+        ) from None
+
+
+def model_path(badge: float | None) -> Path:
+    """One cached model per bracket.
+
+    Two brackets sharing a file would serve whichever was fitted last while
+    reporting the one that was asked for, so the bracket is in the name.
+    """
+    if badge == sequence.DEFAULT_TARGET_BADGE:
+        return MODEL_PATH
+    suffix = "all" if badge is None else f"b{badge:g}"
+    return MODEL_PATH.with_name(f"{MODEL_PATH.stem}_{suffix}.npz")
+
+
+def ability_model_path(badge: float | None) -> Path:
+    if badge == sequence.DEFAULT_TARGET_BADGE:
+        return ABILITY_MODEL_PATH
+    suffix = "all" if badge is None else f"b{badge:g}"
+    return ABILITY_MODEL_PATH.with_name(f"{ABILITY_MODEL_PATH.stem}_{suffix}.npz")
+
+
+def load_model(
+    *, refit: bool = False, badge: float | None = sequence.DEFAULT_TARGET_BADGE
+) -> sequence.SequenceModel:
+    path = model_path(badge)
+    if path.exists() and not refit:
+        cached = sequence.SequenceModel.load(path)
+        # A model fitted before the bracket was recorded, or under a different
+        # one, is not the model that was asked for. Refit rather than serve it.
+        if cached.target_badge == badge:
+            return cached
     print("fitting the model (about a minute; cached afterwards)...", file=sys.stderr)
     purchases = pd.read_parquet(PURCHASES, columns=COLUMNS)
     labels, _ = archetype.load()
-    model = sequence.fit(purchases, labels)
-    model.save(MODEL_PATH)
+    model = sequence.fit(purchases, labels, target_badge=badge)
+    model.save(path)
     return model
 
 
-def load_ability_model(*, refit: bool = False):
+def load_ability_model(
+    *, refit: bool = False, badge: float | None = sequence.DEFAULT_TARGET_BADGE
+):
     """The ability-order model and the point frame its timings come from.
 
     Returns (None, None) when the ability table has not been built, so the tool
@@ -88,16 +152,29 @@ def load_ability_model(*, refit: bool = False):
         return None, None
     raw = pd.read_parquet(ABILITIES_PATH)
     labels, _ = archetype.load()
+    if badge is not None and PURCHASES.exists():
+        # The badge lives on the purchase rows, so it is carried across before
+        # anything reads it -- and before the frame is built, because the frame
+        # is where the timings come from and those follow the bracket too.
+        raw = abilityorder.attach_badges(
+            raw,
+            pd.read_parquet(
+                PURCHASES, columns=["match_id", "player_slot", "average_badge"]
+            ),
+        )
     frame = abilityorder.point_frame(raw).merge(
         labels[["match_id", "player_slot", "archetype_id"]],
         on=["match_id", "player_slot"],
         how="left",
     )
-    if ABILITY_MODEL_PATH.exists() and not refit:
-        return sequence.SequenceModel.load(ABILITY_MODEL_PATH), frame
+    path = ability_model_path(badge)
+    if path.exists() and not refit:
+        cached = sequence.SequenceModel.load(path)
+        if cached.target_badge == badge:
+            return cached, frame
     print("fitting the ability-order model...", file=sys.stderr)
-    model = abilityorder.fit(raw, labels)
-    model.save(ABILITY_MODEL_PATH)
+    model = abilityorder.fit(raw, labels, target_badge=badge)
+    model.save(path)
     return model, frame
 
 
@@ -190,7 +267,8 @@ def cmd_build(args: argparse.Namespace) -> int:
     hero_id = assets.resolve_hero(args.hero)
     labels, meta = archetype.load()
     archetype_id, archetype_name = resolve_archetype(hero_id, args.archetype, meta)
-    model = load_model(refit=args.refit)
+    badge = target_badge(args)
+    model = load_model(refit=args.refit, badge=badge)
 
     staples = None
     cell = None
@@ -219,17 +297,23 @@ def cmd_build(args: argparse.Namespace) -> int:
         hero_name=assets.playable_heroes()[hero_id].name,
         archetype_name=archetype_name,
     )
+    bracket = sequence.describe_badge(badge)
     print(f"\n{generated.label}  ({len(generated.items)} buys, "
-          f"{len(generated.held_items())} held, {generated.total_cost:,} souls)\n")
+          f"{len(generated.held_items())} held, {generated.total_cost:,} souls, "
+          f"{bracket})\n")
     for item in generated.items:
         print(f"  {item}")
 
     ability_order = []
-    ability_model, ability_frame = load_ability_model(refit=args.refit)
+    ability_model, ability_frame = load_ability_model(refit=args.refit, badge=badge)
     if ability_model is not None:
         try:
             ability_order = abilityorder.generate_order(
-                ability_model, ability_frame, hero_id, archetype_id
+                ability_model,
+                ability_frame,
+                hero_id,
+                archetype_id,
+                target_badge=badge,
             )
         except ValueError as exc:
             print(f"\nno ability order: {exc}")
@@ -323,7 +407,7 @@ def _print_ability_points(hero_id: int, archetype_id: int, args) -> None:
     spent = _split(getattr(args, "points", None))
     if not spent:
         return
-    model, frame = load_ability_model(refit=args.refit)
+    model, frame = load_ability_model(refit=args.refit, badge=target_badge(args))
     if model is None:
         print("\n  (no ability table built)")
         return
@@ -361,7 +445,7 @@ def _print_ability_points(hero_id: int, archetype_id: int, args) -> None:
 def cmd_next(args: argparse.Namespace) -> int:
     hero_id = assets.resolve_hero(args.hero)
     _, meta = archetype.load()
-    model = load_model(refit=args.refit)
+    model = load_model(refit=args.refit, badge=target_badge(args))
     lifts = load_counters() if args.enemies else pd.DataFrame()
     item_names = {i: it.name for i, it in assets.load_items().items()}
     hero_names = {i: h.name for i, h in assets.load_heroes().items()}
@@ -393,10 +477,15 @@ def cmd_next(args: argparse.Namespace) -> int:
 
     plausible = [(a, share) for a, share in ordered if share >= args.min_share]
     if len(plausible) <= 1:
-        state = _state_from_args(args, hero_id, {plausible[0][0]: 1.0} if plausible else posterior)
+        chosen = plausible[0][0] if plausible else max(posterior, key=posterior.get)
+        state = _state_from_args(args, hero_id, {chosen: 1.0} if plausible else posterior)
         _print_recommendations(
             model, state, lifts, top=args.top, item_names=item_names, hero_names=hero_names
         )
+        # The archetype was inferred rather than declared, but the points were
+        # still spent, and dropping the ability advice here is the mid-match
+        # case `--points` exists for.
+        _print_ability_points(hero_id, chosen, args)
         return 0
 
     for archetype_id, share in plausible:
@@ -405,6 +494,7 @@ def cmd_next(args: argparse.Namespace) -> int:
         _print_recommendations(
             model, state, lifts, top=args.top, item_names=item_names, hero_names=hero_names
         )
+        _print_ability_points(hero_id, archetype_id, args)
         print()
     return 0
 
@@ -413,7 +503,7 @@ def cmd_why(args: argparse.Namespace) -> int:
     hero_id = assets.resolve_hero(args.hero)
     item_id = assets.resolve_item(args.item)
     _, meta = archetype.load()
-    model = load_model(refit=args.refit)
+    model = load_model(refit=args.refit, badge=target_badge(args))
     owned = [assets.resolve_item(name) for name in _split(args.owned)]
     if args.archetype:
         archetype_id, _ = resolve_archetype(hero_id, args.archetype, meta)
@@ -430,7 +520,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
     """A session that keeps the model loaded. Mid-match, nobody retypes."""
     hero_id = assets.resolve_hero(args.hero)
     _, meta = archetype.load()
-    model = load_model(refit=args.refit)
+    model = load_model(refit=args.refit, badge=target_badge(args))
     lifts = load_counters() if args.enemies else pd.DataFrame()
     item_names = {i: it.name for i, it in assets.load_items().items()}
     hero_names = {i: h.name for i, h in assets.load_heroes().items()}
@@ -513,12 +603,22 @@ def cmd_watch(args: argparse.Namespace) -> int:
         print()
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="deadlock", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
     def common(p):
         p.add_argument("--refit", action="store_true", help="rebuild the cached model")
+        p.add_argument(
+            "--badge",
+            type=badge_argument,
+            default=sequence.DEFAULT_TARGET_BADGE,
+            help=(
+                "badge to weight the advice toward "
+                f"(default {sequence.DEFAULT_TARGET_BADGE:.0f}; 'all' for the "
+                "whole population)"
+            ),
+        )
         return p
 
     heroes = sub.add_parser("heroes", help="list heroes and their archetypes")
@@ -565,6 +665,12 @@ def main(argv: list[str] | None = None) -> int:
     why.add_argument("--souls", type=int, default=0)
     why.set_defaults(func=cmd_why)
 
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
     args = parser.parse_args(argv)
     try:
         return args.func(args)

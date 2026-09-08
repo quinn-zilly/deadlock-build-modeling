@@ -147,6 +147,46 @@ def counters_for(
     return best
 
 
+def for_build(
+    lifts: pd.DataFrame,
+    item_ids: list[int] | tuple[int, ...],
+    *,
+    limit: int = 8,
+) -> list[Counter]:
+    """The matchups the items in a build are picks against, strongest first.
+
+    The mirror of `counters_for`: that one starts from an enemy team and asks
+    which items answer it, which is the in-match question. A build exists
+    before there is an enemy team, so the question there is which heroes make
+    the items it already buys a matchup pick.
+
+    One row per item, its strongest matchup, the same shape `counters_for`
+    returns: an item that answers four heroes would otherwise fill the panel
+    by itself and push the rest of the build's matchups out of view.
+
+    Same two bars as everywhere else -- a lift under `MIN_LIFT` is not a
+    matchup and a matchup seen under `MIN_FACING` times is not measured -- so
+    nothing appears here that the CLI would not also report.
+    """
+    if not len(lifts) or not len(item_ids):
+        return []
+    relevant = lifts[
+        lifts["item_id"].isin(list(item_ids))
+        & (lifts["lift"] >= MIN_LIFT)
+        & (lifts["n_facing"] >= MIN_FACING)
+    ].sort_values("lift", ascending=False).drop_duplicates(subset=["item_id"])
+    return [
+        Counter(
+            item_id=int(row.item_id),
+            enemy_hero_id=int(row.enemy_hero_id),
+            facing_rate=float(row.facing_rate),
+            baseline_rate=float(row.baseline_rate),
+            n_facing=int(row.n_facing),
+        )
+        for row in relevant.head(limit).itertuples()
+    ]
+
+
 def annotate(
     recommendations: list[Recommendation],
     enemy_hero_ids: list[int] | tuple[int, ...],

@@ -413,6 +413,7 @@ def next_item_accuracy(
     archetypes: pd.DataFrame,
     *,
     limit: int | None = None,
+    min_badge: float | None = None,
 ) -> dict:
     """Teacher-forced next-item accuracy over held-out decisions.
 
@@ -424,7 +425,21 @@ def next_item_accuracy(
     Lives here rather than in a script because a figure recorded from one run
     configuration and compared against another is not a comparison -- and that
     mistake has already been made once in this work.
+
+    `min_badge` restricts the scored decisions to a bracket, which is how a
+    badge-weighted model has to be judged: weighting the tables toward strong
+    play makes general-population accuracy worse on purpose, so the
+    all-comers figure would report the intended change as a regression. A test
+    frame carrying no badge column scores nothing under `min_badge` rather
+    than quietly scoring everything.
     """
+    if min_badge is not None:
+        if "average_badge" not in test:
+            test = test.iloc[:0]
+        else:
+            badge = pd.to_numeric(test["average_badge"], errors="coerce")
+            test = test[badge >= min_badge]
+
     labels = (
         archetypes.set_index(["match_id", "player_slot"])["archetype_id"]
         if len(archetypes)

@@ -421,3 +421,48 @@ class TestNextItemAccuracy:
             model, self.frame([11]), pd.DataFrame(columns=["match_id", "player_slot", "archetype_id"])
         )
         assert got["top1"] == pytest.approx(1.0)
+
+    @staticmethod
+    def two_players(badges: tuple[int, int]) -> pd.DataFrame:
+        """Two held-out players of different brackets buying different items."""
+        rows = []
+        for slot, (badge, item) in enumerate(zip(badges, (11, 22))):
+            rows.append(
+                {
+                    "match_id": slot + 1,
+                    "player_slot": 0,
+                    "hero_id": 7,
+                    "item_id": item,
+                    "buy_index": 0,
+                    "buy_time_s": 60.0,
+                    "average_badge": badge,
+                }
+            )
+        return pd.DataFrame(rows)
+
+    def test_min_badge_scores_only_the_bracket_asked_for(self):
+        """A badge-weighted model is judged on high-badge decisions only.
+
+        General-population accuracy gets worse by design when the tables are
+        weighted, so scoring on it would read a deliberate change as a
+        regression. Win rate is worse still: it is an outcome downstream of
+        every decision the build makes.
+        """
+        model = FakeModel([11])
+        both = evaluate.next_item_accuracy(
+            model, self.two_players((40, 100)), self.labels()
+        )
+        high = evaluate.next_item_accuracy(
+            model, self.two_players((40, 100)), self.labels(), min_badge=80
+        )
+        assert both["n_decisions"] == 2
+        assert high["n_decisions"] == 1
+        assert high["top1"] == pytest.approx(0.0)
+
+    def test_min_badge_on_a_frame_with_no_badge_column_scores_nothing(self):
+        """Better an empty score than a silent full-population one."""
+        model = FakeModel([11])
+        got = evaluate.next_item_accuracy(
+            model, self.frame([11]), self.labels(), min_badge=80
+        )
+        assert got["n_decisions"] == 0

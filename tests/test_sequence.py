@@ -307,3 +307,118 @@ class TestLargeItemIds:
         for level in model.levels:
             stored.update(int(i) for i in level.item_ids)
         assert stored == set(real)
+
+
+class TestBadgeWeightedFit:
+    """The badge kernel has to reach the tables, not merely exist.
+
+    `row_weights` was implemented and tested for a long time while no caller
+    ever passed `target_badge`, so every recommendation the tool made imitated
+    the median player. The wiring is what these tests pin.
+    """
+
+    def two_brackets(self) -> pd.DataFrame:
+        """Two populations of the same hero that buy opposite second items."""
+        rows = []
+        for m in range(200):
+            high = m % 2 == 0
+            second = 102 if high else 103
+            for i, item in enumerate((101, second)):
+                rows.append(
+                    {
+                        "match_id": m,
+                        "player_slot": 1,
+                        "hero_id": HERO,
+                        "item_id": item,
+                        "buy_index": i,
+                        "buy_time_s": 70 + 110 * i,
+                        "won": True,
+                        "average_badge": 100 if high else 40,
+                        "account_id": m,
+                    }
+                )
+        return pd.DataFrame(rows)
+
+    def test_target_badge_shifts_the_recommendation(self):
+        df = self.two_brackets()
+        after = empty_state().with_purchase(101, game_time_s=180)
+
+        def top(model):
+            ids, probability = model.distribution(after)
+            return int(ids[int(np.argmax(probability))])
+
+        assert top(sequence.fit(df, target_badge=100.0, badge_halfwidth=20.0)) == 102
+        assert top(sequence.fit(df, target_badge=40.0, badge_halfwidth=20.0)) == 103
+
+    def test_weights_are_computed_on_the_sorted_frame(self):
+        """`fit` sorts before building, so a caller's own weights misalign.
+
+        Passing `target_badge` is the only way to weight rows correctly, which
+        is why it exists alongside `weights` rather than being left to callers.
+        """
+        df = self.two_brackets().sort_values("item_id", kind="stable")
+        after = empty_state().with_purchase(101, game_time_s=180)
+        model = sequence.fit(df, target_badge=100.0, badge_halfwidth=20.0)
+        ids, probability = model.distribution(after)
+        assert int(ids[int(np.argmax(probability))]) == 102
+
+    def test_weights_and_target_badge_are_mutually_exclusive(self):
+        df = self.two_brackets()
+        with pytest.raises(ValueError):
+            sequence.fit(df, weights=np.ones(len(df)), target_badge=80.0)
+
+    def test_reported_n_stays_a_raw_count_under_badge_weighting(self):
+        df = self.two_brackets()
+        weighted = sequence.fit(df, target_badge=100.0, badge_halfwidth=20.0)
+        plain = sequence.fit(df)
+        st = empty_state()
+        assert weighted.evidence(st, 101).n == plain.evidence(st, 101).n
+
+    def test_the_default_target_is_above_the_median_badge(self):
+        """61 is the population median; the default aims at the top 30%."""
+        assert sequence.DEFAULT_TARGET_BADGE > 61
+
+
+class TestModelRecordsItsBracket:
+    """A cached model has to say which bracket it was fitted for.
+
+    Without it a cache fitted for the median player and one fitted for the top
+    30% are the same file on disk, and the tool would serve whichever it found
+    while claiming the bracket the caller asked for.
+    """
+
+    def test_target_badge_survives_a_round_trip(self, tmp_path):
+        model = sequence.fit(purchases(), target_badge=80.0)
+        loaded = sequence.SequenceModel.load(model.save(tmp_path / "m.npz"))
+        assert loaded.target_badge == 80.0
+
+    def test_an_unweighted_model_records_no_bracket(self, tmp_path):
+        model = sequence.fit(purchases())
+        loaded = sequence.SequenceModel.load(model.save(tmp_path / "m.npz"))
+        assert loaded.target_badge is None
+
+
+class TestBadgeArgumentParsing:
+    """One parser and one phrasing for the bracket, shared by every entry point.
+
+    The CLI, the build generator, the scoring script and the page generator all
+    take a badge from the command line. Four copies of "None if it says all,
+    else float" is four places for the brackets to drift apart -- and a page
+    rendered from one bracket while claiming another is exactly the untraceable
+    number this project exists to avoid.
+    """
+
+    def test_a_number_is_a_bracket(self):
+        assert sequence.parse_target_badge("55") == 55.0
+
+    def test_all_means_the_whole_population(self):
+        assert sequence.parse_target_badge("all") is None
+        assert sequence.parse_target_badge(" ALL ") is None
+
+    def test_nonsense_is_refused(self):
+        with pytest.raises(ValueError):
+            sequence.parse_target_badge("gold")
+
+    def test_the_phrasing_names_the_bracket(self):
+        assert sequence.describe_badge(80.0) == "badge ~80"
+        assert sequence.describe_badge(None) == "all badges"

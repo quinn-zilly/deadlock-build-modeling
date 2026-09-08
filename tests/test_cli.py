@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from deadlock import archetype, assets, cli
+from deadlock import archetype, assets, cli, sequence
 
 
 class TestParseTime:
@@ -191,6 +191,35 @@ class TestAbilityPointArguments:
             )
 
 
+class TestPointsWithoutADeclaredArchetype:
+    """`--points` must not be silently ignored mid-match.
+
+    Ability advice needs an archetype, and a player mid-match often has not
+    declared one -- the tool infers it from what they have bought. Dropping
+    the advice in that case is the exact situation `--points` exists for.
+    """
+
+    class Args:
+        def __init__(self, **kwargs):
+            defaults = dict(
+                hero="Holliday", archetype=None, owned="", time="5:00", souls=0,
+                enemies="", top=3, points="Powder Keg", min_share=0.25,
+                refit=False, badge=sequence.DEFAULT_TARGET_BADGE,
+            )
+            self.__dict__.update({**defaults, **kwargs})
+
+    def test_inferred_archetype_still_gets_ability_advice(self, capsys):
+        cli.cmd_next(self.Args())
+        assert "next ability point" in capsys.readouterr().out
+
+    def test_a_declared_archetype_still_gets_it(self, capsys):
+        _, meta = archetype.load()
+        hero_id = assets.resolve_hero("Holliday")
+        name = meta["heroes"][str(hero_id)]["archetypes"][0]["name"]
+        cli.cmd_next(self.Args(archetype=name))
+        assert "next ability point" in capsys.readouterr().out
+
+
 class TestImbueTargets:
     """`deadlock build` has to say what to do with an imbueable item.
 
@@ -224,3 +253,55 @@ class TestImbueTargets:
         assert got[0].ability_id is not None and got[0].ability_id > 0
         assert got[0].ability_name and not got[0].ability_name.isdigit()
         assert 0.0 < got[0].share <= 1.0
+
+
+class TestBadgeArgument:
+    """Which bracket the advice imitates, and how a player asks for another.
+
+    The default is the point of the whole feature: without it the tool serves
+    the median player, which is not what anyone opens a build tool for.
+    """
+
+    @staticmethod
+    def parsed(argv):
+        return cli.build_parser().parse_args(argv)
+
+    def test_build_defaults_to_the_high_badge_bracket(self):
+        args = self.parsed(["build", "--hero", "Ivy"])
+        assert cli.target_badge(args) == sequence.DEFAULT_TARGET_BADGE
+
+    def test_a_player_can_ask_for_their_own_bracket(self):
+        args = self.parsed(["build", "--hero", "Ivy", "--badge", "55"])
+        assert cli.target_badge(args) == 55.0
+
+    def test_all_asks_for_the_whole_population(self):
+        args = self.parsed(["build", "--hero", "Ivy", "--badge", "all"])
+        assert cli.target_badge(args) is None
+
+    def test_a_nonsense_bracket_is_refused(self):
+        with pytest.raises(SystemExit):
+            self.parsed(["build", "--hero", "Ivy", "--badge", "gold"])
+
+    @pytest.mark.parametrize("command", ["build", "next", "watch", "why"])
+    def test_every_advice_command_takes_the_flag(self, command):
+        argv = [command, "--hero", "Ivy", "--badge", "70"]
+        if command == "why":
+            argv += ["--item", "Ricochet"]
+        assert cli.target_badge(self.parsed(argv)) == 70.0
+
+
+class TestModelCachePaths:
+    """One cached file per bracket, so two brackets cannot share a cache."""
+
+    def test_each_bracket_gets_its_own_file(self):
+        assert cli.model_path(80.0) != cli.model_path(55.0)
+
+    def test_the_whole_population_has_its_own_file(self):
+        assert cli.model_path(None) != cli.model_path(80.0)
+
+    def test_the_default_bracket_keeps_the_shipped_name(self):
+        assert cli.model_path(sequence.DEFAULT_TARGET_BADGE) == cli.MODEL_PATH
+
+    def test_the_ability_model_is_cached_per_bracket_too(self):
+        assert cli.ability_model_path(80.0) != cli.ability_model_path(55.0)
+        assert cli.ability_model_path(sequence.DEFAULT_TARGET_BADGE) == cli.ABILITY_MODEL_PATH

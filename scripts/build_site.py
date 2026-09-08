@@ -13,10 +13,17 @@ That check is not ceremony. An earlier version of this page shipped with a
 JavaScript syntax error -- a double-quoted string containing double-quoted
 attributes -- which killed the whole script, so the page rendered static markup
 with a dead search box and an empty build panel. Nothing in the HTML looked
-wrong. `node --check` catches it in a second, so it runs here whenever node is
-available.
+wrong. So whenever node is available the script is both parsed and *run*: every
+build is rendered against a DOM stub and the result is checked for the sections
+it should contain. A page that parses can still throw on its first render, and
+on the page the two failures look identical.
 
-    python scripts/build_site.py [--out PATH] [--hero NAME]
+The page must be generated at the same bracket as the builds it is showing --
+a page rendered from the default cache while the builds came from another
+bracket would disagree with them silently, which is the one thing this project
+never ships.
+
+    python scripts/build_site.py [--out PATH] [--hero NAME] [--badge N|all]
 """
 
 from __future__ import annotations
@@ -33,7 +40,16 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from deadlock import archetype, assets, build, cli, evaluate  # noqa: E402
+from deadlock import (  # noqa: E402
+    abilityorder,
+    archetype,
+    assets,
+    build,
+    cli,
+    counters,
+    evaluate,
+    sequence,
+)
 
 TEMPLATE = (
     Path(__file__).resolve().parents[1]
@@ -45,12 +61,25 @@ TEMPLATE = (
 DEFAULT_OUT = Path("data/site/builds.html")
 
 
-def collect(hero_filter: str | None = None) -> list[dict]:
-    """Generate every build and reduce it to what the page renders."""
+def collect(
+    hero_filter: str | None = None,
+    badge: float | None = sequence.DEFAULT_TARGET_BADGE,
+) -> list[dict]:
+    """Generate every build and reduce it to what the page renders.
+
+    The page shows what `deadlock build` shows: the purchase order, the ability
+    order, what to imbue, and the matchups the build's items answer. A web view
+    that showed only the items would be a different, smaller product than the
+    CLI, and the player would have no way to know what was missing.
+    """
     labels, meta = archetype.load()
-    model = cli.load_model()
+    model = cli.load_model(badge=badge)
+    ability_model, ability_frame = cli.load_ability_model(badge=badge)
+    lifts = cli.load_counters() if cli.COUNTERS_PATH.exists() else pd.DataFrame()
     purchases = pd.read_parquet(cli.PURCHASES, columns=cli.COLUMNS)
     heroes = assets.playable_heroes()
+    hero_names = {i: h.name for i, h in assets.load_heroes().items()}
+    item_names = {i: it.name for i, it in assets.load_items().items()}
 
     wanted = assets.resolve_hero(hero_filter) if hero_filter else None
     rows: list[dict] = []
@@ -101,6 +130,23 @@ def collect(hero_filter: str | None = None) -> list[dict]:
                     file=sys.stderr,
                 )
 
+            order = []
+            if ability_model is not None:
+                try:
+                    order = abilityorder.generate_order(
+                        ability_model,
+                        ability_frame,
+                        hero_id,
+                        archetype_id,
+                        target_badge=badge,
+                    )
+                except ValueError as exc:
+                    print(f"  no ability order for {hero_name}: {exc}", file=sys.stderr)
+
+            item_ids = [item.item_id for item in generated.items]
+            targets = cli.load_imbue_targets(cell, item_ids)
+            matchups = counters.for_build(lifts, item_ids)
+
             rows.append(
                 {
                     "hero": hero_name,
@@ -122,6 +168,42 @@ def collect(hero_filter: str | None = None) -> list[dict]:
                         }
                         for item in generated.items
                     ],
+                    "abilities": [
+                        {
+                            "position": point.position + 1,
+                            "name": point.ability_name,
+                            "level": point.level,
+                            "time": point.game_time_s,
+                            "p": round(point.probability, 3),
+                            "n": point.n,
+                            "backoff": point.backoff_level,
+                            "thin": point.thin,
+                        }
+                        for point in order
+                    ],
+                    "imbue": [
+                        {
+                            "item": t.item_name,
+                            "ability": t.ability_name,
+                            "share": round(t.share, 3),
+                            "n": t.n,
+                            "thin": t.thin,
+                            "split": t.split,
+                        }
+                        for t in targets
+                        if t.ability_id is not None
+                    ],
+                    "counters": [
+                        {
+                            "item": item_names.get(c.item_id, str(c.item_id)),
+                            "enemy": hero_names.get(c.enemy_hero_id, "?"),
+                            "lift": round(c.lift, 4),
+                            "facing": round(c.facing_rate, 4),
+                            "baseline": round(c.baseline_rate, 4),
+                            "n": c.n_facing,
+                        }
+                        for c in matchups
+                    ],
                 }
             )
 
@@ -138,33 +220,108 @@ def render(builds: list[dict]) -> str:
     return template.replace(marker, "<script>\n" + payload + "const clock", 1)
 
 
-def check_script(html: str) -> None:
-    """Syntax-check the page's JavaScript, if node is available.
+# A DOM small enough to run the page's render functions and large enough that
+# they cannot tell the difference: the three elements the script looks up by
+# id, plus createElement.
+DOM_SHIM = """
+function el() {
+  const node = {
+    children: [], className: "", type: "", style: {},
+    _text: "", innerHTML: "", onclick: null,
+    setAttribute() {}, addEventListener() {},
+    appendChild(c) { this.children.push(c); },
+    append(...c) { this.children.push(...c); },
+    replaceChildren() { this.children = []; },
+  };
+  Object.defineProperty(node, "textContent", {
+    get() { return this._text; },
+    set(v) { this._text = String(v); },
+  });
+  return node;
+}
+const NODES = { list: el(), panel: el(), q: el() };
+const document = {
+  getElementById: id => NODES[id] || el(),
+  createElement: () => el(),
+};
+"""
 
-    A syntax error takes down the entire script and leaves a page that looks
-    fine but does nothing, so this is worth failing the build over.
+# Each build field, and the heading the page must show when that field has
+# data. A section that quietly renders to nothing is the failure this catches.
+SECTIONS = (
+    ("abilities", "Ability order"),
+    ("imbue", "What to imbue"),
+    ("counters", "Counter-picks"),
+)
+
+
+def exercise_source() -> str:
+    """The harness that renders every build and checks what came out."""
+    checks = "\n".join(
+        '  if (BUILDS[i].{field}.length && !html.includes("{heading}"))'
+        '\n    missing.push(BUILDS[i].archetype + ": {heading}");'.format(
+            field=field, heading=heading
+        )
+        for field, heading in SECTIONS
+    )
+    return (
+        "const missing = [];\n"
+        "for (let i = 0; i < BUILDS.length; i++) {\n"
+        "  current = i;\n"
+        "  renderBuild();\n"
+        "  const html = NODES.panel.innerHTML;\n"
+        '  if (!html || html.length < 200)\n'
+        '    throw new Error("build " + i + " rendered nothing");\n'
+        + checks
+        + "\n}\n"
+        'renderList("");\n'
+        "if (missing.length)\n"
+        '  throw new Error("sections missing: " + missing.slice(0, 5).join("; "));\n'
+        'console.log("  rendered " + BUILDS.length + " builds, every section present");\n'
+    )
+
+
+def check_script(html: str) -> None:
+    """Parse the page's JavaScript, then run it, if node is available.
+
+    Parsing alone is not enough, and this page is why the rule exists: an
+    earlier version shipped with a syntax error that killed the whole script,
+    leaving markup that looked fine and did nothing. A version that parses can
+    still throw on its first render -- a renderer reading a field the collector
+    stopped emitting -- and the symptom on the page is identical.
+
+    So the script is also run against a DOM stub, over every build rather than
+    the first, and the rendered panel is checked for the sections it should
+    contain. A build with no counter-picks and a cell with no imbues are
+    exactly the cases a renderer gets wrong.
     """
     node = shutil.which("node")
     if not node:
-        print("  node not found; skipping the JavaScript syntax check", file=sys.stderr)
+        print("  node not found; skipping the JavaScript checks", file=sys.stderr)
         return
 
     start, end = html.find("<script>"), html.find("</script>")
     if start < 0 or end < 0:
         raise SystemExit("the rendered page has no <script> block")
+    script = html[start + len("<script>") : end]
 
+    run_node(node, script, "--check")
+    print("  JavaScript parses")
+    print(run_node(node, DOM_SHIM + script + exercise_source()).strip())
+
+
+def run_node(node: str, script: str, *flags: str) -> str:
+    """Run one script under node, failing the build on anything it reports."""
     with tempfile.NamedTemporaryFile(
         "w", suffix=".js", delete=False, encoding="utf-8"
     ) as handle:
-        handle.write(html[start + len("<script>") : end])
+        handle.write(script)
         path = handle.name
     try:
-        result = subprocess.run(
-            [node, "--check", path], capture_output=True, text=True
-        )
+        result = subprocess.run([node, *flags, path], capture_output=True, text=True)
         if result.returncode != 0:
-            raise SystemExit(f"the page's JavaScript does not parse:\n{result.stderr}")
-        print("  JavaScript parses")
+            raise SystemExit(f"the page's JavaScript failed:\n{result.stderr}")
+        return result.stdout
     finally:
         Path(path).unlink(missing_ok=True)
 
@@ -173,9 +330,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--hero", type=str, default=None, help="just one hero")
+    parser.add_argument(
+        "--badge",
+        default=str(sequence.DEFAULT_TARGET_BADGE),
+        help="badge to weight the builds toward, or 'all' for the whole population",
+    )
     args = parser.parse_args()
 
-    builds = collect(args.hero)
+    badge = sequence.parse_target_badge(args.badge)
+    print(f"rendering builds weighted toward {sequence.describe_badge(badge)}")
+    builds = collect(args.hero, badge=badge)
     if not builds:
         raise SystemExit("no builds generated")
 

@@ -100,8 +100,21 @@ Dynamo's ult build (Refresher, Warp Stone, Duration Extender) among them.
 
 A hero's archetype is named for its dominant family: "Gun Lash", "Melee
 Sinclair", "Support Kelvin". Two archetypes of the same hero can share a
-family — Kelvin has two spirit builds taking different paths — in which case
-the name needs a second distinguishing term rather than a family label alone.
+family — Kelvin has two spirit builds taking different paths — so a family
+label alone is not a name.
+
+**Names are decided per hero, not per cluster**, because two clusters sharing
+a name is only visible across the hero. Lady Geist had two clusters both called
+"Spirit Lady Geist", and the 35% of her players on the second one were silently
+handed the first when they asked for it. A name that does not select is not a
+name.
+
+Where the family collides, the name takes a second term, in the order a player
+finds informative: what the build is aimed at (its [[ability focus]]), then its
+top [[discriminative item]], then a bare numeric suffix. The suffix is a last
+resort and reads as a warning — a cluster that needs one may not be a second
+build at all. Every archetype of every hero is uniquely named, and the tests
+assert it.
 
 ## Counter-pick
 
@@ -291,3 +304,17 @@ bank are strength not on the board.
 
 The rank control, `average_badge`, on a 0–116 scale. A property of the *match*,
 not the player, and only populated for Ranked matches.
+
+The tool weights its tables toward badge 80 by default — roughly the top 30% of
+a distribution whose median is 61 — so the advice imitates strong play rather
+than median play. It is a soft Gaussian kernel and not a filter: filtering to
+the same bracket costs about nine times the data, and the thin
+hero-and-archetype cells are exactly the ones that cannot afford it. `--badge`
+asks for another bracket, `--badge all` for none.
+
+Badge enters as a **weight, never as a key**. Keying on it would split every
+cell three ways against a median cell of 3,313 player-matches. Weights are
+computed on the training split alone, and the weighted model is judged on
+high-badge held-out accuracy — never on general-population accuracy, which it
+makes worse by design, and never on win rate, which is an outcome downstream of
+every decision the build makes. See `docs/adr/0002-badge-weighting-on-by-default.md`.

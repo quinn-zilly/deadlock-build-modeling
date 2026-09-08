@@ -17,7 +17,7 @@ items** with in-cluster against elsewhere pick rates, plus what the cluster
 imbues and which ability it maxes first. If a cluster does not read as a build
 someone plays, it is not an archetype however good its silhouette is.
 
-    python scripts/review_new_archetypes.py [--heroes A,B] [--out FILE]
+    python scripts/review_new_archetypes.py [--heroes changed|all|A,B] [--out FILE]
 """
 
 from __future__ import annotations
@@ -36,9 +36,22 @@ PURCHASES = Path("data/processed/purchases.parquet")
 ABILITIES = Path("data/processed/abilities.parquet")
 IMBUES = Path("data/processed/imbues.parquet")
 
-# The heroes whose fit the imbue block changes. Everything else is unaffected,
-# so reading all 38 would bury the five that need judgement.
+# The heroes the imbue block changed when it was measured. Kept as a record of
+# that run, not as the list to read: `--heroes changed` recomputes which heroes
+# a candidate block actually moves, so a block that moves different heroes is
+# not reviewed against the last block's list.
 CHANGED = ("Dynamo", "Bebop", "Wraith", "The Doorman", "Rem")
+
+
+# Below this many observations a percentage is not a finding. The sheet once
+# printed "96%" from 24 rows next to a "96%" from 5,110 and made them look like
+# the same claim, so every share here carries its count and is marked when the
+# count is too small to state plainly.
+MIN_ROWS = 30
+
+
+def thin_note(n: int) -> str:
+    return "" if n >= MIN_ROWS else f" [thin: {n} rows]"
 
 
 def cluster_report(
@@ -59,16 +72,20 @@ def cluster_report(
     first_maxed = abilities.first_maxed_slot(ability_rows)
     for cluster in sorted(labels.unique()):
         members = labels[labels == cluster].index
-        lines.append(f"**cluster {cluster}** -- {shares[cluster]:.0%} of players")
+        lines.append(
+            f"**cluster {cluster}** -- {shares[cluster]:.0%} of players "
+            f"({len(members):,})" + thin_note(len(members))
+        )
         lines.append("")
 
         top = archetype.discriminative_items(prevalence, cluster, top=8)
-        lines.append("| item | here | elsewhere |")
+        lines.append(f"| item | here (n={len(members):,}) | elsewhere |")
         lines.append("|---|---|---|")
         for row in top.itertuples():
             lines.append(
                 f"| {item_names.get(int(row.item_id), row.item_id)} "
-                f"| {row.in_cluster:.0%} | {row.elsewhere:.0%} |"
+                f"| {row.in_cluster:.0%}{thin_note(len(members))} "
+                f"| {row.elsewhere:.0%} |"
             )
         lines.append("")
 
@@ -82,7 +99,7 @@ def cluster_report(
         lines.append(
             f"- imbues at all: {coverage:.0%} of players ({len(mine):,} imbues)"
         )
-        if len(mine) >= 30:
+        if len(mine) >= MIN_ROWS:
             counts = mine["imbued_ability_id"].value_counts(normalize=True).head(3)
             imbued = ", ".join(
                 f"{ability_names.get(int(a), a)} {v:.0%}" for a, v in counts.items()
@@ -101,14 +118,24 @@ def cluster_report(
                 f"{getattr(signatures.get(int(slot)), 'name', slot)} {v:.0%}"
                 for slot, v in counts.items()
             )
-            lines.append(f"- maxes first: {named}")
+            lines.append(
+                f"- maxes first: {named} ({len(maxed):,} players)"
+                + thin_note(len(maxed))
+            )
         lines.append("")
     return lines
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--heroes", default=",".join(CHANGED))
+    parser.add_argument(
+        "--heroes",
+        default="changed",
+        help=(
+            "'changed' for every hero whose archetype count the block moves, "
+            "'all' for all of them, or a comma-separated list of names"
+        ),
+    )
     parser.add_argument("--out", default="docs/NEW-ARCHETYPES.md")
     args = parser.parse_args()
 
@@ -148,13 +175,33 @@ def main() -> int:
         "for that hero.",
         "",
     ]
-    for name in [n.strip() for n in args.heroes.split(",") if n.strip()]:
-        hero_id = heroes.get(name.lower())
+    selector = args.heroes.strip().lower()
+    if selector in {"changed", "all"}:
+        playable = assets.playable_heroes()
+        wanted = [
+            (playable[h].name, h)
+            for h in sorted(heroes.values(), key=lambda h: playable[h].name)
+        ]
+    else:
+        wanted = [
+            (n.strip(), heroes.get(n.strip().lower()))
+            for n in args.heroes.split(",")
+            if n.strip()
+        ]
+
+    reviewed = 0
+    for name, hero_id in wanted:
         if hero_id is None:
             continue
         group = purchases[purchases["hero_id"] == hero_id]
         before = archetype.fit_hero(group, hero_id=hero_id, hero_name=name)
         after = archetype.fit_hero(group, hero_id=hero_id, hero_name=name, extra=extra)
+        # The point of the sheet is the archetypes nobody has judged yet. A
+        # hero the block leaves alone needs no second reading, and printing all
+        # 38 buries the handful that do.
+        if selector == "changed" and before.k == after.k:
+            continue
+        reviewed += 1
         lines.append(f"## {name}: {before.k} -> {after.k} archetypes")
         lines.append("")
         lines.append(f"`{after.reason}`")
@@ -177,8 +224,11 @@ def main() -> int:
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
+    if selector == "changed" and not reviewed:
+        lines.append("No hero's archetype count changes under this block.")
+        lines.append("")
     out.write_text("\n".join(lines), encoding="utf-8")
-    print(f"wrote {out}")
+    print(f"wrote {out} ({reviewed} hero(es) to judge)")
     return 0
 
 

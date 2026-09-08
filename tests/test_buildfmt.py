@@ -8,8 +8,11 @@ schema has no way to represent a sale.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
-from deadlock import buildfmt
+import pytest
+
+from deadlock import buildfmt, imbue
 
 
 def item(item_id: int, position: int, cost: int = 800, sell: float | None = None):
@@ -117,3 +120,64 @@ class TestExport:
     def test_creates_parent_directory(self, tmp_path):
         path = buildfmt.export_build(build(), tmp_path / "deep" / "nested" / "b.json")
         assert path.exists()
+
+
+BUILDS = Path("data/builds")
+
+
+class TestAgainstRealData:
+    """The exported builds themselves, as a player would import them.
+
+    A build the game accepts but that says nothing about ability points or
+    imbue targets is half a build, and the half it drops is the half a player
+    cannot look up elsewhere.
+    """
+
+    @staticmethod
+    def exports() -> list[dict]:
+        if not BUILDS.exists():
+            pytest.skip("requires generated builds; run scripts/generate_builds.py")
+        files = sorted(BUILDS.glob("*.json"))
+        if not files:
+            pytest.skip("no generated builds")
+        return [json.loads(f.read_text())["hero_build"] for f in files]
+
+    def test_every_export_carries_an_ability_order(self):
+        for hero_build in self.exports():
+            order = hero_build["details"].get("ability_order", {})
+            points = order.get("currency_changes") or []
+            assert points, f"{hero_build['name']} exports no ability order"
+
+    def test_an_ability_order_never_takes_a_slot_past_four(self):
+        """The one hard constraint an ability order has."""
+        for hero_build in self.exports():
+            points = hero_build["details"]["ability_order"]["currency_changes"]
+            taken: dict[int, int] = {}
+            for point in points:
+                taken[point["ability_id"]] = taken.get(point["ability_id"], 0) + 1
+            assert max(taken.values()) <= 4, hero_build["name"]
+
+    def test_every_held_imbueable_item_names_its_target(self):
+        """An imbueable item with a null target is the advice half-given.
+
+        Only held items are exported -- an imbueable item absorbed into a
+        composite is not in the file at all -- so the claim is about the ones
+        that survive to the end of the match.
+        """
+        imbueable = set(imbue.imbueable_items())
+        checked = 0
+        for hero_build in self.exports():
+            mods = [
+                mod
+                for category in hero_build["details"]["mod_categories"]
+                for mod in category["mods"]
+            ]
+            for mod in mods:
+                if mod["ability_id"] not in imbueable:
+                    continue
+                checked += 1
+                assert mod["imbue_target_ability_id"], (
+                    f"{hero_build['name']} buys "
+                    f"{mod['ability_id']} and does not say what to imbue it into"
+                )
+        assert checked, "no exported build holds an imbueable item"

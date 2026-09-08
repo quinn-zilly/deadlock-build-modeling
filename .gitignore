@@ -233,3 +233,8 @@ data/builds/
 data/processed/*
 !data/processed/archetype_meta.json
 !data/processed/archetypes.parquet
+
+# The names a person accepted for those clusters. Tiny, hand-edited, and the
+# only place the naming survives a refit -- losing it means re-deciding every
+# name a Deadlock player already ruled on.
+!data/archetype_names.json

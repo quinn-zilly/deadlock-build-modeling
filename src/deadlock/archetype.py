@@ -849,10 +849,15 @@ def load_name_overrides(path: Path = NAMES_PATH) -> dict[str, str]:
 
     The auto-labels are a proposal. This file is where a person overrules them,
     and it is checked in so the naming survives a refit.
+
+    Keys beginning with an underscore are notes rather than names, so the file
+    can carry its own explanation -- including that cluster ids are only stable
+    while the fit is.
     """
     if not Path(path).exists():
         return {}
-    return json.loads(Path(path).read_text())
+    loaded = json.loads(Path(path).read_text())
+    return {k: v for k, v in loaded.items() if not k.startswith("_")}
 
 
 def fit_all(

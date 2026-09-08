@@ -23,8 +23,10 @@ win — only that strong players buy it, in this order, at about this time.
 Recommendations are conditioned on **(hero, archetype)**, not hero alone.
 Heroes are played in materially different ways: Ivy splits cleanly into a gun
 build and a spirit build that share few items, and averaging them produces a
-build serving neither. Archetypes are fit per hero, and heroes that do not
-genuinely split (Haze, Dynamo) stay single.
+build serving neither. Archetypes are fit per hero: 28 of 38 heroes
+split, and the ten that do not stay single. Every archetype of a hero has a
+name that selects only it -- two clusters sharing one name is a build a player
+cannot ask for.
 
 The model is a **backoff frequency table**, deliberately not a neural network.
 Conditioning on hero × archetype leaves a median of 3,313 player-matches per
@@ -94,6 +96,12 @@ Training uses **all** matches, with badge, outcome, and hero familiarity as row
 leaves the median hero with ~366 player-matches per archetype, too thin to
 model.
 
+The badge weight is **on by default**, centred at 80 -- roughly the top 30% of a
+distribution whose median is 61 -- so the tool imitates strong play rather than
+median play. `--badge N` asks for another bracket and `--badge all` for none;
+each bracket caches its own model. What that buys, and what it does not, is
+measured in `docs/adr/0002-badge-weighting-on-by-default.md`.
+
 ## Layout
 
 | Path | Purpose |
@@ -118,6 +126,7 @@ model.
 | `src/deadlock/buildfmt.py` | Build representation and in-game export |
 | `src/deadlock/cli.py` | The command line |
 | `tests/` | Regression tests for known source-data defects |
+| `scripts/refit.py` | Rebuild every derived artifact, in dependency order |
 
 ## Using it
 
@@ -127,8 +136,10 @@ deadlock build --hero Ivy --archetype gun        # a full ordered build
 deadlock build --hero Ivy --archetype gun --export ivy.json   # importable
 deadlock next  --hero Ivy --owned "Extra Spirit,Mystic Burst" --time 8:30
 deadlock next  --hero Wraith --owned "..." --enemies "Lash,Vindicta"
+deadlock next  --hero Ivy --owned "..." --points "Air Drop,Air Drop"  # and where the next point goes
 deadlock watch --hero Ivy                        # a session; "+ Ricochet"
 deadlock why   --hero Ivy --item Ricochet --owned "..." --time 8:30
+deadlock build --hero Ivy --badge 55             # weighted to your own bracket
 ```
 
 `build` prints three things: the purchase order, the ability-point order, and
@@ -142,8 +153,32 @@ what you have bought and, while the evidence is thin, shows the plausible
 archetypes *separately* rather than blending them — a blend can recommend an
 item that neither build actually wants.
 
+`next` takes `--points` -- the ability points you have already spent, in order
+-- and answers the other mid-match question: where the next one goes. It
+refuses a fifth point in an ability, which is the only illegal move an ability
+order has.
+
 `why` prints the whole backoff chain for one item: the context at each level,
 the raw count, the mixture weight, and which level carried the mass.
+
+## Refitting
+
+Everything derived from the cached pages rebuilds with one command, in
+dependency order -- purchases, ability points, imbues, the archetype fit, the
+builds, the page:
+
+```bash
+python scripts/refit.py                  # all six steps
+python scripts/refit.py --from archetypes  # keep the three parquet passes
+python scripts/refit.py --badge all --hero Ivy
+```
+
+It exits non-zero if any hero-and-archetype build misses a staple, so a refit
+that produced unusable builds fails rather than reporting success.
+
+Archetype names a person accepted live in `data/archetype_names.json`, which is
+checked in and applied on every fit, so a refit cannot silently rename a build
+a Deadlock player already ruled on.
 
 ## Source data caveats
 

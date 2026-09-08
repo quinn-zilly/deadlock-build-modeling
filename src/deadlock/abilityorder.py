@@ -91,7 +91,7 @@ def point_frame(df: pd.DataFrame) -> pd.DataFrame:
     keys = ["match_id", "player_slot"]
     valid = df[df["signature_slot"] != abilities.UNMAPPED_SLOT]
     ordered = valid.sort_values(keys + ["game_time_s"]).copy()
-    return pd.DataFrame(
+    frame = pd.DataFrame(
         {
             "match_id": ordered["match_id"].to_numpy(np.int64),
             "player_slot": ordered["player_slot"].to_numpy(np.int64),
@@ -100,6 +100,29 @@ def point_frame(df: pd.DataFrame) -> pd.DataFrame:
             "buy_index": ordered.groupby(keys).cumcount().to_numpy(np.int64),
             "buy_time_s": ordered["game_time_s"].to_numpy(np.int64),
         }
+    )
+    # Carried through rather than required, so an abilities table without one
+    # still fits -- it simply cannot be badge-weighted.
+    if "average_badge" in ordered:
+        frame["average_badge"] = ordered["average_badge"].to_numpy()
+    return frame
+
+
+def attach_badges(df: pd.DataFrame, purchases: pd.DataFrame) -> pd.DataFrame:
+    """Copy each player's match badge onto their ability rows.
+
+    Badge is recorded on purchases and not on abilities, so weighting the
+    ability order toward a bracket needs this join first. Players with no
+    purchase row keep a null badge, which the kernel reads as neutral: a filled
+    zero would sit at the far tail and drop them out of every table, and the
+    badge is Ranked-only, so those rows are not rare.
+    """
+    badges = (
+        purchases[["match_id", "player_slot", "average_badge"]]
+        .drop_duplicates(subset=["match_id", "player_slot"])
+    )
+    return df.drop(columns=["average_badge"], errors="ignore").merge(
+        badges, on=["match_id", "player_slot"], how="left"
     )
 
 
@@ -112,18 +135,60 @@ def fit(
     return sequence.fit(point_frame(df), archetypes, **kwargs)
 
 
-def median_timings(frame: pd.DataFrame, hero_id: int, archetype_id: int) -> dict[int, float]:
+def median_timings(
+    frame: pd.DataFrame,
+    hero_id: int,
+    archetype_id: int,
+    *,
+    target_badge: float | None = None,
+    badge_halfwidth: float = sequence.DEFAULT_BADGE_HALFWIDTH,
+) -> dict[int, float]:
     """Median clock time of the nth ability point, for one hero-archetype.
 
     Population medians, the same basis the item timings use. A player levels
     when they level up, not by the clock, so these orient rather than instruct.
+
+    `target_badge` moves the median toward a bracket, using the same kernel
+    that weights the tables. It has to, because the clock is not decoration
+    here: three of the six backoff levels key on a time bucket, so a build
+    whose *choices* come from strong players and whose *timings* come from the
+    whole population is conditioned on a pace its own players do not keep.
+    A weighted median rather than a filtered one, for the same reason the
+    tables weight rather than filter -- the thin cells cannot spare the rows.
+
+    A frame with no badge column answers with the plain median, since the
+    abilities table carries no badge of its own until one is joined on.
     """
     cell = frame[frame["hero_id"] == hero_id]
     if "archetype_id" in cell:
         cell = cell[cell["archetype_id"] == archetype_id]
     if not len(cell):
         return {}
-    return cell.groupby("buy_index")["buy_time_s"].median().to_dict()
+    if target_badge is None or "average_badge" not in cell:
+        return cell.groupby("buy_index")["buy_time_s"].median().to_dict()
+
+    cell = cell.assign(
+        _w=sequence.row_weights(
+            cell, target_badge=target_badge, badge_halfwidth=badge_halfwidth
+        )
+    )
+    return {
+        int(position): _weighted_median(
+            group["buy_time_s"].to_numpy(float), group["_w"].to_numpy(float)
+        )
+        for position, group in cell.groupby("buy_index")
+    }
+
+
+def _weighted_median(values: np.ndarray, weights: np.ndarray) -> float:
+    """The value at which half the weight lies below."""
+    order = np.argsort(values)
+    values, weights = values[order], weights[order]
+    total = weights.sum()
+    if total <= 0:
+        return float(np.median(values))
+    index = int(np.searchsorted(np.cumsum(weights), total / 2.0))
+    return float(values[min(index, len(values) - 1)])
 
 
 def recommend(
@@ -178,6 +243,8 @@ def generate_order(
     archetype_id: int,
     *,
     timings: dict[int, float] | None = None,
+    target_badge: float | None = None,
+    badge_halfwidth: float = sequence.DEFAULT_BADGE_HALFWIDTH,
     n_points: int = MAX_POINTS,
 ) -> list[AbilityPoint]:
     """The full recommended ability order for one hero-archetype.
@@ -194,8 +261,19 @@ def generate_order(
     16-point order generated at a frozen clock diverges at the seventh point
     and reports p=0.892 for it. Passing the population's own timings is what
     makes the context real, so they are read from `frame` unless overridden.
+
+    `target_badge` moves those timings to the same bracket the model was
+    weighted toward. Without it a build asked for strong players takes its
+    choices from them and its clock from everybody.
     """
-    timings = median_timings(frame, hero_id, archetype_id) if timings is None else timings
+    if timings is None:
+        timings = median_timings(
+            frame,
+            hero_id,
+            archetype_id,
+            target_badge=target_badge,
+            badge_halfwidth=badge_halfwidth,
+        )
     if not timings:
         raise ValueError(
             f"no ability-point timings for hero {hero_id} archetype {archetype_id}; "

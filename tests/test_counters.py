@@ -136,3 +136,58 @@ class TestAgainstRealData:
         frame = self._frame(12000)
         train, test = splits.split_by_match(frame)
         assert counters.replicates(train, test, min_facing=200) > 0.5
+
+
+class TestForBuild:
+    """The counter-picks a finished build carries, with no enemy team named.
+
+    `counters_for` answers "given these five enemies, which of my items are
+    matchup picks". The site shows a build before a match exists, so the useful
+    question is the other way round: for the items this build buys, which
+    heroes make them a counter-pick.
+    """
+
+    @staticmethod
+    def lifts() -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {"item_id": 1, "enemy_hero_id": 99, "facing_rate": 0.40,
+                 "baseline_rate": 0.20, "lift": 0.20, "n_facing": 5000},
+                {"item_id": 1, "enemy_hero_id": 50, "facing_rate": 0.26,
+                 "baseline_rate": 0.20, "lift": 0.06, "n_facing": 5000},
+                {"item_id": 2, "enemy_hero_id": 99, "facing_rate": 0.31,
+                 "baseline_rate": 0.30, "lift": 0.01, "n_facing": 5000},
+                {"item_id": 7, "enemy_hero_id": 99, "facing_rate": 0.50,
+                 "baseline_rate": 0.20, "lift": 0.30, "n_facing": 5000},
+            ]
+        )
+
+    def test_reports_only_the_items_the_build_buys(self):
+        found = counters.for_build(self.lifts(), [1, 2])
+        assert {c.item_id for c in found} == {1}
+
+    def test_strongest_matchup_first(self):
+        found = counters.for_build(self.lifts(), [1, 2, 7])
+        assert [c.item_id for c in found] == [7, 1]
+
+    def test_one_matchup_per_item(self):
+        """Item 1 answers two heroes; only its strongest is worth the line."""
+        found = counters.for_build(self.lifts(), [1])
+        assert [(c.item_id, c.enemy_hero_id) for c in found] == [(1, 99)]
+
+    def test_a_weak_lift_is_not_a_counter_pick(self):
+        """Item 2 moves one point facing hero 99, which is not a matchup."""
+        assert not any(c.item_id == 2 for c in counters.for_build(self.lifts(), [2]))
+
+    def test_a_thin_matchup_is_dropped(self):
+        thin = self.lifts().assign(n_facing=10)
+        assert counters.for_build(thin, [1, 7]) == []
+
+    def test_a_build_with_no_matchup_items_reports_nothing(self):
+        assert counters.for_build(self.lifts(), [42]) == []
+
+    def test_an_empty_lift_table_is_not_an_error(self):
+        assert counters.for_build(pd.DataFrame(), [1]) == []
+
+    def test_limit_caps_the_list(self):
+        assert len(counters.for_build(self.lifts(), [1, 7], limit=1)) == 1

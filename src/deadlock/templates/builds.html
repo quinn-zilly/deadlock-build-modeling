@@ -115,6 +115,33 @@ h2{font-family:Cinzel,Georgia,serif;font-weight:700;font-size:29px;margin:0;line
 .bar{display:block;height:3px;background:var(--brass);opacity:.45;margin:5px 0 0 auto;
   border-radius:2px}
 
+h3.section{font-family:Cinzel,Georgia,serif;font-weight:500;font-size:15px;
+  letter-spacing:.04em;margin:34px 0 4px;padding-bottom:7px;
+  border-bottom:1px solid var(--edge)}
+.section-note{font-size:12px;color:var(--muted);margin:0 0 12px}
+.priority{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--text);
+  margin:0 0 14px}
+.points{display:grid;grid-template-columns:repeat(auto-fill,minmax(206px,1fr));gap:8px}
+.point{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 11px;
+  border:1px solid var(--edge-soft);border-radius:3px;background:var(--raised)}
+.point .ord{grid-row:1/3;align-self:center;font-family:"IBM Plex Mono",monospace;
+  font-size:15px;color:var(--brass);font-variant-numeric:tabular-nums}
+.point .who{font-weight:500;font-size:13.5px}
+.point .ev{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--faint);
+  font-variant-numeric:tabular-nums}
+.point.thin{border-color:var(--warn)}
+.pairs{display:grid;gap:8px;margin:0}
+.pair{display:grid;grid-template-columns:1fr auto;gap:2px 18px;padding:9px 0;
+  border-bottom:1px solid var(--edge-soft)}
+.pair:last-child{border-bottom:0}
+.pair .lead{font-weight:500}
+.pair .ev{grid-column:1;font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+  color:var(--faint);font-variant-numeric:tabular-nums}
+.pair .figure{grid-row:1/3;grid-column:2;align-self:center;text-align:right;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted);
+  font-variant-numeric:tabular-nums;min-width:92px}
+.empty{font-size:12.5px;color:var(--faint);margin:0 0 4px}
+
 footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--edge);
   color:var(--faint);font-size:12.5px;max-width:74ch}
 @media(prefers-reduced-motion:no-preference){
@@ -214,7 +241,65 @@ function renderBuild() {
       '<i><span class="key plain"></span> the model&rsquo;s own pick</i>' +
       "<i>n = matches behind the pick &middot; L0&ndash;L5 = how specific the evidence was</i>" +
     "</div>" +
-    '<div class="rows">' + b.items.map(renderRow).join("") + "</div>";
+    '<div class="rows">' + b.items.map(renderRow).join("") + "</div>" +
+    renderAbilities(b) + renderImbue(b) + renderCounters(b);
+}
+
+const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function priority(points) {
+  // What a player reads at a glance: the order the abilities are maxed in.
+  const seen = [];
+  points.forEach(p => { if (p.level === 4 && !seen.includes(p.name)) seen.push(p.name); });
+  points.forEach(p => { if (!seen.includes(p.name)) seen.push(p.name); });
+  return seen.map(esc).join(" &rsaquo; ");
+}
+
+function renderAbilities(b) {
+  const points = b.abilities || [];
+  if (!points.length) return "";
+  return '<h3 class="section">Ability order</h3>' +
+    '<p class="section-note">Every point in order. Times are the population median &mdash; ' +
+    "you level when you level up, not by the clock.</p>" +
+    '<p class="priority">' + priority(points) + "</p>" +
+    '<div class="points">' + points.map(p =>
+      '<div class="point' + (p.thin ? " thin" : "") + '">' +
+        '<span class="ord">' + p.position + "</span>" +
+        '<span class="who">' + esc(p.name) + " &rarr; " + p.level + "</span>" +
+        '<span class="ev">' + clock(p.time) + " &middot; p=" + p.p.toFixed(2) +
+          " &middot; n=" + p.n.toLocaleString() + (p.thin ? " &middot; thin" : "") + "</span>" +
+      "</div>").join("") + "</div>";
+}
+
+function renderImbue(b) {
+  const rows = b.imbue || [];
+  if (!rows.length) return "";
+  return '<h3 class="section">What to imbue</h3>' +
+    '<p class="section-note">An imbueable item aimed at the wrong ability is the ' +
+    "whole purchase wasted, so the target is half the advice.</p>" +
+    '<div class="pairs">' + rows.map(r =>
+      '<div class="pair">' +
+        '<span class="lead">' + esc(r.item) + " &rarr; " + esc(r.ability) +
+          (r.thin ? '<span class="tag thin"> thin evidence</span>' : "") +
+          (r.split && !r.thin ? '<span class="tag thin"> split</span>' : "") + "</span>" +
+        '<span class="ev">n=' + r.n.toLocaleString() + " imbues</span>" +
+        '<span class="figure">' + Math.round(r.share * 100) + "%</span>" +
+      "</div>").join("") + "</div>";
+}
+
+function renderCounters(b) {
+  const rows = b.counters || [];
+  if (!rows.length) return "";
+  return '<h3 class="section">Counter-picks</h3>' +
+    '<p class="section-note">How much facing a hero moves the pick rate of an item ' +
+    "this build already buys. A matchup effect, not a reordering.</p>" +
+    '<div class="pairs">' + rows.map(r =>
+      '<div class="pair">' +
+        '<span class="lead">' + esc(r.item) + " vs " + esc(r.enemy) + "</span>" +
+        '<span class="ev">' + (r.facing * 100).toFixed(1) + "% facing vs " +
+          (r.baseline * 100).toFixed(1) + "% not &middot; n=" + r.n.toLocaleString() + "</span>" +
+        '<span class="figure">+' + (r.lift * 100).toFixed(1) + "pp</span>" +
+      "</div>").join("") + "</div>";
 }
 
 const stat = (value, label) =>

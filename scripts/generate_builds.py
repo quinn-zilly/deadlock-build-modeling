@@ -5,9 +5,13 @@ of purchases are components absorbed into a composite, so a 12-slot inventory
 cannot hold every staple -- hero 4's first archetype has 12 staples, 7 of them
 sold more than half the time. Gating held items would fail correct builds.
 
-Exits non-zero if any cell fails, so this is usable as a regression check.
+Exits non-zero if any cell fails, so this is usable as a regression check. That
+is what makes it the gate for the badge weighting too: a build weighted toward
+strong play still has to contain the staples of its archetype, and an item
+bought by 70% of a cell that the weighting quietly drops fails here.
 
     python scripts/generate_builds.py [--hero NAME] [--export DIR] [--samples N]
+                                      [--badge N|all]
 """
 
 from __future__ import annotations
@@ -54,6 +58,11 @@ def main() -> int:
     parser.add_argument("--export", type=Path, default=Path("data/builds"))
     parser.add_argument("--samples", type=int, default=0, help="calibration samples")
     parser.add_argument("--no-staples", action="store_true", help="greedy only (2a)")
+    parser.add_argument(
+        "--badge",
+        default=str(sequence.DEFAULT_TARGET_BADGE),
+        help="badge to weight toward, or 'all' for the whole population",
+    )
     args = parser.parse_args()
 
     labels, meta = archetype.load()
@@ -65,7 +74,10 @@ def main() -> int:
         wanted = {name.lower(): h for h, name in heroes.items()}[args.hero.lower()]
         df = df[df["hero_id"] == wanted]
 
-    model = sequence.fit(df, labels)
+    target_badge = sequence.parse_target_badge(args.badge)
+    print(f"weighting toward {sequence.describe_badge(target_badge)}")
+
+    model = sequence.fit(df, labels, target_badge=target_badge)
 
     # The ability order is the other half of a build, and it is a separate
     # sequence over the same players -- same chain, four outcomes instead of
@@ -76,7 +88,9 @@ def main() -> int:
         raw = pd.read_parquet(ABILITIES)
         if args.hero:
             raw = raw[raw["hero_id"] == wanted]
-        ability_model = abilityorder.fit(raw, labels)
+        if target_badge is not None:
+            raw = abilityorder.attach_badges(raw, df)
+        ability_model = abilityorder.fit(raw, labels, target_badge=target_badge)
         ability_frame = abilityorder.point_frame(raw).merge(
             labels[["match_id", "player_slot", "archetype_id"]],
             on=["match_id", "player_slot"],
@@ -178,7 +192,11 @@ def main() -> int:
             if ability_model is not None:
                 try:
                     ability_order = abilityorder.generate_order(
-                        ability_model, ability_frame, int(hero_id), archetype_id
+                        ability_model,
+                        ability_frame,
+                        int(hero_id),
+                        archetype_id,
+                        target_badge=target_badge,
                     )
                 except ValueError as exc:
                     # A cell with no ability points is a data gap, not a build

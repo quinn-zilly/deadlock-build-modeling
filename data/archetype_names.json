@@ -1,0 +1,10 @@
+{
+  "_note": "Human-accepted archetype names, keyed \"<hero_id>:<archetype_id>\". Keys starting with _ are notes, not names.",
+  "_source": "Names a Deadlock player supplied in review. Recorded here so a refit reproduces them literally rather than depending on the naming rule to arrive at them again.",
+  "_caution": "Cluster ids come from the fit and are stable only while the seed and the feature blocks are. After a refit that changes k for a hero, re-read docs/ARCHETYPES.md and re-key that hero's entries before trusting them.",
+  "6:1": "Melee Abrams",
+  "12:1": "Support Kelvin",
+  "15:1": "Gun Bebop",
+  "31:2": "Gun Lash",
+  "60:1": "Melee Sinclair"
+}

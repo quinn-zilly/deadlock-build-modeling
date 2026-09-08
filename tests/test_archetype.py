@@ -466,6 +466,37 @@ class TestAgainstRealData:
         names = {a["name"] for a in meta["heroes"][str(heroes[hero])]["archetypes"]}
         assert expected in names
 
+    def test_archetype_names_are_unique_within_a_hero(self):
+        """Two archetypes of one hero sharing a name is a build nobody can ask for.
+
+        Lady Geist had two clusters both called "Spirit Lady Geist", so the
+        35% of her players on the second one were silently handed the first.
+        A name that does not select is not a name.
+        """
+        _, meta, _ = self.load()
+        collisions = {}
+        for entry in meta["heroes"].values():
+            names = [a["name"] for a in entry["archetypes"]]
+            if len(names) != len(set(names)):
+                collisions[entry["hero_name"]] = names
+        assert collisions == {}
+
+    def test_every_archetype_of_a_split_hero_says_what_it_is(self):
+        """A name has to distinguish, and a numeric suffix does not.
+
+        The suffix exists as a last resort, and a cluster that reaches it is a
+        signal the two clusters may not be two builds at all -- so it is worth
+        knowing when one appears rather than finding out from a player.
+        """
+        _, meta, _ = self.load()
+        numbered = [
+            a["name"]
+            for entry in meta["heroes"].values()
+            for a in entry["archetypes"]
+            if a["name"].rsplit(" ", 1)[-1].isdigit()
+        ]
+        assert numbered == []
+
     def test_duplicate_names_are_rare(self):
         """The old rule gave one hero three clusters all called "Spirit X".
 
@@ -605,3 +636,33 @@ class TestAgainstRealData:
         ]
         assert len(pooled.staples) <= 1
         assert all(count > 1 for count in per_archetype)
+
+
+class TestNameOverridesFile:
+    """The checked-in file of human-accepted names.
+
+    A name a Deadlock player supplied is worth more than the rule's proposal,
+    and a refit must not silently discard it. The file is the record.
+    """
+
+    def test_the_shipped_file_is_valid_and_applied(self):
+        overrides = archetype.load_name_overrides()
+        assert overrides, "no accepted names are recorded"
+        _, meta = archetype.load()
+        for key, name in overrides.items():
+            hero_id, archetype_id = key.split(":")
+            entry = meta["heroes"].get(hero_id)
+            if entry is None:
+                continue
+            matching = [
+                a for a in entry["archetypes"]
+                if int(a["archetype_id"]) == int(archetype_id)
+            ]
+            assert matching, f"{key} names no cluster of hero {hero_id}"
+            assert matching[0]["name"] == name
+
+    def test_comment_keys_are_not_names(self, tmp_path):
+        """The file explains itself, and the explanation is not an override."""
+        path = tmp_path / "names.json"
+        path.write_text('{"_note": "why", "31:2": "Gun Lash"}')
+        assert archetype.load_name_overrides(path) == {"31:2": "Gun Lash"}

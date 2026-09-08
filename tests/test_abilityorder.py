@@ -247,3 +247,138 @@ class TestAgainstRealData:
         """Reuse is the design: no second model to keep in step with the first."""
         model = abilityorder.fit(repeated([1, 2, 3, 4] * 4))
         assert isinstance(model, sequence.SequenceModel)
+
+
+class TestBadgeWeighting:
+    """Ability points are weighted toward strong play like purchases are.
+
+    The abilities table has no badge column of its own -- badge is a property
+    of the match, recorded on the purchase rows -- so it has to be carried
+    across before the fit can see it.
+    """
+
+    def two_brackets(self) -> pd.DataFrame:
+        """High-badge players max slot 1 first; low-badge players max slot 2."""
+        frames = []
+        for badge, first in ((100, 1), (40, 2)):
+            order = [first] * 4 + [3, 3, 3, 3]
+            frame = repeated(order, n_players=40)
+            frame["match_id"] = frame["match_id"] * 10 + (1 if badge == 100 else 2)
+            frame["average_badge"] = badge
+            frames.append(frame)
+        return pd.concat(frames, ignore_index=True)
+
+    def test_point_frame_carries_the_badge_when_it_is_there(self):
+        frame = abilityorder.point_frame(self.two_brackets())
+        assert "average_badge" in frame
+        assert set(frame["average_badge"].unique()) == {100, 40}
+
+    def test_point_frame_omits_the_badge_when_it_is_not(self):
+        frame = abilityorder.point_frame(points([(0, 1, 1, 10)]))
+        assert "average_badge" not in frame
+
+    def test_target_badge_shifts_the_first_point(self):
+        df = self.two_brackets()
+        state = GameState(hero_id=7, game_time_s=0.0, souls_available=10**9)
+
+        def first(model):
+            ids, probability = model.distribution(state)
+            return int(ids[probability.argmax()])
+
+        assert first(abilityorder.fit(df, target_badge=100.0, badge_halfwidth=20.0)) == 1
+        assert first(abilityorder.fit(df, target_badge=40.0, badge_halfwidth=20.0)) == 2
+
+    def test_attach_badges_carries_the_match_badge_across(self):
+        abilities_df = points([(0, 1, 1, 10)])
+        purchases = pd.DataFrame(
+            [{"match_id": 1, "player_slot": 0, "average_badge": 91}]
+        )
+        joined = abilityorder.attach_badges(abilities_df, purchases)
+        assert joined["average_badge"].tolist() == [91]
+
+    def test_attach_badges_leaves_unmatched_rows_unweighted(self):
+        """A missing badge must read as neutral, not as badge zero.
+
+        `average_badge` is Ranked-only, so a chunk of matches have none. The
+        kernel already treats NaN as weight 1.0; filling a zero would push
+        those rows to the far tail and drop them from every table.
+        """
+        abilities_df = points([(0, 1, 1, 10)])
+        purchases = pd.DataFrame(
+            [{"match_id": 999, "player_slot": 0, "average_badge": 91}]
+        )
+        joined = abilityorder.attach_badges(abilities_df, purchases)
+        assert joined["average_badge"].isna().all()
+
+
+class TestTimingsFollowTheBracket:
+    """The clock a build is generated against belongs to the same players.
+
+    Three of the six backoff levels key on a time bucket, so the timings are
+    not decoration -- they are half the context every deep level is asked
+    with. Weighting the tables toward a bracket while reading the clock off
+    the whole population conditions a strong player's build on a median
+    player's pace.
+    """
+
+    @staticmethod
+    def frame_with_two_paces() -> pd.DataFrame:
+        """One bracket levels at a minute a point, the other at five."""
+        rows = []
+        for badge, step in ((100, 60), (40, 300)):
+            for player in range(40):
+                for position in range(4):
+                    rows.append(
+                        {
+                            "match_id": player * 10 + (1 if badge == 100 else 2),
+                            "player_slot": 0,
+                            "hero_id": 7,
+                            "item_id": 1,
+                            "buy_index": position,
+                            "buy_time_s": step * (position + 1),
+                            "average_badge": badge,
+                        }
+                    )
+        return pd.DataFrame(rows)
+
+    def test_the_population_median_is_the_default(self):
+        timings = abilityorder.median_timings(self.frame_with_two_paces(), 7, 0)
+        assert timings[0] == pytest.approx(180.0)
+
+    def test_a_bracket_gets_its_own_pace(self):
+        fast = abilityorder.median_timings(
+            self.frame_with_two_paces(), 7, 0, target_badge=100.0, badge_halfwidth=20.0
+        )
+        slow = abilityorder.median_timings(
+            self.frame_with_two_paces(), 7, 0, target_badge=40.0, badge_halfwidth=20.0
+        )
+        assert fast[0] == pytest.approx(60.0)
+        assert slow[0] == pytest.approx(300.0)
+
+    def test_a_frame_without_a_badge_column_still_answers(self):
+        """The abilities table has no badge of its own; degrade, do not raise."""
+        frame = self.frame_with_two_paces().drop(columns=["average_badge"])
+        timings = abilityorder.median_timings(frame, 7, 0, target_badge=100.0)
+        assert timings[0] == pytest.approx(180.0)
+
+    def test_generate_order_dates_its_points_by_the_bracket(self):
+        """End to end: the order a bracket gets carries that bracket's clock."""
+        order = [1, 1, 2, 3, 1, 2, 4, 1, 2, 2, 3, 3, 3, 4, 4, 4]
+        frames = []
+        for badge, step in ((100, 30), (40, 240)):
+            frame = repeated(order, n_players=40)
+            frame["match_id"] = frame["match_id"] * 10 + (1 if badge == 100 else 2)
+            frame["game_time_s"] = frame.groupby(
+                ["match_id", "player_slot"]
+            ).cumcount() * step
+            frame["average_badge"] = badge
+            frames.append(frame)
+        df = pd.concat(frames, ignore_index=True)
+        points = abilityorder.point_frame(df)
+        model = abilityorder.fit(df)
+
+        fast = abilityorder.generate_order(model, points, 7, 0, target_badge=100.0,
+                                           badge_halfwidth=20.0)
+        slow = abilityorder.generate_order(model, points, 7, 0, target_badge=40.0,
+                                           badge_halfwidth=20.0)
+        assert fast[-1].game_time_s < slow[-1].game_time_s

@@ -57,6 +57,16 @@ log = logging.getLogger(__name__)
 # the weight, so lambda = n/(n+kappa) is exactly 0.5 at n = kappa.
 DEFAULT_KAPPA = 20.0
 
+# Where the badge kernel points by default, and how wide it is. 80 is roughly
+# the top 30% of a distribution whose median is 61: high enough that the tables
+# describe strong play, low enough that the kernel still reaches most of the
+# data. The halfwidth is deliberately generous -- a narrow kernel would starve
+# the thin hero-and-archetype cells that the whole archetype split exists to
+# serve, and filtering to the same bracket instead of weighting it would cost
+# about nine times the data.
+DEFAULT_TARGET_BADGE = 80.0
+DEFAULT_BADGE_HALFWIDTH = 25.0
+
 # Sentinel for "nothing bought yet". Kept as a real context rather than dropped,
 # so the first purchase of a match is served by the chain like any other; the
 # bigram baseline has no key for it and forfeits those decisions.
@@ -133,11 +143,30 @@ class Evidence:
     contributions: tuple[float, ...]
 
 
+def parse_target_badge(raw: str) -> float | None:
+    """A badge as a command line spells it: a number, or `all` for none.
+
+    Shared because four entry points take one -- the CLI, the build generator,
+    the scoring script and the page generator -- and four private copies of
+    "None if it says all, else float" is four places for the brackets to drift
+    apart. A page rendered from one bracket while naming another is exactly the
+    untraceable number this project exists not to print.
+    """
+    if raw.strip().lower() == "all":
+        return None
+    return float(raw)
+
+
+def describe_badge(badge: float | None) -> str:
+    """How a bracket is named in output, so every command names it the same."""
+    return "all badges" if badge is None else f"badge ~{badge:g}"
+
+
 def row_weights(
     df: pd.DataFrame,
     *,
     target_badge: float | None = None,
-    badge_halfwidth: float = 25.0,
+    badge_halfwidth: float = DEFAULT_BADGE_HALFWIDTH,
     win_weight: float = 1.0,
     familiarity_weight: float = 0.0,
 ) -> np.ndarray:
@@ -247,6 +276,10 @@ class SequenceModel:
     levels: tuple[Level, ...]
     kappa: float = DEFAULT_KAPPA
     archetype_shares: dict[int, dict[int, float]] | None = None
+    # Which badge the tables were weighted toward, or None for the whole
+    # population. Recorded so a cached model on disk states its own bracket
+    # rather than leaving the caller to assume the one it asked for.
+    target_badge: float | None = None
 
     # -- prediction ------------------------------------------------------
 
@@ -483,6 +516,7 @@ class SequenceModel:
         arrays: dict[str, np.ndarray] = {}
         index: dict = {
             "kappa": self.kappa,
+            "target_badge": self.target_badge,
             "archetype_shares": {
                 str(h): {str(a): p for a, p in shares.items()}
                 for h, shares in (self.archetype_shares or {}).items()
@@ -534,10 +568,12 @@ class SequenceModel:
             int(h): {int(a): float(p) for a, p in v.items()}
             for h, v in index.get("archetype_shares", {}).items()
         }
+        badge = index.get("target_badge")
         return cls(
             levels=tuple(levels),
             kappa=float(index["kappa"]),
             archetype_shares=shares or None,
+            target_badge=None if badge is None else float(badge),
         )
 
 
@@ -547,14 +583,28 @@ def fit(
     *,
     kappa: float = DEFAULT_KAPPA,
     weights: np.ndarray | None = None,
+    target_badge: float | None = None,
+    badge_halfwidth: float = DEFAULT_BADGE_HALFWIDTH,
     levels: Sequence[int] | None = None,
 ) -> SequenceModel:
     """Build every backoff table from the training purchases.
 
-    `weights` must be computed on the training split alone -- weights derived
-    from held-out rows would leak the answer into the tables.
+    `target_badge` weights the rows toward a bracket, and is the way to ask for
+    it: `prepare` sorts the frame, so weights a caller computed over their own
+    row order would land on the wrong rows -- silently, since the array is the
+    right length. Computed here, after the sort, they cannot misalign.
+
+    Whichever way weights arrive they must come from the training split alone.
+    Weighting on a frame that includes held-out rows leaks those rows into the
+    tables, and the leak is invisible in the score it produces.
     """
     df = prepare(purchases, archetypes)
+    if weights is not None and target_badge is not None:
+        raise ValueError("pass either weights or target_badge, not both")
+    if weights is None and target_badge is not None:
+        weights = row_weights(
+            df, target_badge=target_badge, badge_halfwidth=badge_halfwidth
+        )
     if weights is None:
         weights = np.ones(len(df), dtype=np.float64)
     else:
@@ -577,7 +627,10 @@ def fit(
         built.append(level)
 
     return SequenceModel(
-        levels=tuple(built), kappa=kappa, archetype_shares=_archetype_shares(df)
+        levels=tuple(built),
+        kappa=kappa,
+        archetype_shares=_archetype_shares(df),
+        target_badge=target_badge,
     )
 
 
