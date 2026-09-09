@@ -100,8 +100,8 @@ Dynamo's ult build (Refresher, Warp Stone, Duration Extender) among them.
 
 A hero's archetype is named for its dominant family: "Gun Lash", "Melee
 Sinclair", "Support Kelvin". Two archetypes of the same hero can share a
-family — Kelvin has two spirit builds taking different paths — so a family
-label alone is not a name.
+family — Lady Geist has two spirit builds taking different paths, Paradox two
+gun builds — so a family label alone is not a name.
 
 **Names are decided per hero, not per cluster**, because two clusters sharing
 a name is only visible across the hero. Lady Geist had two clusters both called
@@ -160,6 +160,40 @@ A kit says which builds are *plausible* on a hero, not which build a player is
 running. Measured against fitted archetypes, kit predicts build family only for
 melee \x97 the one family whose items are useless without a melee ability.
 
+## Ability order
+
+The sequence in which a player spends their sixteen ability points across a
+hero's four signature abilities. The other half of a build: what to buy answers
+half a match, where the points go answers the rest, and unlike an item it is
+not something a player can look up.
+
+The unit is the **signature slot** a point goes into, not the level it reaches.
+Which level a point buys is decided by how many points already went to that
+slot, so choosing the slot is the whole decision. Only one hard constraint
+exists: a slot at level 4 takes no more points.
+
+**Order, not [[ability investment]].** The order is a claim about the middle of
+the match, where it is the whole difference between two builds: the ability
+maxed first is maxed for most of the match, the one maxed last for a few
+minutes. Points also get more expensive as a slot climbs, so maxing early is a
+commitment rather than a preference.
+
+An ability order is a sequence conditioned on hero and archetype, the same
+shape of question as a [[build order]], and it is answered the same way —
+every point names its table row, its count and its [[backoff level]].
+
+## Ability investment
+
+How many points a player has put into each of a hero's four abilities. A
+snapshot, where an [[ability order]] is a sequence — and the reason the
+snapshot is nearly useless at the end of a match: investment **saturates**.
+Everyone finishes with everything close to maxed, so two players who built
+completely differently end at the same four numbers. Measured on Ivy the four
+final means are 3.62, 3.70, 3.71 and 3.82 out of 4.
+
+Investment says something only while it is still unequal, which is mid-match.
+Where it is read at all it is read there, never at the end.
+
 ## Ability focus
 
 Which of a hero's four signature abilities a build is built around. The way
@@ -169,9 +203,13 @@ because every candidate is "spirit": Dynamo players say **ult build**
 Rapid Recharge and Tankbuster).
 
 Ability focus is not universal. Some builds invest across several abilities or
-all four, and by match end investment saturates — every Kelvin ends with all
-four near maximum. Where it discriminates at all, it does so mid-match; read it
-around 480s, never at the end.
+all four, and by match end [[ability investment]] saturates — every Kelvin ends
+with all four near maximum. Where it discriminates at all, it does so
+mid-match; read it there, never at the end.
+
+Focus is read off investment, not off [[ability order]]. They are different
+questions — which ability a build is *about*, against which order its points
+arrive in — and only the first is used to name an archetype.
 
 ## Ultimate
 
@@ -206,9 +244,22 @@ Three kinds exist in the shop, grouped as two:
 "I want a second Singularity" and "I want my Singularity to last longer" are
 different builds, which is why the two groups are kept apart.
 
+## Imbueable item
+
+An item that must be pointed at one of the hero's four signature abilities when
+it is bought. Nine of them are shopable; the other two sit at a tier nobody
+buys. Everything else in the shop is bought plainly.
+
+An imbueable item is not one purchase but four, and the tool owes the player
+both halves — the item and its [[imbue target]]. Buying one is also a statement
+in itself, separate from where it is aimed: whether a build buys an imbueable
+item at all separates heroes more sharply than what it aims at, which is why
+imbue names [[archetype]]s but is kept out of finding them
+(`docs/adr/0001-imbue-out-of-the-clustering.md`).
+
 ## Imbue target
 
-The ability one build points an imbueable item at. A property of the
+The ability one build points an [[imbueable item]] at. A property of the
 [[archetype]], not of the item: Dynamo's ult build imbues Singularity 3.6x
 more than its stomp build, and its stomp build imbues Kinetic Pulse 3.0x more.
 Reported as the most common target in that hero-and-archetype's population,

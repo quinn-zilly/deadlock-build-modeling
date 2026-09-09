@@ -7,6 +7,19 @@ put their ability points** -- for their hero and their archetype, before a match
 and during one. `README.md` has the commands; `CONTEXT.md` is the glossary and
 the terms in it are the ones to use.
 
+**Who it is for.** A player who has picked their hero and wants the build a
+strong player would run. Not an analyst: the output is a build to follow, in the
+order it is bought, with the evidence attached so it can be argued with. The
+two shapes are a whole build before the match and a next purchase during one.
+
+**What it deliberately is not.** Not an item win-rate table and not a pick-rate
+table — both already exist and are one lookup away, which is why sequence and
+timing are the questions worth answering. Not a claim about what an item
+*causes*: this project built the causal version, and `docs/DIAGNOSIS.md`
+records why it was discarded. And not a ranking of items in the abstract; every
+answer is conditioned on a hero and an archetype, because averaged advice
+serves neither build.
+
 Four things about the project decide most arguments before they start:
 
 - **It imitates, it does not explain.** The model says what strong players do,
