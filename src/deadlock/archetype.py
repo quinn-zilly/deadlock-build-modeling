@@ -800,6 +800,7 @@ def make_unique(
     *,
     focus: dict[int, str] | None = None,
     items: dict[int, str] | None = None,
+    fixed: dict[int, str] | None = None,
 ) -> dict[int, str]:
     """Give every cluster of one hero a name that selects only it.
 
@@ -812,9 +813,35 @@ def make_unique(
     most sets it apart. A trailing number is the last resort and means the rule
     ran out of things to say -- which is a signal the clusters may not be two
     builds at all.
+
+    `fixed` holds names a person accepted. They are decided here rather than
+    substituted afterwards, because a human name equal to a sibling's generated
+    name puts two archetypes back on one string -- the Lady Geist defect
+    arriving through the hook that exists to prevent it. A fixed name is never
+    rewritten; the generated names move around it.
     """
     focus = focus or {}
     items = items or {}
+    fixed = fixed or {}
+
+    # Two accepted names that are equal cannot be told apart by moving one --
+    # both are a person's. Returning them unchanged would ship the original
+    # defect hand-written, so the refit stops where a person can still fix it.
+    claimed: dict[str, list[int]] = {}
+    for cluster, chosen in sorted(fixed.items()):
+        claimed.setdefault(chosen, []).append(cluster)
+    clashes = {n: c for n, c in claimed.items() if len(c) > 1}
+    if clashes:
+        detail = "; ".join(
+            f"{n!r} on clusters {', '.join(str(c) for c in cs)}"
+            for n, cs in sorted(clashes.items())
+        )
+        raise ValueError(
+            f"{hero_name}: two accepted names in data/archetype_names.json are "
+            f"the same, so neither selects a build -- {detail}"
+        )
+
+    proposed = {c: fixed.get(c, n) for c, n in proposed.items()}
     counts: dict[str, list[int]] = {}
     for cluster, name in proposed.items():
         counts.setdefault(name, []).append(cluster)
@@ -823,20 +850,33 @@ def make_unique(
     for name, clusters in counts.items():
         if len(clusters) < 2:
             continue
+        movable = [c for c in clusters if c not in fixed]
+        if not movable:
+            continue
         for source in (focus, items):
-            candidates = {c: source.get(c) for c in clusters}
+            candidates = {c: source.get(c) for c in movable}
             distinct = [v for v in candidates.values() if v]
-            if len(set(distinct)) == len(clusters):
+            if len(set(distinct)) == len(movable) and not (
+                set(distinct) & {fixed.get(c) for c in clusters}
+            ):
                 for cluster, extra in candidates.items():
                     out[cluster] = f"{extra} {name}" if extra else out[cluster]
                 break
         else:
-            for index, cluster in enumerate(sorted(clusters), start=1):
+            for index, cluster in enumerate(sorted(movable), start=1):
                 out[cluster] = f"{name} {index}"
 
-    # Disambiguating one group can collide with another group's name.
+    # Disambiguating one group can collide with another group's name. Fixed
+    # names are claimed first so a generated name yields to a human one
+    # regardless of cluster order.
     seen: dict[str, int] = {}
     for cluster in sorted(out):
+        if cluster in fixed:
+            name = out[cluster]
+            seen[name] = seen.get(name, 0) + 1
+    for cluster in sorted(out):
+        if cluster in fixed:
+            continue
         name = out[cluster]
         if name in seen:
             out[cluster] = f"{name} {seen[name] + 1}"
@@ -916,8 +956,26 @@ def fit_all(
             if label:
                 item_labels[cluster] = label
 
+        # The accepted names for THIS hero, keyed by cluster, so uniqueness is
+        # decided with them in place rather than around them.
+        fixed = {
+            cluster: overrides[f"{hero_id}:{cluster}"]
+            for cluster in proposed_names
+            if f"{hero_id}:{cluster}" in overrides
+        }
         unique = make_unique(
-            proposed_names, name, focus=focus_labels, items=item_labels
+            proposed_names,
+            name,
+            focus=focus_labels,
+            items=item_labels,
+            fixed=fixed,
+        )
+        # What the rule would have said on its own, so a reviewer can see what
+        # an accepted name overruled. Only worth recomputing when one was used.
+        rule_names = (
+            make_unique(proposed_names, name, focus=focus_labels, items=item_labels)
+            if fixed
+            else unique
         )
 
         clusters = []
@@ -925,7 +983,6 @@ def fit_all(
             centroid = fit.centroids.loc[cluster] if fit.split else pd.Series(dtype=float)
             proposed = unique[cluster]
             margin = margins[cluster]
-            key = f"{hero_id}:{cluster}"
             top = (
                 discriminative_items(prevalence, cluster)
                 if fit.split
@@ -934,8 +991,8 @@ def fit_all(
             clusters.append(
                 {
                     "archetype_id": int(cluster),
-                    "name": overrides.get(key, proposed),
-                    "proposed_name": proposed,
+                    "name": proposed,
+                    "proposed_name": rule_names[cluster],
                     "family_name": proposed_names[cluster],
                     "ability_focus": focus_labels.get(cluster),
                     "naming_margin": float(margin),

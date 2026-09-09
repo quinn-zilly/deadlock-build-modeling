@@ -417,6 +417,39 @@ class TestFitAll:
         first = meta["heroes"]["1"]["archetypes"][0]
         assert first["proposed_name"] != "My Name"
 
+    def test_two_accepted_names_that_collide_are_an_error(self):
+        """A typo in the checked-in file must not ship as an unreachable build.
+
+        Both names are a person's, so the rule cannot pick a winner by moving
+        one -- and returning them unchanged is the original defect, hand-written.
+        Failing loudly at the refit is the only place a person can still fix it.
+        """
+        with pytest.raises(ValueError, match="Ivy"):
+            archetype.make_unique(
+                {0: "Spirit Ivy", 1: "Gun Ivy"},
+                "Ivy",
+                fixed={0: "Same Name", 1: "Same Name"},
+            )
+
+    def test_an_override_cannot_collide_with_a_generated_sibling(self):
+        """The override hook must not reintroduce the defect it exists to fix.
+
+        Uniqueness is decided on the proposed names, then the override is
+        substituted -- so an override equal to a sibling's generated name puts
+        two reachable-by-one-string archetypes back on one hero. That is the
+        Lady Geist defect arriving through the hook meant to prevent it.
+        """
+        _, _, meta = archetype.fit_all(
+            build_population(), hero_names={1: "Ivy"}, overrides={}
+        )
+        sibling = meta["heroes"]["1"]["archetypes"][1]["name"]
+
+        _, _, meta = archetype.fit_all(
+            build_population(), hero_names={1: "Ivy"}, overrides={"1:0": sibling}
+        )
+        names = [a["name"] for a in meta["heroes"]["1"]["archetypes"]]
+        assert len(names) == len(set(names)), names
+
 
 class TestRoundTrip:
     def test_save_and_load(self, tmp_path):
@@ -497,22 +530,21 @@ class TestAgainstRealData:
         ]
         assert numbered == []
 
-    def test_duplicate_names_are_rare(self):
-        """The old rule gave one hero three clusters all called "Spirit X".
+    def test_no_hero_has_two_archetypes_sharing_a_name(self):
+        """Zero, not "rare" -- a tolerance here is the defect it was written for.
 
-        A bare family label collapses two builds of the same family. The
-        hybrid prefix resolves the cases seen so far: Venator's two gun builds
-        become Gun and Hybrid-Gun, which is what a player calls them. Heroes
-        whose two builds are the same family AND equally pure would still
-        collide, and would need ability focus to separate.
+        This assertion once allowed three heroes to collide, which is what
+        `--archetype Spirit` silently resolving to the wrong Lady Geist build
+        looked like from the test suite. Uniqueness is the floor, so the only
+        acceptable count is none.
         """
         _, meta, _ = self.load()
-        duplicated = 0
+        duplicated = {}
         for entry in meta["heroes"].values():
             named = [a["name"] for a in entry["archetypes"] if a["name"] != entry["hero_name"]]
             if len(named) != len(set(named)):
-                duplicated += 1
-        assert duplicated <= 3
+                duplicated[entry["hero_name"]] = named
+        assert duplicated == {}
 
     def test_thin_margins_decline_to_label(self):
         """A near-tie is a coin flip, so no family is asserted.

@@ -30,6 +30,17 @@ ABILITIES = Path("data/processed/abilities.parquet")
 PURCHASES = Path("data/processed/purchases.parquet")
 COLUMNS = ["match_id", "player_slot", "hero_id", "item_id", "won"]
 
+# Below this many players a percentage is not a finding. A share over 24 rows
+# and a share over 5,000 read identically once they are both rounded to "96%",
+# and this sheet is the hard stop a person reads before everything downstream
+# conditions on it -- so a count too small to state plainly is marked rather
+# than printed as a fact.
+MIN_ROWS = 30
+
+
+def thin_note(n: int) -> str:
+    return "" if n >= MIN_ROWS else f" [thin: {n} players]"
+
 
 def sheet(meta: dict, purchases: pd.DataFrame) -> str:
     """Render the review sheet as markdown."""
@@ -99,9 +110,10 @@ def sheet(meta: dict, purchases: pd.DataFrame) -> str:
                 confidence = ", **unnamed** — the families are too close to call"
             else:
                 confidence = ""
+            thin = thin_note(cluster["n"])
             lines += [
                 f"**{cluster['name']}** — {cluster['share']:.0%} of players "
-                f"(n={cluster['n']:,}){confidence}",
+                f"(n={cluster['n']:,}){thin}{confidence}",
                 "",
                 f"_Souls by shop tab: {shares}. Shown for reference only — the "
                 "name comes from what the items below do, not from the tab they "
@@ -112,7 +124,7 @@ def sheet(meta: dict, purchases: pd.DataFrame) -> str:
             ]
             for item in cluster["top_items"][:10]:
                 lines.append(
-                    f"| {item['name']} | {item['in_cluster']:.0%} "
+                    f"| {item['name']} | {item['in_cluster']:.0%}{thin} "
                     f"| {item['elsewhere']:.0%} |"
                 )
             lines.append("")
