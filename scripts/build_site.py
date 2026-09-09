@@ -18,10 +18,21 @@ build is rendered against a DOM stub and the result is checked for the sections
 it should contain. A page that parses can still throw on its first render, and
 on the page the two failures look identical.
 
+Beyond what the command line prints, the page does the two things only a page
+can: it puts two archetypes of one hero side by side with the purchases unique
+to each marked, which is the question a three-archetype hero raises, and it
+hands over the importable JSON. That export drops every absorbed component --
+the game's schema cannot express a sale -- so the page states the loss with
+this build's own count rather than an average.
+
+Every figure on the page is generated, including the masthead and the footer.
+The accuracy figures are read from the README's held-out table rather than
+copied here, so the page cannot end up quoting a number from a different run.
+
 The page must be generated at the same bracket as the builds it is showing --
 a page rendered from the default cache while the builds came from another
 bracket would disagree with them silently, which is the one thing this project
-never ships.
+never ships. The page names the bracket it was built at, for the same reason.
 
     python scripts/build_site.py [--out PATH] [--hero NAME] [--badge N|all]
 """
@@ -45,6 +56,7 @@ from deadlock import (  # noqa: E402
     archetype,
     assets,
     build,
+    buildfmt,
     cli,
     counters,
     evaluate,
@@ -147,6 +159,24 @@ def collect(
             targets = cli.load_imbue_targets(cell, item_ids)
             matchups = counters.for_build(lifts, item_ids)
 
+            # The same JSON `deadlock build --export` writes, carried inline so
+            # the page can hand over a file without a server. Only held items
+            # survive the schema, which is why the page states the loss.
+            export = buildfmt.to_deadlock_json(
+                generated,
+                ability_order=order,
+                imbue_targets={
+                    t.item_id: t.ability_id
+                    for t in targets
+                    if t.ability_id is not None
+                },
+                description=(
+                    "Purchase order. Only held items are exported: the build "
+                    "schema cannot express a sale, and about a third of these "
+                    "purchases are components absorbed into later items."
+                ),
+            )
+
             rows.append(
                 {
                     "hero": hero_name,
@@ -155,8 +185,10 @@ def collect(
                     "win_rate": archetype_entry.get("win_rate"),
                     "n": archetype_entry.get("n"),
                     "n_staples": len(gate.staples),
+                    "export": export,
                     "items": [
                         {
+                            "id": int(item.item_id),
                             "name": item.name,
                             "cost": item.cost,
                             "time": item.buy_time_s,
@@ -210,10 +242,53 @@ def collect(
     return sorted(rows, key=lambda r: (r["hero"], r["archetype"]))
 
 
-def render(builds: list[dict]) -> str:
+README = Path(__file__).resolve().parents[1] / "README.md"
+
+# The two accuracy figures the masthead shows, as they are written in the
+# README's held-out table. They are read from there rather than typed here so
+# the page cannot drift from the measurement: two numbers from two different
+# runs is the comparison this project does not make, and a page that had its
+# own copy of them would be exactly that, silently.
+METRIC_ROWS = {"bigram": "bigram (the bar)", "top1": "backoff chain"}
+
+
+def read_metrics() -> dict[str, float]:
+    """Pull the held-out accuracies out of the README's table."""
+    figures: dict[str, float] = {}
+    for line in README.read_text(encoding="utf-8").splitlines():
+        cells = [cell.strip().strip("*") for cell in line.split("|")]
+        if len(cells) < 4:
+            continue
+        for key, label in METRIC_ROWS.items():
+            if cells[1] == label:
+                figures[key] = float(cells[2])
+    missing = [METRIC_ROWS[key] for key in METRIC_ROWS if key not in figures]
+    if missing:
+        raise SystemExit(
+            f"{README} no longer has the held-out rows: {', '.join(missing)}"
+        )
+    return figures
+
+
+def page_meta(badge: float | None) -> dict:
+    """What the masthead and footer state, measured rather than typed."""
+    purchases = pd.read_parquet(cli.PURCHASES, columns=["match_id", "player_slot"])
+    players = len(purchases.drop_duplicates(["match_id", "player_slot"]))
+    return {
+        **read_metrics(),
+        "purchases": f"{len(purchases):,}",
+        "players": f"{players / 1000:.0f}k" if players >= 1000 else str(players),
+        "bracket": sequence.describe_badge(badge),
+    }
+
+
+def render(builds: list[dict], meta: dict) -> str:
     """Inline the data into the template."""
     template = TEMPLATE.read_text(encoding="utf-8")
-    payload = "const BUILDS = " + json.dumps(builds, separators=(",", ":")) + ";\n"
+    payload = (
+        "const BUILDS = " + json.dumps(builds, separators=(",", ":")) + ";\n"
+        "const META = " + json.dumps(meta, separators=(",", ":")) + ";\n"
+    )
     marker = "<script>\nconst clock"
     if marker not in template:
         raise SystemExit(f"{TEMPLATE} no longer has the expected script opening")
@@ -221,17 +296,25 @@ def render(builds: list[dict]) -> str:
 
 
 # A DOM small enough to run the page's render functions and large enough that
-# they cannot tell the difference: the three elements the script looks up by
-# id, plus createElement.
+# they cannot tell the difference: the elements the script looks up by id,
+# plus createElement and the handful of browser globals the export path uses.
+#
+# The export path is stubbed rather than skipped for a reason. Downloading is
+# the one thing this page does that leaves it, so a typo there is invisible on
+# every build that renders -- the panel looks perfect and the button does
+# nothing. Stubbing Blob and URL lets the harness press it.
 DOM_SHIM = """
 function el() {
   const node = {
     children: [], className: "", type: "", style: {},
-    _text: "", innerHTML: "", onclick: null,
-    setAttribute() {}, addEventListener() {},
-    appendChild(c) { this.children.push(c); },
+    _text: "", innerHTML: "", onclick: null, href: "", download: "",
+    hidden: false, value: "",
+    setAttribute() {}, addEventListener() {}, removeAttribute() {},
+    appendChild(c) { this.children.push(c); return c; },
     append(...c) { this.children.push(...c); },
-    replaceChildren() { this.children = []; },
+    replaceChildren(...c) { this.children = c; },
+    remove() {}, click() { this.clicked = true; },
+    closest() { return null; },
   };
   Object.defineProperty(node, "textContent", {
     get() { return this._text; },
@@ -239,11 +322,18 @@ function el() {
   });
   return node;
 }
-const NODES = { list: el(), panel: el(), q: el() };
+const NODES = {
+  list: el(), panel: el(), q: el(), facts: el(), footer: el(),
+};
 const document = {
   getElementById: id => NODES[id] || el(),
   createElement: () => el(),
+  body: el(),
 };
+class Blob {
+  constructor(parts) { this.parts = parts; this.size = String(parts).length; }
+}
+const URL = { createObjectURL: () => "blob:stub", revokeObjectURL() {} };
 """
 
 # Each build field, and the heading the page must show when that field has
@@ -252,19 +342,32 @@ SECTIONS = (
     ("abilities", "Ability order"),
     ("imbue", "What to imbue"),
     ("counters", "Counter-picks"),
+    ("export", "Take it into the game"),
 )
 
 
 def exercise_source() -> str:
     """The harness that renders every build and checks what came out."""
+    # `export` is an object and the rest are arrays, so emptiness is asked as
+    # "is there anything in it" rather than `.length`, which an object lacks.
     checks = "\n".join(
-        '  if (BUILDS[i].{field}.length && !html.includes("{heading}"))'
+        '  if (present(BUILDS[i].{field}) && !html.includes("{heading}"))'
         '\n    missing.push(BUILDS[i].archetype + ": {heading}");'.format(
             field=field, heading=heading
         )
         for field, heading in SECTIONS
     )
     return (
+        "const present = v =>\n"
+        "  Array.isArray(v) ? v.length : (v && Object.keys(v).length);\n"
+        # The masthead and footer are written from META, so a field the
+        # collector stopped sending would show as "undefined" on a page that
+        # otherwise renders perfectly.
+        "renderMeta();\n"
+        "[NODES.facts.innerHTML, NODES.footer.innerHTML].forEach(text => {\n"
+        "  if (!text || text.includes(\"undefined\") || text.includes(\"NaN\"))\n"
+        '    throw new Error("the masthead or footer is missing a figure");\n'
+        "});\n"
         "const missing = [];\n"
         "for (let i = 0; i < BUILDS.length; i++) {\n"
         "  current = i;\n"
@@ -277,7 +380,42 @@ def exercise_source() -> str:
         'renderList("");\n'
         "if (missing.length)\n"
         '  throw new Error("sections missing: " + missing.slice(0, 5).join("; "));\n'
-        'console.log("  rendered " + BUILDS.length + " builds, every section present");\n'
+        # Downloading and comparing are the two things whose failure the panel
+        # cannot show: the markup renders either way and the control is dead.
+        # So both are actually operated here, on every build that offers them.
+        "for (let i = 0; i < BUILDS.length; i++) {\n"
+        "  current = i;\n"
+        "  const file = exportFile(BUILDS[i]);\n"
+        "  if (!file.name.endsWith(\".json\"))\n"
+        '    throw new Error("export of build " + i + " has no filename");\n'
+        "  const parsed = JSON.parse(file.text);\n"
+        "  if (!parsed.hero_build || !parsed.hero_build.details.mod_categories.length)\n"
+        '    throw new Error("export of build " + i + " carries no items");\n'
+        "  downloadBuild(BUILDS[i]);\n"
+        "}\n"
+        "let compared = 0;\n"
+        "Object.keys(byHero).forEach(hero => {\n"
+        "  if (byHero[hero].length < 2) return;\n"
+        "  current = byHero[hero][0].i;\n"
+        "  other = byHero[hero][1].i;\n"
+        "  renderBuild();\n"
+        "  const html = NODES.panel.innerHTML;\n"
+        '  if (!html.includes("Side by side"))\n'
+        '    throw new Error(hero + ": comparison did not render");\n'
+        "  if (!html.includes(esc(BUILDS[other].archetype)))\n"
+        '    throw new Error(hero + ": comparison omits the other build");\n'
+        "  compared++;\n"
+        "});\n"
+        "other = null;\n"
+        # A one-hero page can legitimately have nothing to compare, so this
+        # only fires when the data offered a pair and the panel did not show
+        # it -- silence from a renderer that had the input is the bug.
+        "const pairs = Object.keys(byHero).filter(h => byHero[h].length > 1).length;\n"
+        "if (pairs && !compared)\n"
+        '  throw new Error(pairs + " heroes have two builds and none compared");\n'
+        'console.log("  rendered " + BUILDS.length + " builds, every section '
+        'present;\\n  exported " + BUILDS.length + " files, compared " + compared '
+        '+ " heroes");\n'
     )
 
 
@@ -343,7 +481,7 @@ def main() -> int:
     if not builds:
         raise SystemExit("no builds generated")
 
-    html = render(builds)
+    html = render(builds, page_meta(badge))
     check_script(html)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)

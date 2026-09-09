@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Deadlock Build Orders</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -142,6 +143,40 @@ h3.section{font-family:Cinzel,Georgia,serif;font-weight:500;font-size:15px;
   font-variant-numeric:tabular-nums;min-width:92px}
 .empty{font-size:12.5px;color:var(--faint);margin:0 0 4px}
 
+/* Export. One action, so it is a single button rather than a card of them. */
+.export{display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px;margin:0 0 6px}
+.btn{font:inherit;font-size:13.5px;font-weight:500;color:var(--ground);
+  background:var(--brass);border:1px solid var(--brass);border-radius:2px;
+  padding:8px 16px;cursor:pointer}
+.btn:hover{background:var(--brass-bright);border-color:var(--brass-bright)}
+.btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.lost{font-size:12px;color:var(--muted);max-width:52ch}
+.lost b{font-weight:600;color:var(--warn)}
+
+/* Comparison. Two builds, so two columns that collapse to one when narrow. */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:0 22px;align-items:start}
+@media(max-width:700px){.vs{grid-template-columns:1fr;gap:18px}}
+.vs h4{font-family:Cinzel,Georgia,serif;font-weight:500;font-size:14px;margin:0 0 2px;
+  padding-bottom:6px;border-bottom:1px solid var(--edge-soft)}
+.vs .side{min-width:0}
+.vs ol{list-style:none;margin:0;padding:0}
+.vs li{display:grid;grid-template-columns:auto 1fr auto;gap:9px;padding:5px 0;
+  font-size:13px;border-bottom:1px solid var(--edge-soft)}
+.vs li:last-child{border-bottom:0}
+.vs .ord{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--faint);
+  font-variant-numeric:tabular-nums}
+.vs .when{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--faint);
+  font-variant-numeric:tabular-nums;text-align:right}
+.vs li.only{background:var(--raised)}
+.vs li.only .what{color:var(--brass);font-weight:500}
+.shared{display:flex;flex-wrap:wrap;gap:6px 8px;margin:10px 0 0;padding:0;list-style:none}
+.shared li{font-size:12px;color:var(--muted);border:1px solid var(--edge-soft);
+  border-radius:2px;padding:2px 8px}
+.pickvs{font:inherit;font-size:13px;color:var(--text);background:var(--raised);
+  border:1px solid var(--edge);border-radius:2px;padding:5px 9px}
+.pickvs:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+.vshead{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:0 0 12px}
+
 footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--edge);
   color:var(--faint);font-size:12.5px;max-width:74ch}
 @media(prefers-reduced-motion:no-preference){
@@ -156,11 +191,7 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--edge);
     <p class="lede">What players actually buy, and <em>when</em>. Every purchase carries the
     evidence behind it &mdash; how many matches back it, and how specific that evidence was.</p>
   </div>
-  <div class="facts">
-    <div class="fact"><b>75</b><span>builds</span></div>
-    <div class="fact"><b>0.391</b><span>top-1 &middot; bigram 0.267</span></div>
-    <div class="fact"><b>296k</b><span>player-matches</span></div>
-  </div>
+  <div class="facts" id="facts"></div>
 </div></div></header>
 
 <div class="wrap"><div class="cols">
@@ -171,13 +202,7 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--edge);
   <main id="panel"></main>
 </div>
 
-<footer>
-  Built by a backoff frequency model over 5,095,598 purchases, conditioned on hero and archetype.
-  Buy times are population medians at each position. An item marked <strong>absorbed</strong> is a
-  component consumed by a later composite: it frees its inventory slot, which is how a
-  17&#8209;purchase build fits in 12 slots. Every build here carries each item that at least 70% of
-  that archetype&rsquo;s players buy.
-</footer>
+<footer id="footer"></footer>
 </div>
 
 <script>
@@ -185,6 +210,10 @@ const clock = s => Math.floor(s / 60) + ":" + String(Math.round(s) % 60).padStar
 const list = document.getElementById("list");
 const panel = document.getElementById("panel");
 let current = 0;
+// The build being compared against, or null for none. Cleared whenever the
+// selection moves to another hero, since a comparison across heroes would be
+// two different games rather than two ways of playing one.
+let other = null;
 
 const byHero = {};
 BUILDS.forEach((b, i) => { (byHero[b.hero] = byHero[b.hero] || []).push(Object.assign({ i: i }, b)); });
@@ -213,7 +242,15 @@ function renderList(filter) {
       share.className = "sh";
       share.textContent = Math.round((b.share || 0) * 100) + "%";
       btn.append(label, share);
-      btn.onclick = () => { current = b.i; renderList(f); renderBuild(); };
+      btn.onclick = () => {
+        // A build never compares against itself, and a comparison never
+        // crosses heroes -- two heroes' builds differ for reasons that have
+        // nothing to do with playstyle.
+        if (BUILDS[b.i].hero !== BUILDS[current].hero || b.i === other) other = null;
+        current = b.i;
+        renderList(f);
+        renderBuild();
+      };
       g.appendChild(btn);
     });
     list.appendChild(g);
@@ -242,7 +279,18 @@ function renderBuild() {
       "<i>n = matches behind the pick &middot; L0&ndash;L5 = how specific the evidence was</i>" +
     "</div>" +
     '<div class="rows">' + b.items.map(renderRow).join("") + "</div>" +
-    renderAbilities(b) + renderImbue(b) + renderCounters(b);
+    renderAbilities(b) + renderImbue(b) + renderCounters(b) +
+    renderCompare(b) + renderExport(b);
+
+  // Rebuilding the panel's HTML throws away the previous listeners with the
+  // nodes they were on, so both controls are rebound on every render.
+  const dl = document.getElementById("dl");
+  if (dl) dl.onclick = () => downloadBuild(BUILDS[current]);
+  const vs = document.getElementById("vs");
+  if (vs) vs.onchange = e => {
+    other = e.target.value === "" ? null : Number(e.target.value);
+    renderBuild();
+  };
 }
 
 const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -302,6 +350,96 @@ function renderCounters(b) {
       "</div>").join("") + "</div>";
 }
 
+// Comparison. A hero with two or three archetypes raises exactly one question
+// -- what is actually different -- and answering it by reading two lists in
+// turn is what the page is for. Items unique to a side are marked, because two
+// builds of one hero share most of their purchases and the difference is the
+// short list, not the long one.
+function renderCompare(b) {
+  const siblings = (byHero[b.hero] || []).filter(s => s.i !== current);
+  if (!siblings.length) return "";
+
+  const options = siblings.map(s =>
+    '<option value="' + s.i + '"' + (s.i === other ? " selected" : "") + ">" +
+      esc(s.archetype === b.hero ? "single build" : s.archetype) + "</option>").join("");
+  const head = '<h3 class="section">Side by side</h3>' +
+    '<div class="vshead"><label for="vs">Compare with</label>' +
+    '<select class="pickvs" id="vs">' +
+      '<option value="">' + (other === null ? "choose a build" : "none") + "</option>" +
+      options + "</select></div>";
+
+  if (other === null || !BUILDS[other]) return head +
+    '<p class="empty">' + b.hero + " has " + (siblings.length + 1) +
+    " builds. Pick one to see what this build buys that it does not.</p>";
+
+  const o = BUILDS[other];
+  const mine = new Set(b.items.map(i => i.id));
+  const theirs = new Set(o.items.map(i => i.id));
+  const shared = b.items.filter(i => theirs.has(i.id));
+
+  const side = (build, against) =>
+    '<div class="side"><h4>' + esc(build.archetype === build.hero
+      ? build.hero : build.archetype) + "</h4><ol>" +
+    build.items.map((i, n) =>
+      '<li class="' + (against.has(i.id) ? "" : "only") + '">' +
+        '<span class="ord">' + (n + 1) + "</span>" +
+        '<span class="what">' + esc(i.name) + "</span>" +
+        '<span class="when">' + clock(i.time) + "</span></li>").join("") +
+    "</ol></div>";
+
+  return head +
+    '<p class="section-note">Highlighted purchases belong to one build only. ' +
+    "The " + shared.length + " both buy are listed underneath.</p>" +
+    '<div class="vs">' + side(b, theirs) + side(o, mine) + "</div>" +
+    (shared.length
+      ? '<ul class="shared">' + shared.map(i =>
+          "<li>" + esc(i.name) + "</li>").join("") + "</ul>"
+      : '<p class="empty">These two builds share no purchases at all.</p>');
+}
+
+// The in-game build browser imports held items only: its schema has no way to
+// say "buy this, then sell it". So the export drops every absorbed component,
+// and the page says so with this build's own count rather than an average --
+// a player who imports 11 of 17 purchases should be told which six went.
+function exportFile(b) {
+  const slug = (b.archetype || b.hero).toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return { name: slug + ".json", text: JSON.stringify(b.export, null, 2) };
+}
+
+function downloadBuild(b) {
+  const file = exportFile(b);
+  const url = URL.createObjectURL(new Blob([file.text], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function renderExport(b) {
+  if (!b.export) return "";
+  const absorbed = b.items.filter(i => i.sold);
+  const note = absorbed.length
+    ? "The file carries the " + (b.items.length - absorbed.length) +
+      " items you still hold at the end. The other <b>" + absorbed.length +
+      "</b> — " + absorbed.map(i => esc(i.name)).join(", ") +
+      " — are components absorbed into later purchases, and the game&rsquo;s " +
+      "build schema has no way to express a sale, so they are not in it. " +
+      "Buy them anyway, in the order above."
+    : "Every purchase in this build survives to the end, so the file is the " +
+      "whole build.";
+  return '<h3 class="section">Take it into the game</h3>' +
+    '<p class="section-note">The same JSON <code>deadlock build --export</code> ' +
+    "writes. Import it in Deadlock&rsquo;s own build browser.</p>" +
+    '<div class="export">' +
+      '<button class="btn" type="button" id="dl">Download build JSON</button>' +
+      '<p class="lost">' + note + "</p>" +
+    "</div>";
+}
+
 const stat = (value, label) =>
   '<div class="stat"><b>' + value + "</b><span>" + label + "</span></div>";
 
@@ -320,7 +458,37 @@ function renderRow(it) {
     "</div></div>";
 }
 
+// The masthead and the footer are written from the data rather than typed in,
+// so a refit at another bracket cannot leave the page asserting figures that
+// belong to a different run.
+function renderMeta() {
+  const purchases = BUILDS.reduce((s, b) => s + b.items.length, 0);
+  const absorbed = BUILDS.reduce(
+    (s, b) => s + b.items.filter(i => i.sold).length, 0);
+  const facts = [
+    [BUILDS.length, "builds"],
+    [META.top1.toFixed(3), "top-1 &middot; bigram " + META.bigram.toFixed(3)],
+    [META.players, "player-matches"],
+  ];
+  document.getElementById("facts").innerHTML = facts.map(
+    f => '<div class="fact"><b>' + f[0] + "</b><span>" + f[1] + "</span></div>"
+  ).join("");
+
+  document.getElementById("footer").innerHTML =
+    "Built by a backoff frequency model over " + META.purchases +
+    " purchases, conditioned on hero and archetype, and weighted toward <strong>" +
+    esc(META.bracket) + "</strong>. Buy times are population medians at each " +
+    "position. An item marked <strong>absorbed</strong> is a component consumed " +
+    "by a later composite: it frees its inventory slot, which is how a build of " +
+    "more than twelve purchases fits in twelve slots — " +
+    Math.round(100 * absorbed / purchases) + "% of the " + purchases +
+    " purchases on this page are absorbed that way, and an exported build " +
+    "cannot carry them. Every build here carries each item that at least 70% " +
+    "of that archetype&rsquo;s players buy.";
+}
+
 document.getElementById("q").addEventListener("input", e => renderList(e.target.value));
+renderMeta();
 renderList("");
 renderBuild();
 </script>

@@ -161,6 +161,24 @@ order has.
 `why` prints the whole backoff chain for one item: the context at each level,
 the raw count, the mixture weight, and which level carried the mass.
 
+### The build browser
+
+```bash
+python scripts/build_site.py            # every build, one page
+python scripts/build_site.py --hero Ivy --badge all
+```
+
+Writes `data/site/builds.html`, a self-contained page carrying the same four
+things `build` prints — purchase order, ability order, imbue targets and
+counter-picks — plus two things only a page can do: two archetypes of one hero
+side by side with the purchases unique to each marked, and a download of the
+importable JSON. Everything on it, including the figures in the masthead and
+footer, is generated from the build data, so a refit updates it and no number
+on the page is typed by hand.
+
+The page is rendered at the bracket its builds came from, and says which. It
+is regenerated as the last step of `refit.py`, never edited.
+
 ## Refitting
 
 Everything derived from the cached pages rebuilds with one command, in
