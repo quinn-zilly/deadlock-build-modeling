@@ -76,6 +76,12 @@ vitality souls purely because Siphon Bullets costs 6400.
 
 See [[build family]] for the concept that does carry playstyle.
 
+**Where the rule stops.** "Not playstyle" governs *naming and clustering*. It
+does not mean slot type is inert: an [[investment bonus]] accumulates per slot
+type, so slot type is mechanically load-bearing for spending thresholds and for
+[[build order]]. Use build family to name and to cluster; use slot type to
+reason about thresholds. See `docs/game-mechanics.md`.
+
 ## Build family
 
 What a build is actually trying to do, inferred from what its items do rather
@@ -318,3 +324,40 @@ computed on the training split alone, and the weighted model is judged on
 high-badge held-out accuracy — never on general-population accuracy, which it
 makes worse by design, and never on win rate, which is an outcome downstream of
 every decision the build makes. See `docs/adr/0002-badge-weighting-on-by-default.md`.
+
+## Investment bonus
+
+A stat bonus earned for souls spent within one [[slot type]], granted in
+cumulative steps rather than continuously. The step at **4,800 souls** is the
+one that shows in behaviour: players spend up to it and then change category.
+P(next purchase is the same slot type) is 0.563 approaching it, 0.427 landing
+exactly on it, and 0.275 just past it, and 67.4% of players land exactly on
+4,800 in some slot type. Often called the **4.8k spike**.
+
+A mechanic of [[build order]], not only of stats — it is why a build's category
+ordering is not arbitrary. The model does not currently see it.
+
+## Active item
+
+An item the player triggers, as opposed to one that works on its own. **No more
+than four can be held at once**, a hard game rule that generation does not
+enforce.
+
+Read it from the `is_active_item` field, and **resolve it by item id, never by
+name**: the catalogue holds two entries called Silencer that disagree on this
+field, so a name match invents active items that cannot be bought.
+
+## Boon
+
+The hero's level, bought with souls. Souls are spent on items *and* count
+toward boons at the same time, so buying an item costs no levels: there is no
+budget tradeoff between items and abilities to model.
+
+## Ability point
+
+The currency for upgrading one ability, earned from [[boon]] levels. Levels 2,
+3 and 4 of an ability cost 1, 2 and 5 points; level 1 is free once its unlock
+gate is met. A player accumulates at most 32 over a match.
+
+Distinct from the *order* points are spent in, which is what
+[[ability focus]] and the ability model describe.
