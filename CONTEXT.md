@@ -327,6 +327,30 @@ inventory, while still being bought by nearly everyone. Mystic Burst is bought
 by 96% of one archetype's players and sold by 95%. So membership checks run
 over the purchase sequence, never over held items.
 
+**"Absorption" is the internal word, not the player-facing one.** On the site an
+absorbed purchase reads **"builds into X"**, naming the item it became — see
+[[builds into]].
+
+## Builds into
+
+What an absorbed purchase reads as on the page: "Extended Magazine — builds into
+Titanic Magazine". The player-facing name for [[absorption]], chosen because for
+96.6% of these purchases the item was not sold in any sense the player would
+recognise; it became something.
+
+Which X, though, is not a property of the item. Reversing `component_items`
+gives Grit four possible parents and Extended Magazine two, so the catalogue
+alone cannot name one. **X is resolved against the build's own later
+purchases**: across the 441 sold purchases in the 75 generated builds, 96.6%
+have exactly one later parent and none has zero, so every faded item on a page
+can name what it became. The remaining 3.4% take the earliest later parent.
+
+## Prevalence footnote
+
+The percentage shown beside an item on the site is its [[prevalence]] — the
+share of that archetype's players who ever bought it. Stated once, in a
+footnote, rather than repeated as "% of them buy it" on every row.
+
 ## Backoff level
 
 Which table in the model's chain supplied a recommendation, from `L0` (this
