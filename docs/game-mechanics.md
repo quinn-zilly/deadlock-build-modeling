@@ -17,12 +17,20 @@ Each number is marked:
 
 **Two sources exist beyond local parquet and the assets API.**
 
-The **bulk metadata endpoint** already used by `ingest.py` takes flags the
-current ingest does not pass: **`include_objectives`**, `include_mid_boss`,
-`include_player_stats` and `include_player_death_details`. Objective events are
-therefore one query parameter away, not a new integration — `include_objectives`
-returns the full 30-objective array per match. Documented at 10 req/min per IP,
-though `api.py` records 429s at ~6.
+The **bulk metadata endpoint** already used by `ingest.py` carries far more than
+the current ingest requests. `include_objectives` returns the full 30-objective
+array per match; `include_player_info` (already passed) returns
+`hero_build_id` and `pregame_hero_id`; `include_mid_boss`,
+`include_player_stats` and `include_player_death_details` are also unused.
+**Prefer this endpoint over SQL for anything it covers** — it is the path the
+ingest already walks. Documented at 10 req/min per IP, though `api.py` records
+429s at ~6.
+
+> When testing this endpoint, **pass Unix timestamps for the intended year**.
+> A window accidentally set to 2025 returns real matches that predate demo
+> analysis, so `hero_build_id` is absent from every row and the field looks
+> unpopulated. This produced one false "the endpoint does not return it"
+> finding.
 
 The **deadlock-api MCP server** at `https://api.deadlock-api.com/v1/mcp` gives
 read-only DuckDB SQL over hourly snapshots of the upstream tables, reaching
@@ -504,10 +512,14 @@ future component that enumerates candidates uniformly would not be.
 
 ## The intended build is recorded, for a shrinking minority
 
-`match_player.hero_build_id` holds **the community build the player had
-selected when the match started**, and `pregame_hero_id` the hero they locked
-before the swap window. Both come from demo analysis, and both are absent from
-the local `data/raw/matches/` payloads.
+`hero_build_id` holds **the community build the player had selected when the
+match started**, and `pregame_hero_id` the hero they locked before the swap
+window. Both come from demo analysis.
+
+**Both are returned by the bulk metadata endpoint under `include_player_info`**
+— the flag `ingest.py` already passes — so this needs no new integration and no
+SQL. They are absent from the local `data/raw/matches/` payloads only because
+those were fetched before demo analysis existed.
 
 These are shared community build ids, not per-player copies (**VERIFIED**): the
 most-used ids appear across dozens of distinct accounts — build 256053 on hero 1
@@ -522,19 +534,26 @@ Enchanter's Emblem, Grit, Rapid Rounds, Swift Striker.
 
 Two cautions before anything is built on this.
 
-**Coverage is low and falling** (**VERIFIED**, weekly, 8-week sample):
+**Coverage is per-match, not per-player** (**VERIFIED**, 6-week sample). A match
+is either demo-analyzed or it is not, and analysis is close to all-or-nothing:
 
-| Week | Players sampled | With a build id | Share |
-|---|---:|---:|---:|
-| 2026-07-20 | 760 | 120 | 15.8% |
-| 2026-08-03 | 4,004 | 310 | 7.7% |
-| 2026-08-17 | 3,641 | 270 | 7.4% |
-| 2026-08-31 | 3,348 | 47 | 1.4% |
-| 2026-09-07 | 1,686 | 34 | 2.0% |
+| Build ids in the match | Matches | Share |
+|---|---:|---:|
+| 0 — not analyzed | 4,263 | 89.8% |
+| 1-3 | 12 | 0.3% |
+| 4-7 | 227 | 4.8% |
+| **8-12** | **243** | **5.1%** |
 
-Recent matches run at **~2%**. This is a demo-analysis backlog rather than a
-growing dataset, so a study wanting volume should reach back rather than
-forward, and must then handle patch drift.
+So the per-player rate (which falls from ~19% in late June to under 1% in the
+most recent week, as analysis lags) is the **wrong denominator**. About **10% of
+matches are analyzed**, and an analyzed match usually yields 8-12 of its 12
+players.
+
+Volume is adequate. In a 1-in-397 sample of six weeks: 3,727 player-rows across
+482 matches, **all 38 heroes**, 1,001 distinct builds — implying on the order of
+a million player-rows in the full population. The recent-week sparsity is an
+analysis backlog, so the usable window trails the present by a few weeks rather
+than being absent.
 
 **The denominator is not what it looks like.** A published build is a *menu*,
 not a shopping list: the example above lists 38 shopable items across categories
