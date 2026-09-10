@@ -65,8 +65,10 @@ above 12 are an artifact of a component's recorded `sold_time_s` landing at or
 after its composite's `buy_time_s`, not real 13-item inventories.
 
 84.8% of players exceed 9 concurrent items at some point, so the extra slots
-are not a corner case — they are part of the normal build. First time holding
-each slot count, median over a 20,000-player sample (**VERIFIED**):
+are not a corner case — they are part of the normal build.
+
+**Slots 10-12 are unlocked by destroying enemy Walkers. They are not unlocked
+by time.** This is the mechanic; the table below is *not* a measurement of it.
 
 | Items held | Median first reached |
 |-----------:|---------------------:|
@@ -75,9 +77,27 @@ each slot count, median over a 20,000-player sample (**VERIFIED**):
 | 11 | 1,809s (~30 min) |
 | 12 | 2,065s (~34 min) |
 
-A build longer than 12 held items is not automatically wrong — see
-[Absorption](#components-and-absorption) — but a build asking a player to hold
-12 items at 15 minutes is asking for slots they do not have.
+**Read that table carefully. It records when players first *hold* N items, not
+when the Nth slot first *becomes available*.** A player holds a 10th item only
+once they both have the slot and want to fill it, so these medians are an upper
+bound on slot availability, mixed with buying behaviour, and they cannot be
+turned back into a slot-unlock clock. A team that takes a Walker early gets the
+slot early.
+
+**We cannot measure Walker timing at all with what we hold.** The match
+endpoint in `data/raw/matches/` returns `players` and no objective events —
+there is no Walker destruction time in the dataset. Getting one means a new
+endpoint or a new ingest. Until then, treat Walker timing as UNKNOWN, not as
+~22 minutes.
+
+**And running out of slots is not a wall.** The normal play is to sell a tier 1
+or tier 2 item to free a slot for something more expensive. That is what most of
+the tier 1 sell rate is (see [Absorption](#components-and-absorption)), so a
+build that exceeds the slot count at some moment may be entirely followable.
+
+The consequence for this project: **do not gate build generation on a
+time-based slot count.** A build longer than 12 held items is not automatically
+wrong, and neither is one that reaches 10 items early.
 
 ### Active items
 
@@ -98,6 +118,14 @@ A build longer than 12 held items is not automatically wrong — see
 artifact. **This is a hard constraint and the model does not know it.** 50 of
 173 shopable items are active (`is_active_item`); `activation` distinguishes
 `passive` (123), `instant_cast` (30), `press` (19), `instant_cast_toggle` (1).
+
+> **Resolve actives by item id, never by name.** The assets catalogue has 17
+> duplicate names, and for **Silencer** the two entries disagree: the shopable
+> one is `passive` / `is_active_item=false`, while a non-shopable one is
+> `instant_cast` / `is_active_item=true`. Matching on name silently marks
+> Silencer an active item and manufactures a cap violation that is not real.
+> Filter to `shopable` first, then key on `id`. This has already produced one
+> false finding; `assets.shopable_items()` returns the correct rows keyed by id.
 
 ### Components and absorption
 
@@ -304,10 +332,18 @@ not have missing data.
 
 ## Shop visits
 
-Purchases are not evenly spaced decisions. **17.6% of purchases happen within 5
-seconds of the previous one** and 19.3% within 15 seconds (**VERIFIED**) — one
-shop visit, several items. Median gap between purchases is 112s (p10 1s, p90
-251s).
+Purchases are not evenly spaced decisions. **18.7% of consecutive purchase
+pairs are within 5 seconds of each other** (896,403 of 4,799,266, **VERIFIED**)
+— one shop visit, several items. Median gap between purchases is 112s (p10 1s,
+p90 251s).
+
+**Roughly a fifth of those bursts are a component bought immediately before the
+composite it builds into: 176,261 of 896,403, or 19.7% (VERIFIED).** Those are
+not two decisions at all — they are one purchase the shop charges in two steps,
+and the component is absorbed on the spot. The remaining **80.3% are genuine
+multi-item visits**: only 46.2% of them even share a slot type with the previous
+purchase, and 28.9% carry an identical timestamp. Half the component bursts
+(49.3%) are at gap 0 exactly.
 
 Same-visit purchases are more slot-correlated than distant ones: P(same slot
 type as previous) is **0.552 within a 5s burst against 0.452 when the gap
@@ -335,10 +371,10 @@ Everything below is therefore invisible to it.
 | # | Mechanic | Worth modeling? | Why |
 |---|---|---|---|
 | 1 | **Per-slot-type investment total, and the 4,800 threshold** | **Yes — highest value** | Directly a sequencing mechanic, and the effect is large and verified (P(same slot) 0.563 → 0.275 across the threshold, surviving buy-index control). The model conditions on the last two *items* but not on the running *category totals* those items imply, so it cannot represent "I am 1,600 short of the weapon spike". Cheapest version: add running per-slot investment, bucketed at the thresholds, as a conditioning key or a re-ranking prior. |
-| 2 | **The 4-active-item cap** | **Yes — cheap, and it is a live bug** | A hard rule (99.976% compliance, VERIFIED) that generation already violates. `build.py` enforces `MAX_HELD_ITEMS` but nothing counts actives. **VERIFIED against the 75 shipped builds in `data/processed/site_builds.json`: Gun Venator asks the player to hold 5 active items at once, which the game does not permit.** A filter in the candidate step, not a learned feature. |
-| 3 | **Slot availability over time (9 → 12)** | **Yes — also a live bug** | The 12-slot cap is enforced; the fact that only 9 slots exist before ~22 min is not. **VERIFIED: 8 of the 75 shipped builds have the player holding 10 items before 1,315s** — Melee Abrams and Gun Venator at 1,065s, six others at 1,194s. Those builds are unfollowable at the time they specify. Timing data is above and already VERIFIED. |
+| 2 | **The 4-active-item cap** | **Yes — cheap, but no build violates it today** | A hard rule (99.976% compliance, VERIFIED) that `build.py` does not enforce: it enforces `MAX_HELD_ITEMS` but nothing counts actives. **All 75 shipped builds currently comply** — an earlier claim that Gun Venator asks for 5 actives was an analysis error (see the warning below on resolving actives by name) and is retracted. So this is a guard against a future regression, not a live bug. A filter in the candidate step, not a learned feature. |
+| 3 | **Slot availability (9 → 12 via Walkers)** | **No — not as a time gate** | Slots 10-12 come from destroying enemy Walkers, not from the clock, and **we hold no Walker timing data at all**. The per-slot medians in [Item slots](#item-slots) record when players first *hold* N items, not when the slot opens, so they cannot be inverted into an availability clock. Players also sell tier 1-2 items to free slots. An earlier claim that 8 builds are "unfollowable before 1,315s" rested on that inversion and is retracted. Revisit only if objective events are ever ingested. |
 | 4 | **Souls as a real budget** | Yes, for the in-match shape | Generation sets souls to infinity, so the whole-build path can only ever answer "what eventually" and never "what now". The in-match path takes `--souls` but uses it as a hard filter, not as a conditioning variable — so it cannot express "wait 40 seconds and buy the tier 3 instead", which is real advice and is what `n_saved_up` in `economy.py` already shows players doing. |
-| 5 | **Shop-visit bursts** | Probably — as a correction, not a feature | 17.6% of purchases are same-visit. Treating them as independent timed decisions inflates the apparent evidence for tight bigrams and distorts the time-bucket counts. The safer fix is to collapse bursts when *training* rather than to add a feature. |
+| 5 | **Shop-visit bursts** | Probably — as a correction, not a feature | 18.7% of consecutive pairs are same-visit, and **19.7% of those are a component bought immediately before its composite** — one purchase billed in two steps, not two decisions. Treating either kind as independent timed decisions inflates the apparent evidence for tight bigrams. Component bursts are the cleanest thing to collapse when *training*, since the relationship is already known from `component_map()`. |
 | 6 | **Ability-point state at the buy decision** | Yes — and the data is already there | `abilities.parquet` holds 4.45M level-ups and the model does not read one. Whether the ultimate is unlocked (a hard 3,800-soul gate, VERIFIED at median 383s) changes which items make sense — an ult-empowering imbue before the ult exists is a wasted purchase. `abilityorder.py` exists but is not wired into the sequence model. |
 | 7 | **Imbue irreversibility** | Yes, for how it is *shown* | Not a model change so much as a presentation one: the tool should say the target is a commitment costing half the item to change. Currently a target is reported like any other statistic. |
 | 8 | **Cross-slot-type absorption** | Marginal, but it is a correctness trap | The 4 cross-tab component relationships move souls between investment pools. Any implementation of #1 that computes per-slot investment from the purchase sequence will get these 4 wrong unless it accounts for absorption. Listed so whoever builds #1 does not have to rediscover it. |
@@ -406,11 +442,14 @@ future component that enumerates candidates uniformly would not be.
 
 ## The purchase sequence is not a sequence of independent decisions
 
-`sequence.py` models P(next item | prev1, prev2, bucket). 17.6% of purchases
-are made in the same shop visit as the previous one, where "next" is a
-simultaneous choice rather than a subsequent one. This does not invalidate the
-model, but it means the bigram evidence at short gaps is measuring co-selection
-rather than succession, and the two are different claims.
+`sequence.py` models P(next item | prev1, prev2, bucket). 18.7% of consecutive
+purchase pairs are made in the same shop visit, where "next" is a simultaneous
+choice rather than a subsequent one. This does not invalidate the model, but it
+means the bigram evidence at short gaps is measuring co-selection rather than
+succession, and the two are different claims. **The sharpest case is the 19.7%
+of bursts that are a component followed by its own composite**: there the bigram
+is not even co-selection, it is a single purchase the shop charges in two
+steps.
 
 ---
 
