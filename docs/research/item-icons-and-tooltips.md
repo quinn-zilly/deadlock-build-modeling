@@ -20,6 +20,11 @@ Three separate findings, each with a caveat that changes the spec:
 2. **Tooltips: `description.desc` is real prose, but only for 108 of 138.** The
    other 30 are stat-only passives that need a fallback built from
    `properties`. The prose carries embedded HTML and inline SVG.
+   **Corrected by [#23](touch-item-disclosure.md) on two points:** `desc` is the
+   *weaker* prose field — `tooltip_sections[].loc_string` covers more items, and
+   13 items have prose only there — and the `properties` fallback is a 4-item
+   edge case, not a 30-item path, once the game's own stat-ranking fields are
+   read. See §7 there.
 3. **"Builds into X" is derivable but ambiguous in the catalogue.** Resolving it
    against the build's own later purchases fixes 96.6% of cases.
 
@@ -162,9 +167,11 @@ these purchases the item was not sold, it became something.
 
 - Item icons come from `shop_image`, saved by id under `data/assets/items/`.
 - Hero portraits come from `icon_hero_card`, under `data/assets/heroes/`.
-- Hover text is `description.desc` (+ `active`/`passive`) rendered under a tag
-  allowlist, falling back to labelled `properties` for the 30 stat-only items,
-  which are also appended to the prose ones.
+- Hover text is prose rendered under a tag allowlist, with labelled
+  `properties` appended. **Read `tooltip_sections[].loc_string` first and
+  `description.desc` as the fallback** — see the correction in
+  [#23's §7](touch-item-disclosure.md), which also supplies the row's one-line
+  summary from the game's own stat-ranking fields.
 - A faded item reads "builds into Titanic Magazine", resolved against the
   build's own later purchases.
 - Percentages next to an item are prevalence — the share of that archetype's

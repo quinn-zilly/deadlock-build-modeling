@@ -10,7 +10,7 @@ Ivy build data. Nothing here is quoted from a design blog. The accessibility
 requirements are quoted from w3.org, not from a summary of it.
 
 The ticket's question 2 — whether the tooltip can be shortened to one line — is
-being measured separately and is not answered here.
+answered in §7, measured against the catalogue rather than the Ivy build alone.
 
 **Bottom line.** Use a **native `<details>`/`<summary>` disclosure, one per item
 row, with `role="button"` and `aria-expanded` set on the summary**. It is the
@@ -21,6 +21,11 @@ Enter *and* Space to toggle — both verified by real key press, not synthetic
 events). The current hover tooltip is kept for pointer users but must gain a
 focus trigger and a dismiss key to stop failing WCAG 1.4.13.
 
+**Alongside it, put one headline stat in the row's existing subline** — but only
+on rows with no "builds into" (11 of 17 in the real Ivy build), where it costs
+**zero** extra height. The game ranks its own stats, so which one to show is a
+lookup, not a judgement call (§7).
+
 Three findings that change the spec rather than confirm it:
 
 1. **The genre's real baseline is "no detail at all on touch."** On u.gg,
@@ -30,9 +35,14 @@ Three findings that change the spec rather than confirm it:
 2. **`<details>` alone does not expose a button.** With `list-style:none` and a
    grid `<div>` inside `<summary>`, the accessibility tree reports **`group` /
    `generic`**, so the expanded state is never announced. Two attributes fix it.
-3. **The always-visible one-line summary is not free, and is the more expensive
-   option.** It costs **+15px on every row, always** (66px vs 51px) — for 17
-   items that is 255px of permanent page, versus 0px for a closed disclosure.
+3. **The always-visible one-line summary is free on some rows and impossible on
+   others, and the split is not where you would guess.** Given its own new line
+   it costs +15px on every row. But the row *already has* a subline
+   (`cost · builds into X`), and a one-stat summary fits inside that existing
+   slot with room to spare — on the **11 of 17 rows that carry no "builds
+   into"**. On the 6 that do, the two facts collide and it cannot fit at all.
+   §7 measures this; it changes the recommendation from "no summary line" to
+   "a summary line exactly where the row is not a component".
 
 ## 1. What the tools players already use actually do
 
@@ -270,10 +280,100 @@ few lines.
   **delete the tooltip** — the disclosure serves pointer users too, and a
   non-conforming tooltip is worse than none.
 
+- **Add the one-stat summary line from §7** to the closed row, on rows with no
+  "builds into". Free, and it means most rows never need the tap at all.
+
 Two things #20 should decide that this research does not settle: whether more
 than one row may be open at once (nothing here argues either way — allowing it
-is the zero-JS default), and the exact truncation of the 201-char worst case, if
-any, which is the shortening question being measured separately.
+is the zero-JS default), and the exact truncation of the 201-char worst case,
+if any.
+
+## 7. Question 2 — can the detail shorten to fit a row?
+
+Yes, for a single stat. Measured over **all 130 items appearing in the 75
+generated builds**, not just the 17 Ivy ones, against
+`data/raw/assets/v1_assets_items__c2557efa885c5123.json`.
+
+### The game ranks its own stats
+
+The choice of *which* stat to show is not a judgement call the site has to make.
+`tooltip_sections[].section_attributes[]` carries three ranking fields —
+`elevated_properties`, `important_properties_with_icon`, and
+`important_properties` — which are the game's own answer to "which of these six
+numbers is the headline".
+
+This matters because the naive alternative is junk. Iterating `properties` in
+its natural order leads with `Cooldown` and with `-1.0s Charge Delay`, a
+placeholder that appears on items having no charge mechanic at all:
+
+| approach | first two stats for Toxic Bullets |
+|---|---|
+| raw `properties` order | `-1.0s Charge Delay · 1.9%/sec Bleed Damage` |
+| **game's ranking fields** | **`1.9%/sec Bleed Damage · -35% Healing Reduction`** |
+
+Status effects come through the `_with_icon` variant as named conditions rather
+than numbers — Cursed Relic reads `Silenced · Disarm`, which is what the item is
+actually for.
+
+### Coverage
+
+Taking the ranked stats, falling back to the first sentence of prose:
+
+| source of the line | items | share |
+|---|---|---|
+| ranked stat from the catalogue | 126 | 96.9% |
+| first sentence of prose | 3 | 2.3% |
+| other labelled property | 1 | 0.8% |
+| **uncovered** | **0** | **0%** |
+
+The 4 items with no ranked stat — Echo Shard, Refresher, Debuff Reducer, Metal
+Skin — are all actives whose point is a verb rather than a number, and all four
+have short prose ("Become immune to bullets.", 25 chars).
+
+### It fits, but only where the row is not a component
+
+Rendered at 375×812 in `variant-b.built.html` with the page's own font
+(Sora 300 11.5px), the `.sub` cell is **221px** wide. It is already occupied:
+`800 · builds into Titanic Magazine` measures 193px, leaving nothing.
+
+**Character counts mislead here and I had to correct my own first pass.** By
+character count 92% of two-stat lines looked like they would fit; rendered, only
+64% did. Even one stat *appended to a subline that already has a "builds into"*
+overflows and forces a wrap, costing +17.6px — which corroborates the +15px
+figure in §4 rather than contradicting it.
+
+The real split falls exactly along "builds into", measured per row on the Ivy
+build:
+
+| row kind | count | slot headroom | one-stat line | result |
+|---|---|---|---|---|
+| no "builds into" (cost only) | **11 of 17** | ~189px free | 106–186px | **fits, +0px** |
+| has "builds into" | 6 of 17 | ~28px free | 260–337px combined | **overflows** |
+
+Across all 130 catalogue items the one-stat line has a **median of 111px** —
+half the slot — so the fit on component-free rows is comfortable, not marginal.
+
+This is a happy collision. A component's headline stat is the number *least*
+worth showing, because the item is about to be absorbed into something else; on
+exactly those rows, "builds into X" is the more useful fact and it wins the
+slot. So the rule is simply: **show the stat where there is no "builds into",
+and let the disclosure carry it everywhere else.**
+
+### Two corrections to `item-icons-and-tooltips.md`
+
+Both were found while measuring this and change what that document tells the
+build script to read:
+
+1. **`loc_string` beats `description.desc` as the prose source.** `desc` is
+   non-empty for 103 of the 130 build items; `tooltip_sections[].loc_string` is
+   non-empty for **115**, and 13 items carry prose *only* there — Echo Shard,
+   Cheat Death, Fleetfoot, Dispel Magic, Juggernaut, Vortex Web and others. The
+   existing doc names `desc` as the prose field; it is the weaker of the two.
+   Read `loc_string` first, `desc` as fallback (116 covered by either).
+2. **"30 stat-only items need a `properties` fallback" overstates the gap.**
+   With the ranking fields, 126 of 130 items produce a clean stat line directly;
+   only 4 have no ranked stat at all. The fallback is a 4-item edge case, not a
+   30-item parallel path.
 
 ## Sources
 
@@ -287,3 +387,7 @@ any, which is the shortening question being measured separately.
 - Valve Shop Rework notes, 8 May 2025, [unDeadlock mirror](https://undeadlock.com/en-US/patch/08-05-2025/shop-rework-update)
 - Live measurement at 375px: u.gg, mobalytics.gg, op.gg, deadlocktracker.gg, statlocker.gg, deadlocklabs.gg, poe.ninja
 - `prototypes/variant-b.built.html` and `prototypes/ivy-gun-rich.json` in this repo
+- §7: `data/raw/assets/v1_assets_items__c2557efa885c5123.json` (the cached assets
+  catalogue) joined against the 130 items in `data/builds/*.json`, with line
+  widths measured in-browser at 375px in the page's own font
+- `docs/research/item-icons-and-tooltips.md` (#19), corrected by §7
