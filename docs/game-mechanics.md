@@ -15,14 +15,28 @@ Each number is marked:
 - **UNVERIFIED** — stated by <https://deadlock.wiki> and not checkable against
   what we hold. Believe it, but do not build a gate on it without measuring.
 
-**A third source exists beyond local parquet and the assets API:** the
-deadlock-api MCP server at `https://api.deadlock-api.com/v1/mcp` gives read-only
-DuckDB SQL over hourly snapshots of the upstream tables, including columns the
-local ingest never pulled (`objectives.*`, `mid_boss.*`, `stats.*`). It is not
+**Two sources exist beyond local parquet and the assets API.**
+
+The **bulk metadata endpoint** already used by `ingest.py` takes flags the
+current ingest does not pass: **`include_objectives`**, `include_mid_boss`,
+`include_player_stats` and `include_player_death_details`. Objective events are
+therefore one query parameter away, not a new integration — `include_objectives`
+returns the full 30-objective array per match. Documented at 10 req/min per IP,
+though `api.py` records 429s at ~6.
+
+The **deadlock-api MCP server** at `https://api.deadlock-api.com/v1/mcp` gives
+read-only DuckDB SQL over hourly snapshots of the upstream tables, reaching
+`objectives.*`, `mid_boss.*` and `stats.*` without an ingest at all. It is not
 subject to the 2/min, 20/hr limit of the REST SQL endpoint. Results cap at 1,024
 rows and 50 KB, so aggregate in SQL rather than pulling rows. `match_player` is
 hundreds of GB: always filter on `match_id`, `account_id` or `start_time`, and
-sample with `match_id % N = 0`.
+sample with `match_id % N = 0` — filtering on a non-ordering column times out at
+300s.
+
+> The Claude Code MCP client currently cannot list this server's tools
+> (`tools/list` fails schema validation on `ttlMs` / `cacheScope`). Plain
+> JSON-RPC over `curl` to `execute_query` works and produced every SQL-derived
+> number in this document.
 
 **Facts that live in the assets API are not restated here.** Hero rosters, item
 names, costs, tiers, slot types and components are live fields, already wired
@@ -302,9 +316,15 @@ from catch-up souls reaches it sooner than their deficit suggests.
 
 **Boons.** Reaching soul thresholds raises a boon level, maximum **35**, which
 raises weapon damage, melee damage, health and spirit power (per-hero values;
-no universal flat table). The threshold ladder (UNVERIFIED, wiki) starts 600 /
-800 / 1,100 / 1,500 / 2,000 / 2,600 / 3,200 / 3,800 and reaches 49,200 at
-level 35.
+no universal flat table). The threshold ladder starts 600 / 800 / 1,100 / 1,500
+/ 2,000 / 2,600 / 3,200 / 3,800 and reaches 49,200 at level 35.
+
+**VERIFIED** against the paired `stats.level` / `stats.net_worth` series on
+`match_player`: the minimum net worth observed at each level tracks the wiki
+ladder almost exactly — 1,109 at level 3 (wiki 1,100), 1,501 at level 4 (1,500),
+2,000 at level 5 (2,000), 2,602 at level 6 (2,600), 3,069 at level 7 (3,200) and
+3,751 at level 8 (3,800). Sampling means the observed minimum is an upper bound
+on the true threshold, which is why the fit is tight rather than exact.
 
 **Ability unlocks.** Levels 0, 2, 4 and 7 each grant an ability *unlock*. The
 first three non-ultimate abilities can be unlocked in any order; **the ultimate
@@ -481,6 +501,48 @@ are bought 0 times in 5.1M purchases. Any code treating the shopable set as the
 candidate set is ranking 17 items no player can reach in this mode. `build.py`
 is safe by accident — tier-5 items never accumulate probability mass — but a
 future component that enumerates candidates uniformly would not be.
+
+## The intended build is recorded, for a shrinking minority
+
+`match_player.hero_build_id` holds **the community build the player had
+selected when the match started**, and `pregame_hero_id` the hero they locked
+before the swap window. Both come from demo analysis, and both are absent from
+the local `data/raw/matches/` payloads.
+
+These are shared community build ids, not per-player copies (**VERIFIED**): the
+most-used ids appear across dozens of distinct accounts — build 256053 on hero 1
+was used by 64 players, 64 distinct accounts. `/v1/builds/{hero_id}/{build_id}`
+resolves one to its full item list, ability order, categories, per-item
+annotations, `sell_priority` and `imbue_target_ability_id`.
+
+**So intended-versus-actual is joinable, and deviation is measurable.** A worked
+example: a hero 17 player on `salty's spirit talon` (build 126856) bought 18
+shopable items, **13 of them from the build and 5 improvised** — Burst Fire,
+Enchanter's Emblem, Grit, Rapid Rounds, Swift Striker.
+
+Two cautions before anything is built on this.
+
+**Coverage is low and falling** (**VERIFIED**, weekly, 8-week sample):
+
+| Week | Players sampled | With a build id | Share |
+|---|---:|---:|---:|
+| 2026-07-20 | 760 | 120 | 15.8% |
+| 2026-08-03 | 4,004 | 310 | 7.7% |
+| 2026-08-17 | 3,641 | 270 | 7.4% |
+| 2026-08-31 | 3,348 | 47 | 1.4% |
+| 2026-09-07 | 1,686 | 34 | 2.0% |
+
+Recent matches run at **~2%**. This is a demo-analysis backlog rather than a
+growing dataset, so a study wanting volume should reach back rather than
+forward, and must then handle patch drift.
+
+**The denominator is not what it looks like.** A published build is a *menu*,
+not a shopping list: the example above lists 38 shopable items across categories
+explicitly named `Optional`, against a 12-slot cap. "Followed 13 of 38" is
+meaningless; **the honest metric is what fraction of the player's purchases came
+from the build**, and which items they reached for when they left it. The API
+also warns that `hero_build_id` is the build selected *at match start* and does
+not reflect in-match changes, so a "deviation" may be a build swap.
 
 ## The purchase sequence is not a sequence of independent decisions
 
