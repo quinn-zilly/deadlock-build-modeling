@@ -15,6 +15,15 @@ Each number is marked:
 - **UNVERIFIED** — stated by <https://deadlock.wiki> and not checkable against
   what we hold. Believe it, but do not build a gate on it without measuring.
 
+**A third source exists beyond local parquet and the assets API:** the
+deadlock-api MCP server at `https://api.deadlock-api.com/v1/mcp` gives read-only
+DuckDB SQL over hourly snapshots of the upstream tables, including columns the
+local ingest never pulled (`objectives.*`, `mid_boss.*`, `stats.*`). It is not
+subject to the 2/min, 20/hr limit of the REST SQL endpoint. Results cap at 1,024
+rows and 50 KB, so aggregate in SQL rather than pulling rows. `match_player` is
+hundreds of GB: always filter on `match_id`, `account_id` or `start_time`, and
+sample with `match_id % N = 0`.
+
 **Facts that live in the assets API are not restated here.** Hero rosters, item
 names, costs, tiers, slot types and components are live fields, already wired
 through `src/deadlock/assets.py`; copying them into markdown creates a second
@@ -84,11 +93,44 @@ bound on slot availability, mixed with buying behaviour, and they cannot be
 turned back into a slot-unlock clock. A team that takes a Walker early gets the
 slot early.
 
-**We cannot measure Walker timing at all with what we hold.** The match
-endpoint in `data/raw/matches/` returns `players` and no objective events —
-there is no Walker destruction time in the dataset. Getting one means a new
-endpoint or a new ingest. Until then, treat Walker timing as UNKNOWN, not as
-~22 minutes.
+**Walker timing is now measured** (**VERIFIED**). It is not in our local
+`data/raw/matches/` payloads, which carry `players` and no objective events, but
+it *is* in the upstream `match_player` table, reachable by SQL over the
+deadlock-api MCP server: `objectives.team_objective`,
+`objectives.destroyed_time_s` and `objectives.team`. Walkers are `Tier2LaneN`
+(`Tier1LaneN` is a Guardian, `BarrackBossLaneN` a Base Guardian, `Titan` the
+Patron).
+
+Two traps in that data. **`objectives.team` is the team that LOST the
+objective**, not the one that took it — confirmed because a destroyed `Core`
+never belongs to the winner (0 of 220). The slot goes to the *other* team. And
+**`destroyed_time_s` of 0 or 1 is a sentinel for "never destroyed"**, 1,299 of
+6,420 Walker rows; filter them out or the p10 collapses to 1 second.
+
+Time at which a team unlocks its Nth extra slot, i.e. destroys its Nth enemy
+Walker (2,038 team-matches for the first, 3-day sample, **VERIFIED**):
+
+| Slot unlocked | p10 | median | p90 |
+|---:|---:|---:|---:|
+| 10th | 743s (12.4 min) | **1,080s (18.0 min)** | 1,475s (24.6 min) |
+| 11th | 1,030s | **1,402s (23.4 min)** | 1,868s |
+| 12th | 1,290s | **1,712s (28.5 min)** | 2,220s |
+
+**The spread is the point, not the median.** The 10th slot opens anywhere from
+12 to 25 minutes depending on how the match goes, so no fixed clock describes
+it. Compare against the first-hold medians above: players first hold a 10th
+item at 1,567s but the slot typically opens at 1,080s — a 487s gap. Players
+take the slot well before they fill it, in every case:
+
+| Slot | Median unlock | Median first held | Gap |
+|---:|---:|---:|---:|
+| 10 | 1,080s | 1,567s | +487s |
+| 11 | 1,402s | 1,809s | +407s |
+| 12 | 1,712s | 2,065s | +353s |
+
+So the hold-time table overstates slot scarcity at every slot, and a gate built
+on it would have been wrong in the strict direction — refusing builds the game
+in fact permits.
 
 **And running out of slots is not a wall.** The normal play is to sell a tier 1
 or tier 2 item to free a slot for something more expensive. That is what most of
@@ -372,7 +414,7 @@ Everything below is therefore invisible to it.
 |---|---|---|---|
 | 1 | **Per-slot-type investment total, and the 4,800 threshold** | **Yes — highest value** | Directly a sequencing mechanic, and the effect is large and verified (P(same slot) 0.563 → 0.275 across the threshold, surviving buy-index control). The model conditions on the last two *items* but not on the running *category totals* those items imply, so it cannot represent "I am 1,600 short of the weapon spike". Cheapest version: add running per-slot investment, bucketed at the thresholds, as a conditioning key or a re-ranking prior. |
 | 2 | **The 4-active-item cap** | **Yes — cheap, but no build violates it today** | A hard rule (99.976% compliance, VERIFIED) that `build.py` does not enforce: it enforces `MAX_HELD_ITEMS` but nothing counts actives. **All 75 shipped builds currently comply** — an earlier claim that Gun Venator asks for 5 actives was an analysis error (see the warning below on resolving actives by name) and is retracted. So this is a guard against a future regression, not a live bug. A filter in the candidate step, not a learned feature. |
-| 3 | **Slot availability (9 → 12 via Walkers)** | **No — not as a time gate** | Slots 10-12 come from destroying enemy Walkers, not from the clock, and **we hold no Walker timing data at all**. The per-slot medians in [Item slots](#item-slots) record when players first *hold* N items, not when the slot opens, so they cannot be inverted into an availability clock. Players also sell tier 1-2 items to free slots. An earlier claim that 8 builds are "unfollowable before 1,315s" rested on that inversion and is retracted. Revisit only if objective events are ever ingested. |
+| 3 | **Slot availability (9 → 12 via Walkers)** | **No — the slot is rarely the binding constraint** | Slots 10-12 come from destroying enemy Walkers, not from the clock. Now measured (see [Item slots](#item-slots)): the 10th slot opens at a median 1,080s but ranges 743-1,475s, and players first *hold* a 10th item at 1,567s — **487s after the slot typically opens**. The same gap holds at 11 and 12. So players are not slot-starved on average, the spread is too wide for any fixed clock, and selling a tier 1-2 item frees a slot anyway. An earlier claim that 8 builds are "unfollowable before 1,315s" inverted the hold-time table into an availability clock and is retracted. |
 | 4 | **Souls as a real budget** | Yes, for the in-match shape | Generation sets souls to infinity, so the whole-build path can only ever answer "what eventually" and never "what now". The in-match path takes `--souls` but uses it as a hard filter, not as a conditioning variable — so it cannot express "wait 40 seconds and buy the tier 3 instead", which is real advice and is what `n_saved_up` in `economy.py` already shows players doing. |
 | 5 | **Shop-visit bursts** | Probably — as a correction, not a feature | 18.7% of consecutive pairs are same-visit, and **19.7% of those are a component bought immediately before its composite** — one purchase billed in two steps, not two decisions. Treating either kind as independent timed decisions inflates the apparent evidence for tight bigrams. Component bursts are the cleanest thing to collapse when *training*, since the relationship is already known from `component_map()`. |
 | 6 | **Ability-point state at the buy decision** | Yes — and the data is already there | `abilities.parquet` holds 4.45M level-ups and the model does not read one. Whether the ultimate is unlocked (a hard 3,800-soul gate, VERIFIED at median 383s) changes which items make sense — an ult-empowering imbue before the ult exists is a wasted purchase. `abilityorder.py` exists but is not wired into the sequence model. |
