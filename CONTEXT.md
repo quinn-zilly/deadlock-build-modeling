@@ -311,8 +311,16 @@ bank are strength not on the board.
 The rank control, `average_badge`, on a 0–116 scale. A property of the *match*,
 not the player, and only populated for Ranked matches.
 
-The tool weights its tables toward badge 80 by default — roughly the top 30% of
-a distribution whose median is 61 — so the advice imitates strong play rather
+The scale is twelve named tiers of six subranks, so `badge // 10` is the tier
+and `badge % 10` the subrank within it. The names come from the assets API
+(`/v2/ranks`) and are the form to use in anything a player reads, since the
+number means nothing in game: Obscurus, Initiate, Seeker, Acolyte, Sentinel,
+Mystic, Ritualist, Emissary, **Oracle** (tier 8), Phantom, Ascendant, Eternus.
+Badge 80 is Oracle; the population median of 61 is Ritualist.
+
+The tool weights its tables toward badge 80 by default — the top 30.2% of a
+distribution whose median is 61, measured over all 296,332 player-matches — so
+the advice imitates strong play rather
 than median play. It is a soft Gaussian kernel and not a filter: filtering to
 the same bracket costs about nine times the data, and the thin
 hero-and-archetype cells are exactly the ones that cannot afford it. `--badge`
