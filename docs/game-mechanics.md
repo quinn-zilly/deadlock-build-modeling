@@ -368,6 +368,85 @@ build choice (**VERIFIED**, 299,983 players): 0 abilities 486, 1 → 2,434,
 An upgrade can be refunded within 10 seconds if no ability was used in that
 window (UNVERIFIED).
 
+### What an upgrade actually does — the `upgrades` field
+
+The cost schedule above says what a tier *costs*. What each tier *grants* is a
+field nobody in this project had read: **`upgrades`** on the ability record in
+the assets payload. It is structured per tier, so "this effect only exists at 2
+points" is derivable rather than folklore.
+
+**VERIFIED** against `data/raw/assets/v1_assets_items__*.json`: of **285** hero
+ability records (`type == "ability"` with a `hero`), **220 carry `upgrades`,
+every one of them with exactly 3 tiers**, spanning **all 56 heroes**. The tiers
+are positional — index 0 is the 1-point tier, index 1 the 2-point, index 2 the
+5-point — and each holds a `property_upgrades` list of `{name, bonus}`. Across
+them, **387 distinct property names** appear.
+
+Worked examples, each an AP-gated effect that no other field states:
+
+| Hero — ability | Tier | Grants |
+|---|---|---|
+| Dynamo — Kinetic Pulse | AP2 | `BulletResistReduction: -15`, `SlowPercent: 30`, `SlowDuration: 4` |
+| Wraith — Full Auto | AP3 | `MagicDamagePerBullet: 0.045`, `UnlimitedAmmo: 1` |
+| Lash — Flog | AP2 | `AbilityCooldown: -16`, `FireRateSlow: 30` |
+
+**Why it matters.** A claim like "Kinetic Pulse shreds bullet resist" is true
+only from the second ability point onward. Anything the site or the model says
+about an ability's effect is **conditional on AP tier**, and the tier is
+available — so there is no excuse for stating an AP3 effect as though it were
+innate.
+
+### Ability scaling lives under `scale_function`, not `scale`
+
+The per-property scaling coefficient sits at `properties[<prop>].scale_function`,
+carrying `specific_stat_scale_type` (e.g. `ETechPower`, `EWeaponPower`) and a
+numeric `stat_scale`. **Reading `properties[<prop>].scale` finds nothing** and
+produces a clean, wrong zero — that mistake was made once in #21 and reported as
+"no scaling data exists" before it was caught.
+
+**VERIFIED**: **177 of 285** hero abilities carry a numeric `stat_scale`, across
+**52 of 56** heroes. Examples: Lash's Ground Strike `ETechPower 0.7905`, Death
+Slam `0.97`, Flog `0.85`; Paradox's Kinetic Carbine `EWeaponPower 125.0` on
+`MaxBonusBulletDamage` while her Pulse Grenade and Paradoxical Swap scale
+`ETechPower`.
+
+Base weapon stats are reachable the same way: `hero.items.weapon_primary` is a
+`class_name` that resolves to a record whose **`weapon_info`** holds
+`bullet_damage`, `cycle_time` (fire rate), `bullet_speed`, `reload_speed` and
+the `damage_falloff_*` ranges. **86** records carry `weapon_info`.
+
+### Scale type does not tell you which items an ability wants
+
+**The trap.** An ability can scale with Spirit and still make *gun* items
+correct, because the ability attaches to the weapon. Wraith's Full Auto is
+`ETechPower`-scaling and grants `BonusFireRate` plus `MagicDamagePerBullet`;
+Infernus's Afterburn builds up per bullet hit. Inferring "spirit-scaling ⇒ buy
+spirit items" from the scale type alone **mislabels these heroes**.
+
+**What does identify them: the property names.** Not `behaviours`, which has no
+weapon-attachment term across all 285 abilities, and **not**
+`TechPower`/`WeaponPower` — those two are identical boilerplate (`value: "0"`,
+display scaffolding) on every ability checked, with zero discriminating power.
+
+**VERIFIED**, matching property and upgrade-property names against
+`bullet|firerate|ammo|magazine|reload|weapondamage|crit|recoil|perbullet|buffbaseweapon`
+(case-insensitive, excluding the two boilerplate names): **92 of 285** abilities
+carry a weapon-signal property, across **45 of 56** heroes; **41 of those are
+simultaneously `ETechPower`-scaling** — the joinable set where spirit investment
+routes through the gun.
+
+| Hero | Ability | Weapon-signal properties |
+|---|---|---|
+| Wraith | Full Auto | `BonusFireRate`, `MagicDamagePerBullet`, `UnlimitedAmmo`, `BulletLifestealPercent` |
+| Infernus | Afterburn | `BuildUpBulletPercentPerHit`, `CritBuildup`, `RefillDurationCrit` |
+| Mirage | Dust Devil | `TargetBulletEvasionChance` |
+| Dynamo | Kinetic Pulse | `BonusFireRate`, `BulletResistReduction` |
+
+**The two findings are independent.** For all 41 abilities the weapon signal is
+already visible in `properties`; **zero** cases hide it only in `upgrades`. So
+the join works without reading `upgrades` — but the *AP tier* at which the
+effect arrives does not, which is why both are recorded here.
+
 ## Imbue
 
 Pointing an item at one of the hero's four signature abilities, chosen **at the
@@ -445,7 +524,9 @@ Everything below is therefore invisible to it.
 | 3 | **Slot availability (9 → 12 via Walkers)** | **No — the slot is rarely the binding constraint** | Slots 10-12 come from destroying enemy Walkers, not from the clock. Now measured (see [Item slots](#item-slots)): the 10th slot opens at a median 1,080s but ranges 743-1,475s, and players first *hold* a 10th item at 1,567s — **487s after the slot typically opens**. The same gap holds at 11 and 12. So players are not slot-starved on average, the spread is too wide for any fixed clock, and selling a tier 1-2 item frees a slot anyway. An earlier claim that 8 builds are "unfollowable before 1,315s" inverted the hold-time table into an availability clock and is retracted. |
 | 4 | **Souls as a real budget** | Yes, for the in-match shape | Generation sets souls to infinity, so the whole-build path can only ever answer "what eventually" and never "what now". The in-match path takes `--souls` but uses it as a hard filter, not as a conditioning variable — so it cannot express "wait 40 seconds and buy the tier 3 instead", which is real advice and is what `n_saved_up` in `economy.py` already shows players doing. |
 | 5 | **Shop-visit bursts** | Probably — as a correction, not a feature | 18.7% of consecutive pairs are same-visit, and **19.7% of those are a component bought immediately before its composite** — one purchase billed in two steps, not two decisions. Treating either kind as independent timed decisions inflates the apparent evidence for tight bigrams. Component bursts are the cleanest thing to collapse when *training*, since the relationship is already known from `component_map()`. |
-| 6 | **Ability-point state at the buy decision** | Yes — and the data is already there | `abilities.parquet` holds 4.45M level-ups and the model does not read one. Whether the ultimate is unlocked (a hard 3,800-soul gate, VERIFIED at median 383s) changes which items make sense — an ult-empowering imbue before the ult exists is a wasted purchase. `abilityorder.py` exists but is not wired into the sequence model. |
+| 6 | **Ability-point state at the buy decision** | Yes — and the data is already there | `abilities.parquet` holds 4.45M level-ups and the model does not read one. Whether the ultimate is unlocked (a hard 3,800-soul gate, VERIFIED at median 383s) changes which items make sense — an ult-empowering imbue before the ult exists is a wasted purchase. `abilityorder.py` exists but is not wired into the sequence model. **Sharper since the `upgrades` finding**: the level reached is not just "how invested" but *which effect exists* — 220 abilities carry 3 structured tiers, so an AP2 effect like Kinetic Pulse's `BulletResistReduction` is a fact about the player's state at the buy, not a property of the ability. |
+| 6b | **What AP tiers grant, as a clustering or conditioning input** | Open — see the ticket | `upgrades` is read by nothing in this repo. Two builds that level the same ability to the same depth are identical to the model, and two that diverge at the 5-point tier are also identical. Whether the *granted effects* separate builds better than point counts do is unmeasured. |
+| 6c | **Gun-proccing (weapon-attached) abilities** | Open — see the ticket | **41 abilities are `ETechPower`-scaling *and* carry a bullet/fire-rate property** (Wraith's Full Auto, Infernus's Afterburn). For these heroes, spirit investment routes through the weapon, so the Spirit/Gun build-family split — which drives the whole archetype clustering — may be describing the wrong thing. Unmeasured, and it bears on naming as much as on modeling. |
 | 7 | **Imbue irreversibility** | Yes, for how it is *shown* | Not a model change so much as a presentation one: the tool should say the target is a commitment costing half the item to change. Currently a target is reported like any other statistic. |
 | 8 | **Cross-slot-type absorption** | Marginal, but it is a correctness trap | The 4 cross-tab component relationships move souls between investment pools. Any implementation of #1 that computes per-slot investment from the purchase sequence will get these 4 wrong unless it accounts for absorption. Listed so whoever builds #1 does not have to rediscover it. |
 | 9 | **Comeback souls / net-worth position** | No — deliberately | This is the boundary `docs/DIAGNOSIS.md` was written about. Wealth position is an *outcome* by mid-match (memory: 0.16 in phase 0, 0.60 by phase 3). Conditioning on it reintroduces the failure this project was rebuilt to avoid. Named here so a future session recognises it and stops, rather than rediscovering it as a promising feature. |
