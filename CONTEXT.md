@@ -313,9 +313,10 @@ not the player, and only populated for Ranked matches.
 
 The scale is twelve named tiers of six subranks, so `badge // 10` is the tier
 and `badge % 10` the subrank within it. The names come from the assets API
-(`/v2/ranks`) and are the form to use in anything a player reads, since the
-number means nothing in game: Obscurus, Initiate, Seeker, Acolyte, Sentinel,
-Mystic, Ritualist, Emissary, **Oracle** (tier 8), Phantom, Ascendant, Eternus.
+(`/v1/assets/ranks`) and are the form to use in anything a player reads,
+since the number means nothing in game: Obscurus, Initiate, Seeker, Acolyte,
+Sentinel, Mystic, Ritualist, Emissary, **Oracle** (tier 8), Phantom,
+Ascendant, Eternus.
 Badge 80 is Oracle; the population median of 56 is Mystic.
 
 The tool weights its tables toward badge 80 by default — the top 29.6% of a
