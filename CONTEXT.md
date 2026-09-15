@@ -401,11 +401,15 @@ either analyzed or it is not, and an analyzed match usually carries a build id
 for 8-12 of its 12 players. Null means "unknown", never "no build selected".
 
 How many matches are analyzed depends entirely on how far back you look,
-because analysis lags the present. Two measurements, each on its own sample and
-not to be blended: **10.2% of 4,745 matches** over a six-week window, against
-**1 of 100 matches** sampled from the newest window on 2026-09-14. So the
-usable window trails the present, and any cell count must be computed on the
-window actually being modelled.
+because analysis lags the present. Three measurements, each on its own sample
+and not to be blended: **10.2% of 4,745 matches** over a six-week window,
+**1 of 100 matches** sampled from the newest window on 2026-09-14, and **87 of
+24,999 matches (0.35%)** in the current training set.
+
+The training set is the thinnest because it is the newest: the ingest windows
+to the current patch and pages newest-first. So it holds 623 analyzed
+player-matches across 371 builds — too few to model. Work that needs the
+intended build pulls its own older window.
 
 A published build is a menu rather than a shopping list: one sampled build
 listed 38 shopable items against a 12-slot cap, with categories named

@@ -9,11 +9,28 @@ plausibly change a build recommendation, its **order**, or its **timing**.
 Each number is marked:
 
 - **VERIFIED** — confirmed against data in this repo, with the method and the
-  count. Local data is `data/processed/purchases.parquet` (5,095,598 purchase
-  rows, 299,983 player-matches), `data/processed/abilities.parquet` (4,454,785
-  ability level-ups) and `data/processed/imbues.parquet` (452,103 imbues).
+  count.
 - **UNVERIFIED** — stated by <https://deadlock.wiki> and not checkable against
   what we hold. Believe it, but do not build a gate on it without measuring.
+
+> **The local population changed on 2026-09-14 and the tables no longer agree.**
+> Adding `include_objectives` and `include_mid_boss` to `ingest.BASE_PARAMS`
+> invalidated the whole page cache, and the re-pull fetched newest-first, so it
+> returned a **newer window** rather than the same matches. Today
+> `data/processed/purchases.parquet` holds **5,119,990 purchase rows over
+> 296,478 player-matches in 24,999 matches**, and the 125 pages it came from
+> are the only ones in `data/raw/matches/`.
+>
+> `abilities.parquet` (4,454,785 ability level-ups), `imbues.parquet` (452,103
+> imbues), `archetypes.parquet` and every fitted model still come from the
+> **old** window, whose purchase table had 5,095,598 rows over 299,983
+> player-matches. **Joining them to the current `purchases.parquet` joins two
+> different populations.** Rebuild the one you need before joining, or restore
+> the old pages from `data/raw/matches_prechange/`.
+>
+> Every number below that cites 5,095,598 or 299,983 was measured on that older
+> population. It is not wrong; it is measured on a file this repo no longer
+> holds, and it does not compare to a number measured on the current one.
 
 **Two sources exist beyond local parquet and the assets API.**
 
@@ -149,6 +166,21 @@ Walker (2,038 team-matches for the first, 3-day sample, **VERIFIED**):
 | 10th | 743s (12.4 min) | **1,080s (18.0 min)** | 1,475s (24.6 min) |
 | 11th | 1,030s | **1,402s (23.4 min)** | 1,868s |
 | 12th | 1,290s | **1,712s (28.5 min)** | 2,220s |
+
+Those figures come from the 3-day MCP SQL sample. The same quantity, measured
+independently on the current `purchases.parquet` (296,478 player-matches,
+**VERIFIED**), agrees closely — a different sample, so read it as
+corroboration and not as a refinement of the table above:
+
+| Slot unlocked | Median | Player-matches with a time |
+|---:|---:|---:|
+| 10th | 1,117s | 96.8% |
+| 11th | 1,400s | 86.6% |
+| 12th | 1,669s | 70.7% |
+
+The share is the useful half. **Almost every player's team takes at least one
+Walker (96.8%), but only 70.7% reach a third**, so a 12th slot is not a
+routine assumption. `midboss_kill_s` is present for 66.9%, median 1,584s.
 
 **The spread is the point, not the median.** The 10th slot opens anywhere from
 12 to 25 minutes depending on how the match goes, so no fixed clock describes
@@ -647,8 +679,24 @@ usually yields 8-12 of its 12 players.
 **That 10.2% is a property of the window, not of the API** (**VERIFIED**). A
 100-match sample from the newest window on 2026-09-14 carried a build id in
 **1 match**. The two numbers are measured on different windows and must not be
-blended; before sizing any (hero, archetype) cell, count the analyzed rows in
-the window actually being modelled.
+blended.
+
+**On the window this project actually models, the coverage is 0.35%, and that
+is too thin to model on** (**VERIFIED**, the full 24,999-match training set as
+rebuilt on 2026-09-14). `hero_build_id` is present for **623 of 296,478
+player-matches**, in **87 of 24,999 matches**, spread across **371 distinct
+builds** and all 38 heroes. That is roughly 16 rows per hero and 1.7 per build,
+before any split by archetype. `pregame_hero_id` is present slightly more often
+(0.35% of player-matches), and **128 of those players swapped hero** after
+locking in.
+
+The cause is the ingest window, not the API. `scripts/pull_data.py` starts at
+the current patch (2026-08-22) and `ingest.pull_matches` pages newest-first, so
+the training set is the most recent few days — exactly the stretch where demo
+analysis has not caught up. **Anything that needs the intended build must pull
+its own older window** by passing `max_match_id`, and must count its cells
+before modelling. The six-week sample that yielded 10.2% reached back far
+enough; this one does not.
 
 Volume is adequate. In a 1-in-397 sample of six weeks: 3,727 player-rows across
 482 matches, **all 38 heroes**, 1,001 distinct builds — implying on the order of
