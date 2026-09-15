@@ -18,13 +18,15 @@ Each number is marked:
 **Two sources exist beyond local parquet and the assets API.**
 
 The **bulk metadata endpoint** already used by `ingest.py` carries far more than
-the current ingest requests. `include_objectives` returns the full 30-objective
-array per match; `include_player_info` (already passed) returns
-`hero_build_id` and `pregame_hero_id`; `include_mid_boss`,
-`include_player_stats` and `include_player_death_details` are also unused.
+one request returns, and which flags the ingest passes is listed with a reason
+each in `ingest.BASE_PARAMS`. Requested today: `include_player_items`,
+`include_player_stats`, `include_player_info` (which carries `hero_build_id`
+and `pregame_hero_id`), `include_objectives` and `include_mid_boss`. Still
+unrequested: `include_player_death_details` and `include_player_final_stats`.
 **Prefer this endpoint over SQL for anything it covers** — it is the path the
-ingest already walks. Documented at 10 req/min per IP, though `api.py` records
-429s at ~6.
+ingest already walks, and a field it returns is one flag away from being a
+column, not a research project. Documented at 10 req/min per IP, though
+`api.py` records 429s at ~6.
 
 > When testing this endpoint, **pass Unix timestamps for the intended year**.
 > A window accidentally set to 2025 returns real matches that predate demo
@@ -115,19 +117,29 @@ bound on slot availability, mixed with buying behaviour, and they cannot be
 turned back into a slot-unlock clock. A team that takes a Walker early gets the
 slot early.
 
-**Walker timing is now measured** (**VERIFIED**). It is not in our local
-`data/raw/matches/` payloads, which carry `players` and no objective events, but
-it *is* in the upstream `match_player` table, reachable by SQL over the
-deadlock-api MCP server: `objectives.team_objective`,
-`objectives.destroyed_time_s` and `objectives.team`. Walkers are `Tier2LaneN`
-(`Tier1LaneN` is a Guardian, `BarrackBossLaneN` a Base Guardian, `Titan` the
-Patron).
+**Walker timing is now measured, and it is in the purchase table**
+(**VERIFIED**). `ingest.py` passes `include_objectives`, so every cached page
+carries the match's objective array, and `dataset.match_to_rows` attaches
+the times to each player row as `slot10_unlock_s`, `slot11_unlock_s` and
+`slot12_unlock_s`. The same data is reachable by SQL over the deadlock-api MCP
+server (`objectives.team_objective`, `objectives.destroyed_time_s`,
+`objectives.team`), but no new query is needed to use it. Walkers are
+`Tier2LaneN` (`Tier1LaneN` is a Guardian, `BarrackBossLaneN` a Base Guardian,
+`Titan` the Patron, plus `Core` and `TitanShieldGeneratorN`).
 
-Two traps in that data. **`objectives.team` is the team that LOST the
-objective**, not the one that took it — confirmed because a destroyed `Core`
-never belongs to the winner (0 of 220). The slot goes to the *other* team. And
-**`destroyed_time_s` of 0 or 1 is a sentinel for "never destroyed"**, 1,299 of
-6,420 Walker rows; filter them out or the p10 collapses to 1 second.
+Two traps in that data, both **already handled in `dataset.team_match_state`**
+and asserted in `tests/test_dataset.py`. Anyone reading the raw array must
+handle them again. **`objectives.team` is the team that LOST the objective**,
+not the one that took it — confirmed because a destroyed `Core` never belongs
+to the winner (0 of 220, and 0 of 50 re-checked on the bulk endpoint). The slot
+goes to the *other* team. And **`destroyed_time_s` of 0 or 1 is a sentinel for
+"never destroyed"**, 1,299 of 6,420 Walker rows; the columns carry null there,
+because read as times they collapse the p10 to 1 second.
+
+**Mid-Boss kills arrive with `include_mid_boss`** and land on the same rows as
+`midboss_kill_s`, the first kill *claimed* by the player's team. Mid-Boss is
+neutral, so nothing is inverted, but `team_killed` and `team_claimed` disagree
+in 11 of 81 sampled kills and the souls follow `team_claimed`.
 
 Time at which a team unlocks its Nth extra slot, i.e. destroys its Nth enemy
 Walker (2,038 team-matches for the first, 3-day sample, **VERIFIED**):
@@ -598,9 +610,11 @@ match started**, and `pregame_hero_id` the hero they locked before the swap
 window. Both come from demo analysis.
 
 **Both are returned by the bulk metadata endpoint under `include_player_info`**
-— the flag `ingest.py` already passes — so this needs no new integration and no
-SQL. They are absent from the local `data/raw/matches/` payloads only because
-those were fetched before demo analysis existed.
+— the flag `ingest.py` already passes — and **both are now columns on the
+purchase table**, `hero_build_id` and `pregame_hero_id`, attached per player
+row by `dataset.match_to_rows`. Null means "unknown", never "no build
+selected"; the API's own 0 is mapped to null for the same reason. Pages cached
+before this landed carry neither field and convert to nulls.
 
 These are shared community build ids, not per-player copies (**VERIFIED**): the
 most-used ids appear across dozens of distinct accounts — build 256053 on hero 1
@@ -626,9 +640,15 @@ is either demo-analyzed or it is not, and analysis is close to all-or-nothing:
 | **8-12** | **243** | **5.1%** |
 
 So the per-player rate (which falls from ~19% in late June to under 1% in the
-most recent week, as analysis lags) is the **wrong denominator**. About **10% of
-matches are analyzed**, and an analyzed match usually yields 8-12 of its 12
-players.
+most recent week, as analysis lags) is the **wrong denominator**. Over that
+six-week sample **10.2% of 4,745 matches are analyzed**, and an analyzed match
+usually yields 8-12 of its 12 players.
+
+**That 10.2% is a property of the window, not of the API** (**VERIFIED**). A
+100-match sample from the newest window on 2026-09-14 carried a build id in
+**1 match**. The two numbers are measured on different windows and must not be
+blended; before sizing any (hero, archetype) cell, count the analyzed rows in
+the window actually being modelled.
 
 Volume is adequate. In a 1-in-397 sample of six weeks: 3,727 player-rows across
 482 matches, **all 38 heroes**, 1,001 distinct builds — implying on the order of

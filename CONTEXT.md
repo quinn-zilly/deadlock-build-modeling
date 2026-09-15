@@ -369,3 +369,44 @@ gate is met. A player accumulates at most 32 over a match.
 
 Distinct from the *order* points are spent in, which is what
 [[ability focus]] and the ability model describe.
+
+## Walker
+
+The second lane tower. Destroying an enemy Walker unlocks one extra item slot
+for the destroying team, taking it from 9 slots to 10, 11 and then 12. So the
+cap on how many items a [[build]] can hold is won on the map, not reached on a
+clock.
+
+The purchase table carries the three unlock times per player as
+`slot10_unlock_s`, `slot11_unlock_s` and `slot12_unlock_s`, null where that
+Walker never fell.
+
+## Mid-Boss
+
+The neutral objective whose death pays the claiming team a lump of souls. Its
+kill time is `midboss_kill_s` on the purchase table — the soul injection that
+can precede an otherwise unaffordable purchase.
+
+Killing and claiming are different acts: the team that lands the last hit is
+not always the team that takes the reward.
+
+## Intended build
+
+The community [[build]] a player had selected when the match started, recorded
+as `hero_build_id`. It states what a player *planned* to buy, which the
+purchase sequence alone never shows.
+
+Only demo-analyzed matches carry one, and coverage is per **match**: a match is
+either analyzed or it is not, and an analyzed match usually carries a build id
+for 8-12 of its 12 players. Null means "unknown", never "no build selected".
+
+How many matches are analyzed depends entirely on how far back you look,
+because analysis lags the present. Two measurements, each on its own sample and
+not to be blended: **10.2% of 4,745 matches** over a six-week window, against
+**1 of 100 matches** sampled from the newest window on 2026-09-14. So the
+usable window trails the present, and any cell count must be computed on the
+window actually being modelled.
+
+A published build is a menu rather than a shopping list: one sampled build
+listed 38 shopable items against a 12-slot cap, with categories named
+`Optional`. So "followed N of M" is not a meaningful metric.

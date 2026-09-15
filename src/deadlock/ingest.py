@@ -32,12 +32,35 @@ log = logging.getLogger(__name__)
 MATCHES_PER_PAGE = 200      # endpoint allows 10000 but responses are ~35 MB/200
 PLAYERS_PER_MATCH = 12
 
+# What each include flag buys, so a session can see what the endpoint offers
+# before concluding a fact is unreachable:
+#
+#   include_player_items  purchases and their timestamps — the modelled grain
+#   include_player_stats  the 180s net-worth series behind every wealth control
+#   include_player_info   per-player metadata, including hero_build_id and
+#                         pregame_hero_id (no extra flag needed for those)
+#   include_objectives    the objective array (18-26 entries, median 20 over
+#                         100 sampled matches). It is sparse: an objective that
+#                         was never destroyed is sometimes present with the 0/1
+#                         sentinel and sometimes absent outright, so absence is
+#                         not impossible and must read as "never destroyed".
+#                         Walker kills are the item slot clock, and this is the
+#                         only source for them
+#   include_mid_boss      Mid-Boss kills, the soul injection before a buy
+#
+# Still unrequested and unconsumed: include_player_death_details,
+# include_player_final_stats.
+#
+# api.get keys its cache on the parameter set, so adding a flag here
+# invalidates every cached page and forces a full re-pull.
 BASE_PARAMS: dict[str, Any] = {
     "match_mode": "Ranked",      # capitalized
     "game_mode": "normal",       # lowercase — mixing conventions gives HTTP 400
     "include_player_items": "true",
     "include_player_stats": "true",
     "include_player_info": "true",
+    "include_objectives": "true",
+    "include_mid_boss": "true",
     "order_by": "match_id",
     "order_direction": "desc",   # newest first; default is oldest (no badge)
 }
