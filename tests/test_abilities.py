@@ -277,6 +277,71 @@ class TestPointOrderFeatures:
         assert means.max() - means.min() > 0.4
 
 
+class TestResidualPointOrderFeatures:
+    """Order measured against the hero's own average, not against the roster.
+
+    Rejected as a clustering block -- see
+    `docs/adr/0003-ability-order-out-of-the-clustering.md` -- but kept as the
+    apparatus behind that measurement, including the finding that hero identity
+    carries 43% of the raw variance.
+    """
+
+    @staticmethod
+    def heroed(rows: pd.DataFrame, heroes: dict[int, int]) -> pd.DataFrame:
+        """`table` rows with a hero per player slot."""
+        return rows.assign(hero_id=rows["player_slot"].map(heroes))
+
+    def test_mean_form_centres_each_hero_on_zero(self):
+        rows = self.heroed(
+            table([(0, 1, 2, 10), (0, 2, 1, 20), (1, 2, 2, 10), (1, 1, 1, 20)]),
+            {0: 7, 1: 7},
+        )
+        got = abilities.residual_point_order_features(rows, form="mean")
+        assert got["pt_1_l2"].mean() == pytest.approx(0.0)
+
+    def test_two_heroes_are_centred_separately(self):
+        """The whole point: a hero's habit is removed, not the roster's."""
+        rows = self.heroed(
+            table([(0, 1, 2, 10), (0, 2, 1, 20), (1, 1, 1, 10), (1, 1, 2, 20)]),
+            {0: 7, 1: 8},
+        )
+        got = abilities.residual_point_order_features(rows, form="mean")
+        # One player per hero, so each sits exactly on its own hero's mean.
+        assert got["pt_1_l2"].abs().max() == pytest.approx(0.0)
+
+    def test_rank_form_is_a_within_hero_percentile_centred_on_zero(self):
+        rows = self.heroed(
+            table(
+                [
+                    (0, 1, 2, 10),
+                    (0, 2, 1, 20),
+                    (1, 1, 1, 10),
+                    (1, 2, 1, 20),
+                    (1, 1, 2, 30),
+                ]
+            ),
+            {0: 7, 1: 7},
+        )
+        raw = abilities.point_order_features(rows)
+        got = abilities.residual_point_order_features(rows, form="rank")
+        # A percentile, so the hero's latest player sits at the top of the
+        # range and the order of the raw column survives.
+        assert got["pt_1_l2"].max() == pytest.approx(0.5)
+        assert got["pt_1_l2"].rank().tolist() == raw["pt_1_l2"].rank().tolist()
+
+    def test_keeps_the_raw_index_and_columns(self):
+        rows = self.heroed(table([(0, 1, 2, 10), (1, 2, 1, 10)]), {0: 7, 1: 8})
+        raw = abilities.point_order_features(rows)
+        got = abilities.residual_point_order_features(rows)
+        assert got.index.equals(raw.index)
+        assert list(got.columns) == list(raw.columns)
+
+    def test_an_unknown_form_is_refused(self):
+        rows = self.heroed(table([(0, 1, 2, 10)]), {0: 7})
+        with pytest.raises(ValueError, match="unknown residual form"):
+            abilities.residual_point_order_features(rows, form="zscore")
+
+
 class TestFirstMaxedSlot:
     def test_reports_the_slot_taken_to_four_first(self):
         rows = table(

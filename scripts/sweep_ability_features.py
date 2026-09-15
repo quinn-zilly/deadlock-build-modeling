@@ -16,6 +16,12 @@ never tried:
 So this runs the same sweep on the same criterion, and the same rule applies:
 if separation falls monotonically, the feature goes back to naming only.
 
+**Both have since been decided, and both went back to naming only** --
+`docs/adr/0001-imbue-out-of-the-clustering.md` for imbue and
+`docs/adr/0003-ability-order-out-of-the-clustering.md` for order. This sweep is
+the exploratory view over weights; the per-hero split accounting that decided
+each one is `scripts/compare_imbue_fits.py` and `scripts/compare_order_fits.py`.
+
     python scripts/sweep_ability_features.py [--heroes N] [--block order|imbue|both]
 """
 

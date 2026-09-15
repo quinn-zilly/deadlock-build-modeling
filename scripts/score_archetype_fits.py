@@ -1,15 +1,25 @@
 #!/usr/bin/env python
-"""Held-out next-item accuracy under both candidate archetype fits, one run.
+"""Held-out next-item accuracy under the candidate archetype fits, one run.
 
 The decision in #10 is whether the imbue block belongs in the clustering, and
 part of the evidence is what each fit does to the model that conditions on it.
 That comparison is only meaningful within a single run: `separation` falls
 whenever k rises, top-1 moves with the match sample and the decision cap, and a
 figure recorded under one configuration says nothing about a figure recorded
-under another. So both fits are built here, from the same purchases, split the
+under another. So every fit is built here, from the same purchases, split the
 same way, and scored on the same capped set of held-out decisions.
 
+#39 puts ability point **order** through the same test, so the candidate list
+is a flag rather than a fixed pair. `families` is always scored, because it is
+the control every other fit is read against and a control from another run is
+not a control.
+
     python scripts/score_archetype_fits.py [--matches N] [--limit N]
+        [--blocks families,order_mean,...]
+
+Block names: `families`, `conditional imbue`, `order` (raw point order),
+`order_mean` (point order minus the hero's own mean) and `order_rank` (point
+order as a within-hero percentile).
 """
 
 from __future__ import annotations
@@ -24,10 +34,19 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from deadlock import archetype, assets, evaluate, imbue, sequence, splits  # noqa: E402
+from deadlock import (  # noqa: E402
+    abilities,
+    archetype,
+    assets,
+    evaluate,
+    imbue,
+    sequence,
+    splits,
+)
 
 PURCHASES = Path("data/processed/purchases.parquet")
 IMBUES = Path("data/processed/imbues.parquet")
+ABILITIES = Path("data/processed/abilities.parquet")
 COLUMNS = [
     "match_id",
     "player_slot",
@@ -41,6 +60,61 @@ COLUMNS = [
 ]
 
 IMBUE_WEIGHT = 1.0
+ORDER_WEIGHT = 1.0
+
+DEFAULT_BLOCKS = ("families", "conditional imbue")
+
+
+def candidate_blocks(
+    names: tuple[str, ...],
+    players: pd.MultiIndex,
+    heroes: pd.Series,
+) -> dict[str, pd.DataFrame | None]:
+    """Build the requested feature blocks, already scaled.
+
+    `families` is the control and carries no block at all, so it is always
+    present whatever the caller asked for. A block whose source table is
+    missing is skipped with a warning rather than faked: an empty block scores
+    as the control and would quietly report a tie.
+    """
+    out: dict[str, pd.DataFrame | None] = {"families": None}
+    wants_order = any(name.startswith("order") for name in names)
+    ability_rows = (
+        pd.read_parquet(ABILITIES) if wants_order and ABILITIES.exists() else None
+    )
+    if wants_order and ability_rows is None:
+        logging.warning("no abilities table; skipping every order block")
+
+    for name in names:
+        if name == "families":
+            continue
+        if name == "conditional imbue":
+            if not IMBUES.exists():
+                logging.warning("no imbue table; skipping %s", name)
+                continue
+            block = imbue.conditional_features(
+                pd.read_parquet(IMBUES), players, heroes
+            )
+            out[name] = archetype.scale_block(block, IMBUE_WEIGHT)
+        elif name.startswith("order"):
+            if ability_rows is None:
+                continue
+            if name == "order":
+                block = abilities.point_order_features(ability_rows)
+            elif name == "order_mean":
+                block = abilities.residual_point_order_features(
+                    ability_rows, form="mean"
+                )
+            elif name == "order_rank":
+                block = abilities.residual_point_order_features(
+                    ability_rows, form="rank"
+                )
+            else:
+                raise ValueError(f"unknown block {name!r}")
+            out[name] = archetype.scale_block(block, ORDER_WEIGHT)
+        else:
+            raise ValueError(f"unknown block {name!r}")
+    return out
 
 
 def label_frame(
@@ -67,7 +141,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--matches", type=int, default=20000)
     parser.add_argument("--limit", type=int, default=20000, help="decisions to score")
+    parser.add_argument(
+        "--blocks",
+        default=",".join(DEFAULT_BLOCKS),
+        help="comma-separated block names to score against the families control",
+    )
     args = parser.parse_args()
+    wanted = tuple(name.strip() for name in args.blocks.split(",") if name.strip())
 
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S"
@@ -82,14 +162,7 @@ def main() -> int:
     heroes = archetype.hero_of(df)
     hero_names = {h: v.name for h, v in assets.load_heroes().items()}
 
-    blocks: dict[str, pd.DataFrame | None] = {"families": None}
-    if IMBUES.exists():
-        imbue_rows = pd.read_parquet(IMBUES)
-        blocks["conditional imbue"] = archetype.scale_block(
-            imbue.conditional_features(imbue_rows, players, heroes), IMBUE_WEIGHT
-        )
-    else:
-        logging.warning("no imbue table; scoring the family fit alone")
+    blocks = candidate_blocks(wanted, players, heroes)
 
     train, test = splits.split_by_match(df)
     baselines = evaluate.score_baselines(train, test)
