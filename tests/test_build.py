@@ -25,6 +25,15 @@ from deadlock.buildfmt import MAX_HELD_ITEMS
 HERO = 7
 REAL_ITEMS = sorted(assets.shopable_items())
 
+# The two real composite/component pairs the staple force has to order
+# correctly, named so the prevalences asserted against them are traceable to a
+# cell rather than to an arbitrary index. Resolved by id, never by name --
+# two catalogue entries share the name "Silencer".
+RADIANT_REGENERATION = 2947183272  # absorbs Mystic Regeneration
+MYSTIC_REGENERATION = 1439347412
+ENDURING_SPEED = 2447176615  # absorbs Sprint Boots
+SPRINT_BOOTS = 3399065363
+
 
 def purchases(
     items: tuple[int, ...], n_players: int = 200, *, vary: bool = False
@@ -119,7 +128,7 @@ class TestInventoryAbsorption:
 
 class TestLegality:
     def test_no_item_is_ever_bought_twice(self):
-        """Exact, not approximate: no player rebuys in 5,095,598 rows."""
+        """Exact, not approximate: no player rebuys in 5,119,990 rows."""
         generated = build.generate_build(HERO, 0, model_over(tuple(REAL_ITEMS[:20])))
         ids = [item.item_id for item in generated.items]
         assert len(ids) == len(set(ids))
@@ -177,6 +186,52 @@ class TestComponentPreference:
             remaining=10,
         )
         assert scored[0] == pytest.approx(0.5)
+
+    def test_the_penalty_survives_the_staple_force(self):
+        """A composite and its own component can both be staples.
+
+        Gun Shiv has three such pairs -- Radiant Regeneration over Mystic
+        Regeneration, Swift Striker over Rapid Rounds, Mercurial Magnum over
+        Quicksilver Reload. Forcing by raw prevalence ranks each composite
+        first, so its component arrives after its parent, absorbs nothing, and
+        13 staples need 13 slots against a cap of 12. The completion pass must
+        not erase the penalty that puts the component first.
+        """
+        composite, component = RADIANT_REGENERATION, MYSTIC_REGENERATION
+        scored = build._apply_priors(
+            np.array([composite, component]),
+            np.array([0.0, 0.0]),
+            inventory=build.Inventory(),
+            components={composite: (component,)},
+            component_penalty=build.COMPONENT_PENALTY,
+            # Gun Shiv's own prevalences, n=2,011. The composite is the more
+            # prevalent of the two, as it is in every real pair: a player who
+            # buys the composite bought the component.
+            staples={composite: 0.972, component: 0.959},
+            remaining=2,
+        )
+        assert scored[1] > scored[0]
+
+    def test_a_staple_is_not_demoted_for_a_component_nobody_buys(self):
+        """The demotion applies only while both items are owed.
+
+        Enduring Speed is bought by 85% of Gun Victor, and its component Sprint
+        Boots is bought too rarely to be a staple. Demoting on a component that
+        is never coming drops the staple for an absorption that cannot happen.
+        """
+        composite, component = ENDURING_SPEED, SPRINT_BOOTS
+        scored = build._apply_priors(
+            np.array([composite]),
+            np.array([0.0]),
+            inventory=build.Inventory(),
+            components={composite: (component,)},
+            component_penalty=build.COMPONENT_PENALTY,
+            # Gun Victor's own prevalence, n=1,568. Sprint Boots is not in its
+            # staple set at all, so it is not passed as one.
+            staples={composite: 0.848},
+            remaining=1,
+        )
+        assert scored[0] == pytest.approx(0.848)
 
 
 class TestStapleCompletion:
@@ -362,7 +417,7 @@ class TestAgainstRealData:
 
     Successor to `test_old_planner_build_fails_the_gate`. That one proved the
     gate could catch a bad build; this one proves the generator produces good
-    ones -- for all 75 hero-and-archetype cells, not just the easy ones.
+    ones -- for all 80 hero-and-archetype cells, not just the easy ones.
     """
 
     @staticmethod

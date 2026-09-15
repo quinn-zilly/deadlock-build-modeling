@@ -311,15 +311,23 @@ bank are strength not on the board.
 The rank control, `average_badge`, on a 0–116 scale. A property of the *match*,
 not the player, and only populated for Ranked matches.
 
-The tool weights its tables toward badge 80 by default — roughly the top 30% of
-a distribution whose median is 61 — so the advice imitates strong play rather
+The scale is twelve named tiers of six subranks, so `badge // 10` is the tier
+and `badge % 10` the subrank within it. The names come from the assets API
+(`/v2/ranks`) and are the form to use in anything a player reads, since the
+number means nothing in game: Obscurus, Initiate, Seeker, Acolyte, Sentinel,
+Mystic, Ritualist, Emissary, **Oracle** (tier 8), Phantom, Ascendant, Eternus.
+Badge 80 is Oracle; the population median of 56 is Mystic.
+
+The tool weights its tables toward badge 80 by default — the top 29.6% of a
+distribution whose median is 56, measured over all 296,478 player-matches — so
+the advice imitates strong play rather
 than median play. It is a soft Gaussian kernel and not a filter: filtering to
 the same bracket costs about nine times the data, and the thin
 hero-and-archetype cells are exactly the ones that cannot afford it. `--badge`
 asks for another bracket, `--badge all` for none.
 
 Badge enters as a **weight, never as a key**. Keying on it would split every
-cell three ways against a median cell of 3,313 player-matches. Weights are
+cell three ways against a median cell of 3,232 player-matches. Weights are
 computed on the training split alone, and the weighted model is judged on
 high-badge held-out accuracy — never on general-population accuracy, which it
 makes worse by design, and never on win rate, which is an outcome downstream of
@@ -361,3 +369,48 @@ gate is met. A player accumulates at most 32 over a match.
 
 Distinct from the *order* points are spent in, which is what
 [[ability focus]] and the ability model describe.
+
+## Walker
+
+The second lane tower. Destroying an enemy Walker unlocks one extra item slot
+for the destroying team, taking it from 9 slots to 10, 11 and then 12. So the
+cap on how many items a [[build]] can hold is won on the map, not reached on a
+clock.
+
+The purchase table carries the three unlock times per player as
+`slot10_unlock_s`, `slot11_unlock_s` and `slot12_unlock_s`, null where that
+Walker never fell.
+
+## Mid-Boss
+
+The neutral objective whose death pays the claiming team a lump of souls. Its
+kill time is `midboss_kill_s` on the purchase table — the soul injection that
+can precede an otherwise unaffordable purchase.
+
+Killing and claiming are different acts: the team that lands the last hit is
+not always the team that takes the reward.
+
+## Intended build
+
+The community [[build]] a player had selected when the match started, recorded
+as `hero_build_id`. It states what a player *planned* to buy, which the
+purchase sequence alone never shows.
+
+Only demo-analyzed matches carry one, and coverage is per **match**: a match is
+either analyzed or it is not, and an analyzed match usually carries a build id
+for 8-12 of its 12 players. Null means "unknown", never "no build selected".
+
+How many matches are analyzed depends entirely on how far back you look,
+because analysis lags the present. Three measurements, each on its own sample
+and not to be blended: **10.2% of 4,745 matches** over a six-week window,
+**1 of 100 matches** sampled from the newest window on 2026-09-14, and **87 of
+24,999 matches (0.35%)** in the current training set.
+
+The training set is the thinnest because it is the newest: the ingest windows
+to the current patch and pages newest-first. So it holds 623 analyzed
+player-matches across 371 builds — too few to model. Work that needs the
+intended build pulls its own older window.
+
+A published build is a menu rather than a shopping list: one sampled build
+listed 38 shopable items against a 12-slot cap, with categories named
+`Optional`. So "followed N of M" is not a meaningful metric.

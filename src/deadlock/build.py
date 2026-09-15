@@ -42,6 +42,12 @@ log = logging.getLogger(__name__)
 # Median seconds at each buy index, measured over 5,095,598 purchases. Buy time
 # is essentially linear in the index (~110s per purchase), so timing is a
 # lookup rather than a model of its own.
+#
+# Re-measured on 2026-09-15 against the re-pulled population's 5,119,990
+# purchases and left as it is: the largest move is 18s at index 18, and every
+# index is within 1% of the value below. Buy pace is a stable game fact rather
+# than something the window decides, so refitting it would churn every shipped
+# build's clock for no gain.
 MEDIAN_BUY_TIME_S = (
     70, 191, 304, 420, 527, 629, 731, 838, 950, 1065,
     1194, 1318, 1441, 1570, 1684, 1795, 1910, 2022, 2129, 2232,
@@ -221,8 +227,7 @@ def _apply_priors(
 
     if component_penalty < 1.0:
         for i, item_id in enumerate(ids):
-            needed = components.get(int(item_id), ())
-            if needed and not all(c in inventory.held for c in needed):
+            if _awaits_components(int(item_id), inventory, components):
                 scored[i] *= component_penalty
 
     if staples:
@@ -241,10 +246,54 @@ def _apply_priors(
             remaining <= len(missing) + PEAK_WINDOW or free_slots <= len(missing)
         )
         if forced:
+            owed = set(missing)
             for i, item_id in enumerate(ids):
-                if int(item_id) in missing:
-                    scored[i] = max(scored[i], staples[int(item_id)])
+                iid = int(item_id)
+                if iid not in owed:
+                    continue
+                value = staples[iid]
+                # A composite and its own component can both be staples -- Gun
+                # Shiv has three such pairs, and the composite is always the
+                # more prevalent of the two, because buying it implies buying
+                # the component. Forcing on raw prevalence ranks the parent
+                # first, so the component arrives too late to be absorbed and
+                # the cell's 13 staples need 13 slots against a cap of 12.
+                # Demoting the parent while both are owed puts the component
+                # first and the absorption back.
+                #
+                # Only while both are owed. Enduring Speed's component is
+                # Sprint Boots, which its cells do not buy often enough to be a
+                # staple; demoting on that would drop an item 85% of Gun Victor
+                # buys for a component absorption that was never going to
+                # happen.
+                if _awaits_components(iid, inventory, components, among=owed):
+                    value *= component_penalty
+                scored[i] = max(scored[i], value)
+
     return scored
+
+
+def _awaits_components(
+    item_id: int,
+    inventory: Inventory,
+    components: dict[int, tuple[int, ...]],
+    *,
+    among: set[int] | None = None,
+) -> bool:
+    """Whether this composite is still waiting on a component it would absorb.
+
+    One reading of "not ready yet", used by both discounts in `_apply_priors`,
+    so the two cannot drift apart. `among` narrows the question to components
+    drawn from that set: the staple force asks only about components that are
+    themselves owed staples, because a component the cell does not buy often
+    enough to be a staple is never coming.
+    """
+    needed = components.get(item_id, ())
+    if not needed:
+        return False
+    if among is None:
+        return not all(c in inventory.held for c in needed)
+    return any(c in among and c not in inventory.held for c in needed)
 
 
 def _ensure_staples_present(

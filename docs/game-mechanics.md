@@ -9,22 +9,44 @@ plausibly change a build recommendation, its **order**, or its **timing**.
 Each number is marked:
 
 - **VERIFIED** — confirmed against data in this repo, with the method and the
-  count. Local data is `data/processed/purchases.parquet` (5,095,598 purchase
-  rows, 299,983 player-matches), `data/processed/abilities.parquet` (4,454,785
-  ability level-ups) and `data/processed/imbues.parquet` (452,103 imbues).
+  count.
 - **UNVERIFIED** — stated by <https://deadlock.wiki> and not checkable against
   what we hold. Believe it, but do not build a gate on it without measuring.
+
+> **The local population changed on 2026-09-14, and every table was refitted
+> onto it on 2026-09-15.** Adding `include_objectives` and `include_mid_boss`
+> to `ingest.BASE_PARAMS` invalidated the whole page cache, and the re-pull
+> fetched newest-first, so it returned a **newer window** rather than the same
+> matches. The 125 pages it produced are the only ones in `data/raw/matches/`.
+>
+> The tables agree again, all six rebuilt from those pages by
+> `scripts/refit.py`: `purchases.parquet` **5,119,990 purchases over 296,478
+> player-matches in 24,999 matches**, `abilities.parquet` **4,460,944** ability
+> level-ups, `imbues.parquet` **467,271** imbues, `archetypes.parquet`
+> **296,478** labelled player-matches over 80 hero-and-archetype cells, and all
+> 80 generated builds pass the prevalence gate.
+>
+> The **old** window is still on disk as `data/raw/matches_prechange/` (125
+> pages, 5.3 GB, git-ignored, so only on the machine that pulled it). Its
+> purchase table had 5,095,598 rows over 299,983 player-matches. Every number
+> in this repo that cites 5,095,598 or 299,983 was measured there. It is not
+> wrong; it is measured on a file this repo no longer builds from, and per
+> `CLAUDE.md` it does not compare to a number measured on the current one.
+> Restoring that directory and re-running `scripts/refit.py` reproduces the old
+> population exactly.
 
 **Two sources exist beyond local parquet and the assets API.**
 
 The **bulk metadata endpoint** already used by `ingest.py` carries far more than
-the current ingest requests. `include_objectives` returns the full 30-objective
-array per match; `include_player_info` (already passed) returns
-`hero_build_id` and `pregame_hero_id`; `include_mid_boss`,
-`include_player_stats` and `include_player_death_details` are also unused.
+one request returns, and which flags the ingest passes is listed with a reason
+each in `ingest.BASE_PARAMS`. Requested today: `include_player_items`,
+`include_player_stats`, `include_player_info` (which carries `hero_build_id`
+and `pregame_hero_id`), `include_objectives` and `include_mid_boss`. Still
+unrequested: `include_player_death_details` and `include_player_final_stats`.
 **Prefer this endpoint over SQL for anything it covers** — it is the path the
-ingest already walks. Documented at 10 req/min per IP, though `api.py` records
-429s at ~6.
+ingest already walks, and a field it returns is one flag away from being a
+column, not a research project. Documented at 10 req/min per IP, though
+`api.py` records 429s at ~6.
 
 > When testing this endpoint, **pass Unix timestamps for the intended year**.
 > A window accidentally set to 2025 returns real matches that predate demo
@@ -115,19 +137,29 @@ bound on slot availability, mixed with buying behaviour, and they cannot be
 turned back into a slot-unlock clock. A team that takes a Walker early gets the
 slot early.
 
-**Walker timing is now measured** (**VERIFIED**). It is not in our local
-`data/raw/matches/` payloads, which carry `players` and no objective events, but
-it *is* in the upstream `match_player` table, reachable by SQL over the
-deadlock-api MCP server: `objectives.team_objective`,
-`objectives.destroyed_time_s` and `objectives.team`. Walkers are `Tier2LaneN`
-(`Tier1LaneN` is a Guardian, `BarrackBossLaneN` a Base Guardian, `Titan` the
-Patron).
+**Walker timing is now measured, and it is in the purchase table**
+(**VERIFIED**). `ingest.py` passes `include_objectives`, so every cached page
+carries the match's objective array, and `dataset.match_to_rows` attaches
+the times to each player row as `slot10_unlock_s`, `slot11_unlock_s` and
+`slot12_unlock_s`. The same data is reachable by SQL over the deadlock-api MCP
+server (`objectives.team_objective`, `objectives.destroyed_time_s`,
+`objectives.team`), but no new query is needed to use it. Walkers are
+`Tier2LaneN` (`Tier1LaneN` is a Guardian, `BarrackBossLaneN` a Base Guardian,
+`Titan` the Patron, plus `Core` and `TitanShieldGeneratorN`).
 
-Two traps in that data. **`objectives.team` is the team that LOST the
-objective**, not the one that took it — confirmed because a destroyed `Core`
-never belongs to the winner (0 of 220). The slot goes to the *other* team. And
-**`destroyed_time_s` of 0 or 1 is a sentinel for "never destroyed"**, 1,299 of
-6,420 Walker rows; filter them out or the p10 collapses to 1 second.
+Two traps in that data, both **already handled in `dataset.team_match_state`**
+and asserted in `tests/test_dataset.py`. Anyone reading the raw array must
+handle them again. **`objectives.team` is the team that LOST the objective**,
+not the one that took it — confirmed because a destroyed `Core` never belongs
+to the winner (0 of 220, and 0 of 50 re-checked on the bulk endpoint). The slot
+goes to the *other* team. And **`destroyed_time_s` of 0 or 1 is a sentinel for
+"never destroyed"**, 1,299 of 6,420 Walker rows; the columns carry null there,
+because read as times they collapse the p10 to 1 second.
+
+**Mid-Boss kills arrive with `include_mid_boss`** and land on the same rows as
+`midboss_kill_s`, the first kill *claimed* by the player's team. Mid-Boss is
+neutral, so nothing is inverted, but `team_killed` and `team_claimed` disagree
+in 11 of 81 sampled kills and the souls follow `team_claimed`.
 
 Time at which a team unlocks its Nth extra slot, i.e. destroys its Nth enemy
 Walker (2,038 team-matches for the first, 3-day sample, **VERIFIED**):
@@ -137,6 +169,21 @@ Walker (2,038 team-matches for the first, 3-day sample, **VERIFIED**):
 | 10th | 743s (12.4 min) | **1,080s (18.0 min)** | 1,475s (24.6 min) |
 | 11th | 1,030s | **1,402s (23.4 min)** | 1,868s |
 | 12th | 1,290s | **1,712s (28.5 min)** | 2,220s |
+
+Those figures come from the 3-day MCP SQL sample. The same quantity, measured
+independently on the current `purchases.parquet` (296,478 player-matches,
+**VERIFIED**), agrees closely — a different sample, so read it as
+corroboration and not as a refinement of the table above:
+
+| Slot unlocked | Median | Player-matches with a time |
+|---:|---:|---:|
+| 10th | 1,117s | 96.8% |
+| 11th | 1,400s | 86.6% |
+| 12th | 1,669s | 70.7% |
+
+The share is the useful half. **Almost every player's team takes at least one
+Walker (96.8%), but only 70.7% reach a third**, so a 12th slot is not a
+routine assumption. `midboss_kill_s` is present for 66.9%, median 1,584s.
 
 **The spread is the point, not the median.** The 10th slot opens anywhere from
 12 to 25 minutes depending on how the match goes, so no fixed clock describes
@@ -368,6 +415,85 @@ build choice (**VERIFIED**, 299,983 players): 0 abilities 486, 1 → 2,434,
 An upgrade can be refunded within 10 seconds if no ability was used in that
 window (UNVERIFIED).
 
+### What an upgrade actually does — the `upgrades` field
+
+The cost schedule above says what a tier *costs*. What each tier *grants* is a
+field nobody in this project had read: **`upgrades`** on the ability record in
+the assets payload. It is structured per tier, so "this effect only exists at 2
+points" is derivable rather than folklore.
+
+**VERIFIED** against `data/raw/assets/v1_assets_items__*.json`: of **285** hero
+ability records (`type == "ability"` with a `hero`), **220 carry `upgrades`,
+every one of them with exactly 3 tiers**, spanning **all 56 heroes**. The tiers
+are positional — index 0 is the 1-point tier, index 1 the 2-point, index 2 the
+5-point — and each holds a `property_upgrades` list of `{name, bonus}`. Across
+them, **387 distinct property names** appear.
+
+Worked examples, each an AP-gated effect that no other field states:
+
+| Hero — ability | Tier | Grants |
+|---|---|---|
+| Dynamo — Kinetic Pulse | AP2 | `BulletResistReduction: -15`, `SlowPercent: 30`, `SlowDuration: 4` |
+| Wraith — Full Auto | AP3 | `MagicDamagePerBullet: 0.045`, `UnlimitedAmmo: 1` |
+| Lash — Flog | AP2 | `AbilityCooldown: -16`, `FireRateSlow: 30` |
+
+**Why it matters.** A claim like "Kinetic Pulse shreds bullet resist" is true
+only from the second ability point onward. Anything the site or the model says
+about an ability's effect is **conditional on AP tier**, and the tier is
+available — so there is no excuse for stating an AP3 effect as though it were
+innate.
+
+### Ability scaling lives under `scale_function`, not `scale`
+
+The per-property scaling coefficient sits at `properties[<prop>].scale_function`,
+carrying `specific_stat_scale_type` (e.g. `ETechPower`, `EWeaponPower`) and a
+numeric `stat_scale`. **Reading `properties[<prop>].scale` finds nothing** and
+produces a clean, wrong zero — that mistake was made once in #21 and reported as
+"no scaling data exists" before it was caught.
+
+**VERIFIED**: **177 of 285** hero abilities carry a numeric `stat_scale`, across
+**52 of 56** heroes. Examples: Lash's Ground Strike `ETechPower 0.7905`, Death
+Slam `0.97`, Flog `0.85`; Paradox's Kinetic Carbine `EWeaponPower 125.0` on
+`MaxBonusBulletDamage` while her Pulse Grenade and Paradoxical Swap scale
+`ETechPower`.
+
+Base weapon stats are reachable the same way: `hero.items.weapon_primary` is a
+`class_name` that resolves to a record whose **`weapon_info`** holds
+`bullet_damage`, `cycle_time` (fire rate), `bullet_speed`, `reload_speed` and
+the `damage_falloff_*` ranges. **86** records carry `weapon_info`.
+
+### Scale type does not tell you which items an ability wants
+
+**The trap.** An ability can scale with Spirit and still make *gun* items
+correct, because the ability attaches to the weapon. Wraith's Full Auto is
+`ETechPower`-scaling and grants `BonusFireRate` plus `MagicDamagePerBullet`;
+Infernus's Afterburn builds up per bullet hit. Inferring "spirit-scaling ⇒ buy
+spirit items" from the scale type alone **mislabels these heroes**.
+
+**What does identify them: the property names.** Not `behaviours`, which has no
+weapon-attachment term across all 285 abilities, and **not**
+`TechPower`/`WeaponPower` — those two are identical boilerplate (`value: "0"`,
+display scaffolding) on every ability checked, with zero discriminating power.
+
+**VERIFIED**, matching property and upgrade-property names against
+`bullet|firerate|ammo|magazine|reload|weapondamage|crit|recoil|perbullet|buffbaseweapon`
+(case-insensitive, excluding the two boilerplate names): **92 of 285** abilities
+carry a weapon-signal property, across **45 of 56** heroes; **41 of those are
+simultaneously `ETechPower`-scaling** — the joinable set where spirit investment
+routes through the gun.
+
+| Hero | Ability | Weapon-signal properties |
+|---|---|---|
+| Wraith | Full Auto | `BonusFireRate`, `MagicDamagePerBullet`, `UnlimitedAmmo`, `BulletLifestealPercent` |
+| Infernus | Afterburn | `BuildUpBulletPercentPerHit`, `CritBuildup`, `RefillDurationCrit` |
+| Mirage | Dust Devil | `TargetBulletEvasionChance` |
+| Dynamo | Kinetic Pulse | `BonusFireRate`, `BulletResistReduction` |
+
+**The two findings are independent.** For all 41 abilities the weapon signal is
+already visible in `properties`; **zero** cases hide it only in `upgrades`. So
+the join works without reading `upgrades` — but the *AP tier* at which the
+effect arrives does not, which is why both are recorded here.
+
 ## Imbue
 
 Pointing an item at one of the hero's four signature abilities, chosen **at the
@@ -445,7 +571,9 @@ Everything below is therefore invisible to it.
 | 3 | **Slot availability (9 → 12 via Walkers)** | **No — the slot is rarely the binding constraint** | Slots 10-12 come from destroying enemy Walkers, not from the clock. Now measured (see [Item slots](#item-slots)): the 10th slot opens at a median 1,080s but ranges 743-1,475s, and players first *hold* a 10th item at 1,567s — **487s after the slot typically opens**. The same gap holds at 11 and 12. So players are not slot-starved on average, the spread is too wide for any fixed clock, and selling a tier 1-2 item frees a slot anyway. An earlier claim that 8 builds are "unfollowable before 1,315s" inverted the hold-time table into an availability clock and is retracted. |
 | 4 | **Souls as a real budget** | Yes, for the in-match shape | Generation sets souls to infinity, so the whole-build path can only ever answer "what eventually" and never "what now". The in-match path takes `--souls` but uses it as a hard filter, not as a conditioning variable — so it cannot express "wait 40 seconds and buy the tier 3 instead", which is real advice and is what `n_saved_up` in `economy.py` already shows players doing. |
 | 5 | **Shop-visit bursts** | Probably — as a correction, not a feature | 18.7% of consecutive pairs are same-visit, and **19.7% of those are a component bought immediately before its composite** — one purchase billed in two steps, not two decisions. Treating either kind as independent timed decisions inflates the apparent evidence for tight bigrams. Component bursts are the cleanest thing to collapse when *training*, since the relationship is already known from `component_map()`. |
-| 6 | **Ability-point state at the buy decision** | Yes — and the data is already there | `abilities.parquet` holds 4.45M level-ups and the model does not read one. Whether the ultimate is unlocked (a hard 3,800-soul gate, VERIFIED at median 383s) changes which items make sense — an ult-empowering imbue before the ult exists is a wasted purchase. `abilityorder.py` exists but is not wired into the sequence model. |
+| 6 | **Ability-point state at the buy decision** | Yes — and the data is already there | `abilities.parquet` holds 4.45M level-ups and the model does not read one. Whether the ultimate is unlocked (a hard 3,800-soul gate, VERIFIED at median 383s) changes which items make sense — an ult-empowering imbue before the ult exists is a wasted purchase. `abilityorder.py` exists but is not wired into the sequence model. **Sharper since the `upgrades` finding**: the level reached is not just "how invested" but *which effect exists* — 220 abilities carry 3 structured tiers, so an AP2 effect like Kinetic Pulse's `BulletResistReduction` is a fact about the player's state at the buy, not a property of the ability. |
+| 6b | **What AP tiers grant, as a clustering or conditioning input** | Open — see the ticket | `upgrades` is read by nothing in this repo. Two builds that level the same ability to the same depth are identical to the model, and two that diverge at the 5-point tier are also identical. Whether the *granted effects* separate builds better than point counts do is unmeasured. |
+| 6c | **Gun-proccing (weapon-attached) abilities** | Open — see the ticket | **41 abilities are `ETechPower`-scaling *and* carry a bullet/fire-rate property** (Wraith's Full Auto, Infernus's Afterburn). For these heroes, spirit investment routes through the weapon, so the Spirit/Gun build-family split — which drives the whole archetype clustering — may be describing the wrong thing. Unmeasured, and it bears on naming as much as on modeling. |
 | 7 | **Imbue irreversibility** | Yes, for how it is *shown* | Not a model change so much as a presentation one: the tool should say the target is a commitment costing half the item to change. Currently a target is reported like any other statistic. |
 | 8 | **Cross-slot-type absorption** | Marginal, but it is a correctness trap | The 4 cross-tab component relationships move souls between investment pools. Any implementation of #1 that computes per-slot investment from the purchase sequence will get these 4 wrong unless it accounts for absorption. Listed so whoever builds #1 does not have to rediscover it. |
 | 9 | **Comeback souls / net-worth position** | No — deliberately | This is the boundary `docs/DIAGNOSIS.md` was written about. Wealth position is an *outcome* by mid-match (memory: 0.16 in phase 0, 0.60 by phase 3). Conditioning on it reintroduces the failure this project was rebuilt to avoid. Named here so a future session recognises it and stops, rather than rediscovering it as a promising feature. |
@@ -517,9 +645,11 @@ match started**, and `pregame_hero_id` the hero they locked before the swap
 window. Both come from demo analysis.
 
 **Both are returned by the bulk metadata endpoint under `include_player_info`**
-— the flag `ingest.py` already passes — so this needs no new integration and no
-SQL. They are absent from the local `data/raw/matches/` payloads only because
-those were fetched before demo analysis existed.
+— the flag `ingest.py` already passes — and **both are now columns on the
+purchase table**, `hero_build_id` and `pregame_hero_id`, attached per player
+row by `dataset.match_to_rows`. Null means "unknown", never "no build
+selected"; the API's own 0 is mapped to null for the same reason. Pages cached
+before this landed carry neither field and convert to nulls.
 
 These are shared community build ids, not per-player copies (**VERIFIED**): the
 most-used ids appear across dozens of distinct accounts — build 256053 on hero 1
@@ -545,9 +675,39 @@ is either demo-analyzed or it is not, and analysis is close to all-or-nothing:
 | **8-12** | **243** | **5.1%** |
 
 So the per-player rate (which falls from ~19% in late June to under 1% in the
-most recent week, as analysis lags) is the **wrong denominator**. About **10% of
-matches are analyzed**, and an analyzed match usually yields 8-12 of its 12
-players.
+most recent week, as analysis lags) is the **wrong denominator**. Over that
+six-week sample **10.2% of 4,745 matches are analyzed**, and an analyzed match
+usually yields 8-12 of its 12 players.
+
+**That 10.2% is a property of the window, not of the API** (**VERIFIED**). A
+100-match sample from the newest window on 2026-09-14 carried a build id in
+**1 match**. The two numbers are measured on different windows and must not be
+blended.
+
+**On the window this project actually models, the coverage is 0.21%, and that
+is too thin to model on** (**VERIFIED**, the full 24,999-match training set as
+rebuilt on 2026-09-14). `hero_build_id` is present for **623 of 296,478
+player-matches**, in **87 of 24,999 matches**, spread across **371 distinct
+builds** and all 38 heroes. That is roughly 16 rows per hero and 1.7 per build,
+before any split by archetype. `pregame_hero_id` is present more often --
+**1,029 player-matches, 0.35%** -- and **128 of those players swapped hero**
+after locking in. The two fields have different coverage and the two shares are
+not interchangeable.
+
+**Split by archetype, no cell survives** (**VERIFIED**, same population, against
+the 80 hero-and-archetype cells of the 2026-09-15 fit). All 623 analyzed rows
+carry an archetype label, and they reach **78 of the 80 cells** -- but the
+median cell holds **6.5 rows**, the largest holds **26**, and **no cell reaches
+30**. `evaluate.prevalence_gate` calls a cell inconclusive below 300. Widening
+the window is the only thing that changes this; the split cannot.
+
+The cause is the ingest window, not the API. `scripts/pull_data.py` starts at
+the current patch (2026-08-22) and `ingest.pull_matches` pages newest-first, so
+the training set is the most recent few days — exactly the stretch where demo
+analysis has not caught up. **Anything that needs the intended build must pull
+its own older window** by passing `max_match_id`, and must count its cells
+before modelling. The six-week sample that yielded 10.2% reached back far
+enough; this one does not.
 
 Volume is adequate. In a 1-in-397 sample of six weeks: 3,727 player-rows across
 482 matches, **all 38 heroes**, 1,001 distinct builds — implying on the order of

@@ -16,20 +16,20 @@ Two products:
 The model **imitates observed play**. It does not estimate causal item effects.
 An earlier version of this project did, and `docs/DIAGNOSIS.md` records why that
 was abandoned: the estimator cleared every aggregate gate while producing
-builds that omitted all nine items ≥70% of Wraith players buy. Imitation
+builds that omitted every item ≥70% of Wraith players buy. Imitation
 sidesteps the confounding entirely, because it never claims an item *causes* a
 win — only that strong players buy it, in this order, at about this time.
 
 Recommendations are conditioned on **(hero, archetype)**, not hero alone.
 Heroes are played in materially different ways: Ivy splits cleanly into a gun
 build and a spirit build that share few items, and averaging them produces a
-build serving neither. Archetypes are fit per hero: 28 of 38 heroes
-split, and the ten that do not stay single. Every archetype of a hero has a
+build serving neither. Archetypes are fit per hero: 31 of 38 heroes
+split, and the seven that do not stay single. Every archetype of a hero has a
 name that selects only it -- two clusters sharing one name is a build a player
 cannot ask for.
 
 The model is a **backoff frequency table**, deliberately not a neural network.
-Conditioning on hero × archetype leaves a median of 3,313 player-matches per
+Conditioning on hero × archetype leaves a median of 3,232 player-matches per
 cell, and every recommendation stays traceable to a table row with its
 observation count — which matters in a project already burned once by a model
 that produced a number and no recourse.
@@ -45,20 +45,30 @@ Six levels, most specific first, interpolated rather than hard-switched:
 
 ### Measured, held out, owned items excluded
 
+Top-1, match split, measured 2026-09-15 on the post-re-pull population. Every
+row of a column comes from one `scripts/score_sequence.py` run, so the columns
+compare within themselves and not across the table:
+
 | | all heroes | Wraith |
 |---|---|---|
-| popularity | 0.137 | 0.141 |
-| modal at position | 0.220 | 0.263 |
-| bigram (the bar) | 0.267 | 0.277 |
-| **backoff chain** | **0.391** | **0.406** |
+| popularity | 0.134 | 0.149 |
+| modal at position | 0.212 | 0.251 |
+| bigram (the bar) | 0.265 | 0.277 |
+| **backoff chain** | **0.362** | **0.384** |
 
-The match-vs-account gap is 0.009, so the model is learning strategy rather
-than memorising individual players; the match-vs-time gap is 0.021, which is
-patch drift.
+The match-vs-account gap is 0.003, so the model is learning strategy rather
+than memorising individual players; the match-vs-time gap is 0.009, which is
+patch drift. Both gaps come from the same run as the table.
 
-All **75 hero × archetype builds** carry every item ≥70% of that archetype's
-players buy, at median Kendall tau +0.809 against the population's own
-purchase order.
+These are **not** the 0.391 / 0.406 measured on 2026-09-04. That file is gone
+and the two do not compare; the bar moved with them, and the backoff chain
+still clears the bigram by 0.097 on all heroes.
+
+All **80 hero × archetype builds** carry every item ≥70% of that archetype's
+players buy, at median Kendall tau +0.794 against the population's own
+purchase order, and mean Jaccard@12 0.409 against a player-vs-player ceiling
+of 0.339. Measured on the 2026-09-15 population, in the run that generated
+them.
 
 ## Setup
 
@@ -96,8 +106,8 @@ Training uses **all** matches, with badge, outcome, and hero familiarity as row
 leaves the median hero with ~366 player-matches per archetype, too thin to
 model.
 
-The badge weight is **on by default**, centred at 80 -- roughly the top 30% of a
-distribution whose median is 61 -- so the tool imitates strong play rather than
+The badge weight is **on by default**, centred at 80 -- the top 29.6% of a
+distribution whose median is 56 -- so the tool imitates strong play rather than
 median play. `--badge N` asks for another bracket and `--badge all` for none;
 each bracket caches its own model. What that buys, and what it does not, is
 measured in `docs/adr/0002-badge-weighting-on-by-default.md`.
@@ -175,6 +185,22 @@ python scripts/refit.py --badge all --hero Ivy
 
 It exits non-zero if any hero-and-archetype build misses a staple, so a refit
 that produced unusable builds fails rather than reporting success.
+
+Measured on 2026-09-15, over 125 cached pages / 24,999 matches, so `--from` has
+something to weigh:
+
+| Step | Writes | Elapsed |
+| --- | --- | --- |
+| `purchases` | `purchases.parquet` | 7m 25s |
+| `abilities` | `abilities.parquet` | 2m 01s |
+| `imbues` | `imbues.parquet` | 1m 23s |
+| `archetypes` | the fit, labels and review sheet | 53s |
+| `builds` | 80 builds, and the gate | 27s |
+| `site` | `builds.html` | 14s |
+
+About **12 minutes** end to end. The first three steps re-read the cached JSON
+and take 87% of it; everything downstream of the parquet files is under two
+minutes, which is why `--from archetypes` is the one worth reaching for.
 
 Archetype names a person accepted live in `data/archetype_names.json`, which is
 checked in and applied on every fit, so a refit cannot silently rename a build

@@ -375,7 +375,7 @@ class TestBadgeWeightedFit:
         assert weighted.evidence(st, 101).n == plain.evidence(st, 101).n
 
     def test_the_default_target_is_above_the_median_badge(self):
-        """61 is the population median; the default aims at the top 30%."""
+        """56 is the population median; the default aims at the top 29.6%."""
         assert sequence.DEFAULT_TARGET_BADGE > 61
 
 

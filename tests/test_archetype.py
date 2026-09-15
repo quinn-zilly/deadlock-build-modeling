@@ -464,6 +464,18 @@ class TestRoundTrip:
 
 @pytest.mark.data
 @pytest.mark.skipif(not ARCHETYPES.exists(), reason="needs archetypes.parquet")
+def qualifier_words(name: str, hero_name: str) -> list[str]:
+    """The words an archetype name adds in front of the hero's own name.
+
+    "Gun Ivy" -> ["Gun"], "Stalker's Mark Melee Drifter" -> ["Stalker's",
+    "Mark", "Melee"], "Ivy" -> []. Every archetype name ends in the hero name,
+    and that is asserted here rather than assumed, because silently mis-slicing
+    a name that does not would turn a family claim invisible.
+    """
+    assert name.endswith(hero_name), f"{name!r} does not end in {hero_name!r}"
+    return name[: -len(hero_name)].strip().split()
+
+
 class TestAgainstRealData:
     @staticmethod
     def load():
@@ -549,22 +561,30 @@ class TestAgainstRealData:
     def test_thin_margins_decline_to_label(self):
         """A near-tie is a coin flip, so no family is asserted.
 
-        The shipped name may still carry the cluster's ability focus -- Dynamo
-        splits into "Kinetic Pulse Dynamo" and "Ult Dynamo", which is what a
-        player calls those two builds and is not a claim about families. The
-        family half of the name is what has to stay bare.
+        The shipped name may still carry a distinguishing word. Dynamo splits
+        into "Kinetic Pulse Dynamo" and "Ult Dynamo", naming an ability;
+        Celeste into "Grit Celeste" and "Spellslinger Celeste", naming the item
+        that most separates each cluster. `make_unique` reaches for the family
+        first, then the ability focus, then that item, so all three forms ship.
+        Neither of the last two claims a family.
+
+        The family half of the name is what has to stay bare, so that is what
+        this asserts: on a thin margin no word of the name may be a family.
         """
         _, meta, _ = self.load()
+        families = set(semantics.DISPLAY.values())
         for entry in meta["heroes"].values():
+            hero_name = entry["hero_name"]
             for cluster in entry["archetypes"]:
                 margin = cluster.get("naming_margin", 0.0)
-                if 0 < margin < semantics.MIN_NAMING_MARGIN:
-                    assert cluster["family_name"] == entry["hero_name"]
-                    focus = cluster.get("ability_focus")
-                    assert cluster["name"] in (
-                        entry["hero_name"],
-                        f"{focus} {entry['hero_name']}",
-                    )
+                if not 0 < margin < semantics.MIN_NAMING_MARGIN:
+                    continue
+                assert cluster["family_name"] == hero_name
+                name = cluster["name"]
+                claimed = [w for w in qualifier_words(name, hero_name) if w in families]
+                assert not claimed, (
+                    f"{name!r} claims {claimed} on a {margin:.2f} margin"
+                )
 
     def test_venator_has_a_gun_build_and_a_hybrid(self):
         """A player's naming: both are gun builds, one hybrid gun/spirit.
@@ -607,16 +627,29 @@ class TestAgainstRealData:
         assert hybrids <= 8
 
     def test_tank_no_longer_dominates(self):
-        """Slot-share naming produced 10 "Tank" labels, most of them wrong."""
+        """Slot-share naming produced 10 "Tank" labels, most of them wrong.
+
+        A family is counted wherever it appears in the qualifier, not only as
+        the first word. `make_unique` prefixes a disambiguator when two
+        clusters of one hero would collide, so Drifter's two melee builds ship
+        as "Stalker's Mark Melee Drifter" and "Rend Melee Drifter" -- melee
+        claims that reading the first word alone cannot see. "Hybrid-Melee" is
+        a single token and is deliberately not counted: a hybrid claim is the
+        weaker one, and `test_hybrid_labels_are_rare` bounds it separately.
+
+        Both counts are measured on the 2026-09-15 population, in one run:
+        Tank 3, Melee 5.
+        """
         _, meta, _ = self.load()
-        labels = [
-            a["name"].split()[0]
-            for e in meta["heroes"].values()
-            for a in e["archetypes"]
-            if a["name"] != e["hero_name"]
-        ]
-        assert labels.count("Tank") <= 3
-        assert labels.count("Melee") >= 4
+        claimed: list[str] = []
+        for e in meta["heroes"].values():
+            hero_name = e["hero_name"]
+            for a in e["archetypes"]:
+                if a["name"] == hero_name:
+                    continue
+                claimed += qualifier_words(a["name"], hero_name)
+        assert claimed.count("Tank") <= 3
+        assert claimed.count("Melee") >= 4
 
     @pytest.mark.parametrize("hero", ["Wraith", "Calico"])
     def test_heroes_with_one_build_do_not_split(self, hero):
