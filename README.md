@@ -95,8 +95,16 @@ them.
 Match data comes from the community API at
 [deadlock-api.com](https://api.deadlock-api.com) (unofficial; not endorsed by
 Valve). Pulls are cached under `data/` (gitignored), so re-running a completed
-pull costs no requests. 25,000 matches → 296,332 player-matches → 5.1M
-purchases.
+pull costs no requests. 24,999 matches → 296,478 player-matches → 5,119,990
+purchases, as rebuilt on 2026-09-15.
+
+Each cached page also carries the match's objectives, its Mid-Boss kills and
+the community build each player had selected, so the purchase table has a
+column for the Walker kill that unlocked each of slots 10, 11 and 12, for the
+first Mid-Boss the team claimed, and for the intended build. Every one is null
+for "unknown", never zero. The schema and the measured coverage of each column
+are in the `src/deadlock/dataset.py` docstring; the mechanics behind them, and
+the three traps in the raw arrays, are in `docs/game-mechanics.md`.
 
 The population is Ranked + Normal matches, because `average_badge` — the rank
 control — is only populated for Ranked.

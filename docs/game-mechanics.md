@@ -753,31 +753,3 @@ succession, and the two are different claims. **The sharpest case is the 19.7%
 of bursts that are a component followed by its own composite**: there the bigram
 is not even co-selection, it is a single purchase the shop charges in two
 steps.
-
----
-
-# Proposed CONTEXT.md additions
-
-Proposals only — not applied. Each is a genuinely new *term* a player would use,
-not a mechanic write-up; the mechanics stay in this document.
-
-**Investment bonus** — A cumulative stat bonus earned by spending souls within
-one [[slot type]], capped at 28,800 souls per type. Not linear: a large step at
-4,800 souls, which players call the **4.8k spike**. It is why [[slot type]] is
-mechanically load-bearing even though it does not name a playstyle — players
-visibly push one tab to 4,800 and then switch away (same-slot continuation
-0.563 approaching the threshold, 0.275 just past it).
-
-**Active item** — An item with a button, bound to one of four keys. At most
-four can be held at once, which makes actives a scarce resource a build spends
-rather than a free choice. `is_active_item` in the assets API; 50 of 173
-shopable items.
-
-**Boon** — A hero level, earned at soul thresholds and capped at 35. Grants
-stat increases, and at levels 0/2/4/7 an ability unlock, otherwise an
-[[ability point]]. Souls are not consumed: boons track net worth earned, so
-spending on items never costs levels.
-
-**Ability point** — The currency for upgrading a signature ability. Each
-ability has three upgrade tiers costing 1, 2 and 5 points; a player earns at
-most 32 in a match, enough to max three abilities and part of a fourth.

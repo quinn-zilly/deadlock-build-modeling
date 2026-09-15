@@ -28,10 +28,28 @@ specific buy.
 - wealth controls: `nw_at_buy`, `nw_vs_match_median`, `nw_vs_team_avg`,
   `nw_vs_enemy_avg`, `nw_rank_in_match`
 
-The match-state and intent columns are nullable and mean **unknown**, never
-zero: a match can end before three Walkers fall, and roughly 90% of matches are
-never demo-analyzed. Pages cached before those fields were requested carry
-neither key and convert to nulls rather than failing.
+Null in each of those six columns is its own claim, and none of them is a
+zero. Measured per player-match on the current table (296,478 player-matches
+over 24,999 matches, all of them `has_objectives`):
+
+| Column | Present | Median | Null means |
+| --- | ---: | ---: | --- |
+| `slot10_unlock_s` | 96.8% | 1,117s | that team never took an enemy Walker |
+| `slot11_unlock_s` | 86.6% | 1,400s | it never took a second |
+| `slot12_unlock_s` | 70.7% | 1,669s | it never took a third, so it held 11 slots at most |
+| `midboss_kill_s` | 66.9% | 1,584s | that team claimed no Mid-Boss |
+| `hero_build_id` | 0.21% | — | the match was not demo-analyzed, not "no build selected" |
+| `pregame_hero_id` | 0.35% | — | the same, and its share is not `hero_build_id`'s |
+
+A Walker unlocks a slot for the team that destroyed it, so both teams reaching
+three is the exception, not the rule — the 70.7% is a real mechanic, not
+missing data. The two intent columns are thin because the window is the newest
+few days and demo analysis lags it by weeks; `scripts/pull_data.py` says what
+to do about that.
+
+Pages cached before those fields were requested carry neither key and convert
+to nulls rather than failing, which is what `has_objectives` exists to
+separate: a null under a False flag is "not requested", not "never happened".
 """
 
 from __future__ import annotations
