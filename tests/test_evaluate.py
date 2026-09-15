@@ -21,9 +21,12 @@ PURCHASES = Path("data/processed/purchases.parquet")
 # the post-re-pull population. docs/DIAGNOSIS.md records that the old planner
 # recommended none of them while every aggregate metric passed.
 #
-# The nine measured on 2026-09-04 all survived the re-pull. Spirit Lifesteal is
-# the tenth, and it sits 0.0013 above the threshold, so expect this one to
-# cross back on the next window. The rest range from 0.708 to 0.992.
+# The list measured on 2026-09-04 held the first nine of these and no others.
+# That is a statement about which item names each run put over the line, not a
+# comparison of the two runs' numbers, which are measured on populations this
+# repo no longer holds side by side. Spirit Lifesteal sits 0.0013 above the
+# threshold here, so expect it to cross back on the next window; the rest range
+# from 0.708 to 0.992.
 WRAITH_STAPLES = [
     "Quicksilver Reload",
     "Monster Rounds",

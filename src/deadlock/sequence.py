@@ -173,7 +173,7 @@ def row_weights(
     """How much each purchase row counts when building the tables.
 
     Covariates enter as weights, never as keys. Keying on badge would split
-    every cell three ways, and the median cell holds only 3,313 player-matches;
+    every cell three ways, and the median cell holds only 3,232 player-matches;
     as a weight the same preference costs no cells at all.
 
     Every factor defaults to a no-op so they can be ablated one at a time, and

@@ -15,7 +15,7 @@ recommendation the tool has ever made therefore imitated the median player,
 while the whole proposition of a build tool is "this is what good players do".
 
 The kernel is a soft Gaussian on `average_badge`, centred at 80 — roughly the
-top 30% of a distribution whose median is 61 — with a halfwidth of 25. It is
+top 29.6% of a distribution whose median is 56 — with a halfwidth of 25. It is
 not a filter, because filtering to that bracket costs about nine times the
 data, and the thin hero-and-archetype cells are exactly the ones that cannot
 afford the loss.

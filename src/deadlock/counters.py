@@ -9,7 +9,7 @@ effect is large and it replicates:
     Healbane     vs Victor      29.6% facing vs 24.1% not   +5.5pp  n=49,220
 
 This stays *outside* the backoff key. Enemy roster is a 12-dimensional
-condition and the median cell holds 3,313 player-matches; keying on it would
+condition and the median cell holds 3,232 player-matches; keying on it would
 fragment the tables past usefulness, which is the whole reason covariates enter
 as row weights elsewhere. A counter-pick also is not an archetype -- it varies
 by matchup, not by playstyle, so a model that folded it into the archetype

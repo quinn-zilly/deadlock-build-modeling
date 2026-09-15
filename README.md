@@ -58,8 +58,7 @@ compare within themselves and not across the table:
 
 The match-vs-account gap is 0.003, so the model is learning strategy rather
 than memorising individual players; the match-vs-time gap is 0.009, which is
-patch drift. Both gaps are smaller than they were before the re-pull, which is
-what a narrower window of matches should do to them.
+patch drift. Both gaps come from the same run as the table.
 
 These are **not** the 0.391 / 0.406 measured on 2026-09-04. That file is gone
 and the two do not compare; the bar moved with them, and the backoff chain

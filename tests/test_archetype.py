@@ -464,6 +464,18 @@ class TestRoundTrip:
 
 @pytest.mark.data
 @pytest.mark.skipif(not ARCHETYPES.exists(), reason="needs archetypes.parquet")
+def qualifier_words(name: str, hero_name: str) -> list[str]:
+    """The words an archetype name adds in front of the hero's own name.
+
+    "Gun Ivy" -> ["Gun"], "Stalker's Mark Melee Drifter" -> ["Stalker's",
+    "Mark", "Melee"], "Ivy" -> []. Every archetype name ends in the hero name,
+    and that is asserted here rather than assumed, because silently mis-slicing
+    a name that does not would turn a family claim invisible.
+    """
+    assert name.endswith(hero_name), f"{name!r} does not end in {hero_name!r}"
+    return name[: -len(hero_name)].strip().split()
+
+
 class TestAgainstRealData:
     @staticmethod
     def load():
@@ -569,9 +581,7 @@ class TestAgainstRealData:
                     continue
                 assert cluster["family_name"] == hero_name
                 name = cluster["name"]
-                assert name.endswith(hero_name), f"{name} does not name {hero_name}"
-                qualifier = name[: -len(hero_name)].strip()
-                claimed = [w for w in qualifier.split() if w in families]
+                claimed = [w for w in qualifier_words(name, hero_name) if w in families]
                 assert not claimed, (
                     f"{name!r} claims {claimed} on a {margin:.2f} margin"
                 )
@@ -637,7 +647,7 @@ class TestAgainstRealData:
             for a in e["archetypes"]:
                 if a["name"] == hero_name:
                     continue
-                claimed += a["name"][: -len(hero_name)].strip().split()
+                claimed += qualifier_words(a["name"], hero_name)
         assert claimed.count("Tank") <= 3
         assert claimed.count("Melee") >= 4
 
