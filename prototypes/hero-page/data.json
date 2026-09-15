@@ -1,0 +1,1527 @@
+{
+ "hero": "Ivy",
+ "hero_id": 20,
+ "phases": [
+  "Lane (0-10m)",
+  "Mid (10-20m)",
+  "Late (20-30m)",
+  "Very late (30m+)"
+ ],
+ "chooser": [
+  {
+   "archetype_id": 0,
+   "name": "Spirit Ivy",
+   "share": 0.33516081871345027,
+   "win_rate": 0.5579789167575427,
+   "n": 2751,
+   "prevalent": [
+    {
+     "id": 3776945997,
+     "name": "Extra Charge",
+     "p": 0.876
+    },
+    {
+     "id": 754480263,
+     "name": "Mystic Expansion",
+     "p": 0.833
+    },
+    {
+     "id": 1193964439,
+     "name": "Greater Expansion",
+     "p": 0.793
+    },
+    {
+     "id": 787198704,
+     "name": "Rapid Recharge",
+     "p": 0.71
+    },
+    {
+     "id": 3074274290,
+     "name": "Trophy Collector",
+     "p": 0.684
+    },
+    {
+     "id": 2717651715,
+     "name": "Superior Duration",
+     "p": 0.656
+    }
+   ],
+   "discriminative": [
+    {
+     "id": 3776945997,
+     "name": "Extra Charge",
+     "p": 0.876,
+     "elsewhere": 0.271
+    },
+    {
+     "id": 3074274290,
+     "name": "Trophy Collector",
+     "p": 0.684,
+     "elsewhere": 0.117
+    },
+    {
+     "id": 2717651715,
+     "name": "Superior Duration",
+     "p": 0.656,
+     "elsewhere": 0.131
+    },
+    {
+     "id": 787198704,
+     "name": "Rapid Recharge",
+     "p": 0.71,
+     "elsewhere": 0.242
+    },
+    {
+     "id": 1193964439,
+     "name": "Greater Expansion",
+     "p": 0.793,
+     "elsewhere": 0.328
+    },
+    {
+     "id": 3261353684,
+     "name": "Superior Cooldown",
+     "p": 0.595,
+     "elsewhere": 0.159
+    }
+   ],
+   "imbue": [
+    {
+     "item": "Mystic Expansion",
+     "ability": "Stone Form",
+     "share": 0.526
+    }
+   ]
+  },
+  {
+   "archetype_id": 1,
+   "name": "Ivy",
+   "share": 0.3321150097465887,
+   "win_rate": 0.5605282465150404,
+   "n": 2726,
+   "prevalent": [
+    {
+     "id": 811521119,
+     "name": "Tesla Bullets",
+     "p": 0.929
+    },
+    {
+     "id": 2356412290,
+     "name": "Titanic Magazine",
+     "p": 0.926
+    },
+    {
+     "id": 1548066885,
+     "name": "Extended Magazine",
+     "p": 0.89
+    },
+    {
+     "id": 754480263,
+     "name": "Mystic Expansion",
+     "p": 0.72
+    },
+    {
+     "id": 710436191,
+     "name": "Capacitor",
+     "p": 0.601
+    },
+    {
+     "id": 1193964439,
+     "name": "Greater Expansion",
+     "p": 0.556
+    }
+   ],
+   "discriminative": [
+    {
+     "id": 811521119,
+     "name": "Tesla Bullets",
+     "p": 0.929,
+     "elsewhere": 0.55
+    },
+    {
+     "id": 2356412290,
+     "name": "Titanic Magazine",
+     "p": 0.926,
+     "elsewhere": 0.593
+    },
+    {
+     "id": 1548066885,
+     "name": "Extended Magazine",
+     "p": 0.89,
+     "elsewhere": 0.573
+    },
+    {
+     "id": 2956256701,
+     "name": "Healing Nova",
+     "p": 0.391,
+     "elsewhere": 0.094
+    },
+    {
+     "id": 1427630806,
+     "name": "Healing Tempo",
+     "p": 0.459,
+     "elsewhere": 0.197
+    },
+    {
+     "id": 2566692615,
+     "name": "Healing Booster",
+     "p": 0.522,
+     "elsewhere": 0.272
+    }
+   ],
+   "imbue": [
+    {
+     "item": "Quicksilver Reload",
+     "ability": "Entangling Thorns",
+     "share": 0.99
+    }
+   ]
+  },
+  {
+   "archetype_id": 2,
+   "name": "Gun Ivy",
+   "share": 0.33272417153996103,
+   "win_rate": 0.5126327352618089,
+   "n": 2731,
+   "prevalent": [
+    {
+     "id": 811521119,
+     "name": "Tesla Bullets",
+     "p": 0.995
+    },
+    {
+     "id": 2356412290,
+     "name": "Titanic Magazine",
+     "p": 0.985
+    },
+    {
+     "id": 1548066885,
+     "name": "Extended Magazine",
+     "p": 0.961
+    },
+    {
+     "id": 710436191,
+     "name": "Capacitor",
+     "p": 0.938
+    },
+    {
+     "id": 2971868509,
+     "name": "Bullet Resist Shredder",
+     "p": 0.603
+    },
+    {
+     "id": 381961617,
+     "name": "Active Reload",
+     "p": 0.577
+    }
+   ],
+   "discriminative": [
+    {
+     "id": 710436191,
+     "name": "Capacitor",
+     "p": 0.938,
+     "elsewhere": 0.304
+    },
+    {
+     "id": 381961617,
+     "name": "Active Reload",
+     "p": 0.577,
+     "elsewhere": 0.035
+    },
+    {
+     "id": 2971868509,
+     "name": "Bullet Resist Shredder",
+     "p": 0.603,
+     "elsewhere": 0.072
+    },
+    {
+     "id": 811521119,
+     "name": "Tesla Bullets",
+     "p": 0.995,
+     "elsewhere": 0.517
+    },
+    {
+     "id": 1548066885,
+     "name": "Extended Magazine",
+     "p": 0.961,
+     "elsewhere": 0.538
+    },
+    {
+     "id": 2356412290,
+     "name": "Titanic Magazine",
+     "p": 0.985,
+     "elsewhere": 0.563
+    }
+   ],
+   "imbue": [
+    {
+     "item": "Quicksilver Reload",
+     "ability": "Entangling Thorns",
+     "share": 0.993
+    }
+   ]
+  }
+ ],
+ "builds": [
+  {
+   "hero": "Ivy",
+   "archetype": "Gun Ivy",
+   "share": 0.33272417153996103,
+   "win_rate": 0.5126327352618089,
+   "n": 2731,
+   "n_staples": 4,
+   "items": [
+    {
+     "name": "Extended Magazine",
+     "cost": 800,
+     "time": 70.0,
+     "p": 0.686,
+     "n": 2670,
+     "level": "L0",
+     "sold": 191.0,
+     "staple": true,
+     "phase": 0,
+     "builds_into": "Titanic Magazine",
+     "id": 1548066885
+    },
+    {
+     "name": "Titanic Magazine",
+     "cost": 1600,
+     "time": 191.0,
+     "p": 0.534,
+     "n": 1748,
+     "level": "L0",
+     "sold": null,
+     "staple": true,
+     "phase": 0,
+     "id": 2356412290
+    },
+    {
+     "name": "Tesla Bullets",
+     "cost": 3200,
+     "time": 304.0,
+     "p": 0.802,
+     "n": 1135,
+     "level": "L0",
+     "sold": 950.0,
+     "staple": true,
+     "phase": 0,
+     "builds_into": "Capacitor",
+     "id": 811521119
+    },
+    {
+     "name": "Extra Charge",
+     "cost": 800,
+     "time": 420.0,
+     "p": 0.236,
+     "n": 388,
+     "level": "L0",
+     "sold": 1318.0,
+     "staple": false,
+     "phase": 0,
+     "builds_into": "Rapid Recharge",
+     "id": 3776945997
+    },
+    {
+     "name": "Healbane",
+     "cost": 1600,
+     "time": 527.0,
+     "p": 0.652,
+     "n": 19,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 0,
+     "id": 2603935618
+    },
+    {
+     "name": "Fleetfoot",
+     "cost": 1600,
+     "time": 629.0,
+     "p": 0.61,
+     "n": 122,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 3403085434
+    },
+    {
+     "name": "Quicksilver Reload",
+     "cost": 1600,
+     "time": 731.0,
+     "p": 0.622,
+     "n": 81,
+     "level": "L0",
+     "sold": 1684.0,
+     "staple": false,
+     "phase": 1,
+     "builds_into": "Mercurial Magnum",
+     "id": 84321454
+    },
+    {
+     "name": "Spirit Lifesteal",
+     "cost": 1600,
+     "time": 838.0,
+     "p": 0.553,
+     "n": 39,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 876563814
+    },
+    {
+     "name": "Capacitor",
+     "cost": 6400,
+     "time": 950.0,
+     "p": 0.514,
+     "n": 97,
+     "level": "L0",
+     "sold": null,
+     "staple": true,
+     "phase": 1,
+     "id": 710436191
+    },
+    {
+     "name": "Grit",
+     "cost": 800,
+     "time": 1065.0,
+     "p": 0.213,
+     "n": 29,
+     "level": "L0",
+     "sold": 1194.0,
+     "staple": false,
+     "phase": 1,
+     "builds_into": "Spirit Shielding",
+     "id": 1672893796
+    },
+    {
+     "name": "Spirit Shielding",
+     "cost": 1600,
+     "time": 1194.0,
+     "p": 0.493,
+     "n": 33,
+     "level": "L1",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 112198670
+    },
+    {
+     "name": "Rapid Recharge",
+     "cost": 3200,
+     "time": 1318.0,
+     "p": 0.266,
+     "n": 17,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 787198704
+    },
+    {
+     "name": "Mystic Expansion",
+     "cost": 800,
+     "time": 1441.0,
+     "p": 0.657,
+     "n": 285,
+     "level": "L1",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 754480263
+    },
+    {
+     "name": "Extra Spirit",
+     "cost": 800,
+     "time": 1570.0,
+     "p": 0.674,
+     "n": 144,
+     "level": "L0",
+     "sold": 1910.0,
+     "staple": false,
+     "phase": 2,
+     "builds_into": "Improved Spirit",
+     "id": 968099481
+    },
+    {
+     "name": "Mercurial Magnum",
+     "cost": 6400,
+     "time": 1684.0,
+     "p": 0.753,
+     "n": 116,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 3919289022
+    },
+    {
+     "name": "Mystic Vulnerability",
+     "cost": 1600,
+     "time": 1795.0,
+     "p": 0.678,
+     "n": 64,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 2081037738
+    },
+    {
+     "name": "Improved Spirit",
+     "cost": 1600,
+     "time": 1910.0,
+     "p": 0.343,
+     "n": 21,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 3,
+     "id": 7409189
+    }
+   ],
+   "abilities": [
+    {
+     "position": 1,
+     "name": "Entangling Thorns",
+     "level": 1,
+     "time": 15.0,
+     "p": 0.492,
+     "n": 2731,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 2,
+     "name": "Stone Form",
+     "level": 1,
+     "time": 85.0,
+     "p": 0.573,
+     "n": 1433,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 3,
+     "name": "Stone Form",
+     "level": 2,
+     "time": 108.0,
+     "p": 0.9,
+     "n": 1394,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 4,
+     "name": "Kudzu Connection",
+     "level": 1,
+     "time": 201.0,
+     "p": 0.577,
+     "n": 2462,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 5,
+     "name": "Stone Form",
+     "level": 3,
+     "time": 258.0,
+     "p": 0.662,
+     "n": 1035,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 6,
+     "name": "Air Drop",
+     "level": 1,
+     "time": 349.0,
+     "p": 0.51,
+     "n": 1511,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 7,
+     "name": "Air Drop",
+     "level": 2,
+     "time": 389.0,
+     "p": 0.672,
+     "n": 1446,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 8,
+     "name": "Kudzu Connection",
+     "level": 2,
+     "time": 463.0,
+     "p": 0.905,
+     "n": 1272,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 9,
+     "name": "Kudzu Connection",
+     "level": 3,
+     "time": 555.0,
+     "p": 0.947,
+     "n": 1495,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 10,
+     "name": "Kudzu Connection",
+     "level": 4,
+     "time": 758.0,
+     "p": 0.497,
+     "n": 2974,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 11,
+     "name": "Air Drop",
+     "level": 3,
+     "time": 856.0,
+     "p": 0.356,
+     "n": 2974,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 12,
+     "name": "Air Drop",
+     "level": 4,
+     "time": 1051.0,
+     "p": 0.901,
+     "n": 1088,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 13,
+     "name": "Stone Form",
+     "level": 4,
+     "time": 1227.0,
+     "p": 0.377,
+     "n": 1810,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 14,
+     "name": "Entangling Thorns",
+     "level": 2,
+     "time": 1473.0,
+     "p": 0.849,
+     "n": 421,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 15,
+     "name": "Entangling Thorns",
+     "level": 3,
+     "time": 1825.0,
+     "p": 0.93,
+     "n": 210,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 16,
+     "name": "Entangling Thorns",
+     "level": 4,
+     "time": 2402.0,
+     "p": 0.732,
+     "n": 378,
+     "backoff": "L0",
+     "thin": false
+    }
+   ],
+   "imbue": [
+    {
+     "item": "Quicksilver Reload",
+     "ability": "Entangling Thorns",
+     "share": 0.993,
+     "n": 595,
+     "thin": false,
+     "split": false
+    },
+    {
+     "item": "Mystic Expansion",
+     "ability": "Entangling Thorns",
+     "share": 0.582,
+     "n": 694,
+     "thin": false,
+     "split": false
+    },
+    {
+     "item": "Mercurial Magnum",
+     "ability": "Entangling Thorns",
+     "share": 0.991,
+     "n": 434,
+     "thin": false,
+     "split": false
+    }
+   ],
+   "counters": [
+    {
+     "item": "Healbane",
+     "enemy": "Victor",
+     "lift": 0.0457,
+     "facing": 0.2961,
+     "baseline": 0.2503,
+     "n": 49220
+    }
+   ]
+  },
+  {
+   "hero": "Ivy",
+   "archetype": "Ivy",
+   "share": 0.3321150097465887,
+   "win_rate": 0.5605282465150404,
+   "n": 2726,
+   "n_staples": 4,
+   "items": [
+    {
+     "name": "Extended Magazine",
+     "cost": 800,
+     "time": 70.0,
+     "p": 0.621,
+     "n": 2682,
+     "level": "L0",
+     "sold": 191.0,
+     "staple": true,
+     "phase": 0,
+     "builds_into": "Titanic Magazine",
+     "id": 1548066885
+    },
+    {
+     "name": "Titanic Magazine",
+     "cost": 1600,
+     "time": 191.0,
+     "p": 0.574,
+     "n": 1552,
+     "level": "L0",
+     "sold": null,
+     "staple": true,
+     "phase": 0,
+     "id": 2356412290
+    },
+    {
+     "name": "Tesla Bullets",
+     "cost": 3200,
+     "time": 304.0,
+     "p": 0.737,
+     "n": 994,
+     "level": "L0",
+     "sold": 950.0,
+     "staple": true,
+     "phase": 0,
+     "builds_into": "Capacitor",
+     "id": 811521119
+    },
+    {
+     "name": "Extra Charge",
+     "cost": 800,
+     "time": 420.0,
+     "p": 0.312,
+     "n": 385,
+     "level": "L0",
+     "sold": 1065.0,
+     "staple": false,
+     "phase": 0,
+     "builds_into": "Rapid Recharge",
+     "id": 3776945997
+    },
+    {
+     "name": "Healbane",
+     "cost": 1600,
+     "time": 527.0,
+     "p": 0.593,
+     "n": 35,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 0,
+     "id": 2603935618
+    },
+    {
+     "name": "Fleetfoot",
+     "cost": 1600,
+     "time": 629.0,
+     "p": 0.518,
+     "n": 183,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 3403085434
+    },
+    {
+     "name": "Quicksilver Reload",
+     "cost": 1600,
+     "time": 731.0,
+     "p": 0.705,
+     "n": 114,
+     "level": "L0",
+     "sold": 1441.0,
+     "staple": false,
+     "phase": 1,
+     "builds_into": "Mercurial Magnum",
+     "id": 84321454
+    },
+    {
+     "name": "Spirit Lifesteal",
+     "cost": 1600,
+     "time": 838.0,
+     "p": 0.429,
+     "n": 50,
+     "level": "L0",
+     "sold": 1795.0,
+     "staple": false,
+     "phase": 1,
+     "builds_into": "Spiritual Overflow",
+     "id": 876563814
+    },
+    {
+     "name": "Capacitor",
+     "cost": 6400,
+     "time": 950.0,
+     "p": 0.383,
+     "n": 130,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 710436191
+    },
+    {
+     "name": "Rapid Recharge",
+     "cost": 3200,
+     "time": 1065.0,
+     "p": 0.298,
+     "n": 44,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 787198704
+    },
+    {
+     "name": "Mystic Expansion",
+     "cost": 800,
+     "time": 1194.0,
+     "p": 0.642,
+     "n": 14,
+     "level": "L0",
+     "sold": null,
+     "staple": true,
+     "phase": 1,
+     "id": 754480263
+    },
+    {
+     "name": "Extra Spirit",
+     "cost": 800,
+     "time": 1318.0,
+     "p": 0.67,
+     "n": 222,
+     "level": "L0",
+     "sold": 1684.0,
+     "staple": false,
+     "phase": 2,
+     "builds_into": "Improved Spirit",
+     "id": 968099481
+    },
+    {
+     "name": "Mercurial Magnum",
+     "cost": 6400,
+     "time": 1441.0,
+     "p": 0.588,
+     "n": 211,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 3919289022
+    },
+    {
+     "name": "Mystic Vulnerability",
+     "cost": 1600,
+     "time": 1570.0,
+     "p": 0.561,
+     "n": 122,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 2081037738
+    },
+    {
+     "name": "Improved Spirit",
+     "cost": 1600,
+     "time": 1684.0,
+     "p": 0.786,
+     "n": 95,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 7409189
+    },
+    {
+     "name": "Spiritual Overflow",
+     "cost": 6400,
+     "time": 1795.0,
+     "p": 0.65,
+     "n": 70,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 2226497419
+    },
+    {
+     "name": "Weakening Headshot",
+     "cost": 1600,
+     "time": 1910.0,
+     "p": 0.238,
+     "n": 114,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 3,
+     "id": 1770441818
+    }
+   ],
+   "abilities": [
+    {
+     "position": 1,
+     "name": "Entangling Thorns",
+     "level": 1,
+     "time": 15.0,
+     "p": 0.562,
+     "n": 2726,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 2,
+     "name": "Entangling Thorns",
+     "level": 2,
+     "time": 65.0,
+     "p": 0.748,
+     "n": 1627,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 3,
+     "name": "Stone Form",
+     "level": 1,
+     "time": 107.0,
+     "p": 0.909,
+     "n": 1372,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 4,
+     "name": "Stone Form",
+     "level": 2,
+     "time": 193.0,
+     "p": 0.867,
+     "n": 1565,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 5,
+     "name": "Kudzu Connection",
+     "level": 1,
+     "time": 242.0,
+     "p": 0.621,
+     "n": 2322,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 6,
+     "name": "Air Drop",
+     "level": 1,
+     "time": 353.0,
+     "p": 0.495,
+     "n": 1163,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 7,
+     "name": "Air Drop",
+     "level": 2,
+     "time": 396.0,
+     "p": 0.721,
+     "n": 695,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 8,
+     "name": "Kudzu Connection",
+     "level": 2,
+     "time": 473.0,
+     "p": 0.612,
+     "n": 1793,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 9,
+     "name": "Kudzu Connection",
+     "level": 3,
+     "time": 559.0,
+     "p": 0.89,
+     "n": 780,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 10,
+     "name": "Kudzu Connection",
+     "level": 4,
+     "time": 736.0,
+     "p": 0.412,
+     "n": 1461,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 11,
+     "name": "Entangling Thorns",
+     "level": 3,
+     "time": 861.0,
+     "p": 0.379,
+     "n": 1461,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 12,
+     "name": "Entangling Thorns",
+     "level": 4,
+     "time": 1035.0,
+     "p": 0.326,
+     "n": 604,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 13,
+     "name": "Air Drop",
+     "level": 3,
+     "time": 1248.0,
+     "p": 0.604,
+     "n": 398,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 14,
+     "name": "Air Drop",
+     "level": 4,
+     "time": 1529.0,
+     "p": 0.817,
+     "n": 434,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 15,
+     "name": "Stone Form",
+     "level": 3,
+     "time": 1874.0,
+     "p": 0.397,
+     "n": 442,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 16,
+     "name": "Stone Form",
+     "level": 4,
+     "time": 2461.0,
+     "p": 0.071,
+     "n": 147,
+     "backoff": "L0",
+     "thin": false
+    }
+   ],
+   "imbue": [
+    {
+     "item": "Quicksilver Reload",
+     "ability": "Entangling Thorns",
+     "share": 0.99,
+     "n": 814,
+     "thin": false,
+     "split": false
+    },
+    {
+     "item": "Mystic Expansion",
+     "ability": "Entangling Thorns",
+     "share": 0.487,
+     "n": 1962,
+     "thin": false,
+     "split": true
+    },
+    {
+     "item": "Mercurial Magnum",
+     "ability": "Entangling Thorns",
+     "share": 0.997,
+     "n": 657,
+     "thin": false,
+     "split": false
+    }
+   ],
+   "counters": [
+    {
+     "item": "Healbane",
+     "enemy": "Victor",
+     "lift": 0.0457,
+     "facing": 0.2961,
+     "baseline": 0.2503,
+     "n": 49220
+    }
+   ]
+  },
+  {
+   "hero": "Ivy",
+   "archetype": "Spirit Ivy",
+   "share": 0.33516081871345027,
+   "win_rate": 0.5579789167575427,
+   "n": 2751,
+   "n_staples": 4,
+   "items": [
+    {
+     "name": "Monster Rounds",
+     "cost": 800,
+     "time": 70.0,
+     "p": 0.23,
+     "n": 2479,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 0,
+     "id": 1009965641
+    },
+    {
+     "name": "Extra Charge",
+     "cost": 800,
+     "time": 191.0,
+     "p": 0.389,
+     "n": 318,
+     "level": "L0",
+     "sold": 1441.0,
+     "staple": true,
+     "phase": 0,
+     "builds_into": "Rapid Recharge",
+     "id": 3776945997
+    },
+    {
+     "name": "Mystic Expansion",
+     "cost": 800,
+     "time": 304.0,
+     "p": 0.23,
+     "n": 96,
+     "level": "L0",
+     "sold": 1318.0,
+     "staple": true,
+     "phase": 0,
+     "builds_into": "Greater Expansion",
+     "id": 754480263
+    },
+    {
+     "name": "Sprint Boots",
+     "cost": 800,
+     "time": 420.0,
+     "p": 0.292,
+     "n": 241,
+     "level": "L0",
+     "sold": 527.0,
+     "staple": false,
+     "phase": 0,
+     "builds_into": "Trophy Collector",
+     "id": 3399065363
+    },
+    {
+     "name": "Trophy Collector",
+     "cost": 1600,
+     "time": 527.0,
+     "p": 0.962,
+     "n": 130,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 0,
+     "id": 3074274290
+    },
+    {
+     "name": "Compress Cooldown",
+     "cost": 1600,
+     "time": 629.0,
+     "p": 0.119,
+     "n": 554,
+     "level": "L0",
+     "sold": 1570.0,
+     "staple": false,
+     "phase": 1,
+     "builds_into": "Superior Cooldown",
+     "id": 380806748
+    },
+    {
+     "name": "Slowing Hex",
+     "cost": 1600,
+     "time": 731.0,
+     "p": 0.47,
+     "n": 77,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 1813726886
+    },
+    {
+     "name": "Healbane",
+     "cost": 1600,
+     "time": 838.0,
+     "p": 0.261,
+     "n": 22,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 2603935618
+    },
+    {
+     "name": "Torment Pulse",
+     "cost": 3200,
+     "time": 950.0,
+     "p": 0.207,
+     "n": 26,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 395944548
+    },
+    {
+     "name": "Suppressor",
+     "cost": 1600,
+     "time": 1065.0,
+     "p": 0.335,
+     "n": 68,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 1925087134
+    },
+    {
+     "name": "Echo Shard",
+     "cost": 6400,
+     "time": 1194.0,
+     "p": 0.335,
+     "n": 17,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 1,
+     "id": 630839635
+    },
+    {
+     "name": "Greater Expansion",
+     "cost": 3200,
+     "time": 1318.0,
+     "p": 0.023,
+     "n": 710,
+     "level": "L1 +staple",
+     "sold": null,
+     "staple": true,
+     "phase": 2,
+     "id": 1193964439
+    },
+    {
+     "name": "Rapid Recharge",
+     "cost": 3200,
+     "time": 1441.0,
+     "p": 0.229,
+     "n": 38,
+     "level": "L0",
+     "sold": null,
+     "staple": true,
+     "phase": 2,
+     "id": 787198704
+    },
+    {
+     "name": "Superior Cooldown",
+     "cost": 3200,
+     "time": 1570.0,
+     "p": 0.16,
+     "n": 206,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 3261353684
+    },
+    {
+     "name": "Mystic Vulnerability",
+     "cost": 1600,
+     "time": 1684.0,
+     "p": 0.158,
+     "n": 92,
+     "level": "L0",
+     "sold": 1795.0,
+     "staple": false,
+     "phase": 2,
+     "builds_into": "Escalating Exposure",
+     "id": 2081037738
+    },
+    {
+     "name": "Escalating Exposure",
+     "cost": 6400,
+     "time": 1795.0,
+     "p": 0.354,
+     "n": 34,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 2,
+     "id": 3005970438
+    },
+    {
+     "name": "Spirit Burn",
+     "cost": 6400,
+     "time": 1910.0,
+     "p": 0.116,
+     "n": 185,
+     "level": "L0",
+     "sold": null,
+     "staple": false,
+     "phase": 3,
+     "id": 343572757
+    }
+   ],
+   "abilities": [
+    {
+     "position": 1,
+     "name": "Entangling Thorns",
+     "level": 1,
+     "time": 15.0,
+     "p": 0.536,
+     "n": 2847,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 2,
+     "name": "Entangling Thorns",
+     "level": 2,
+     "time": 66.0,
+     "p": 0.595,
+     "n": 1612,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 3,
+     "name": "Stone Form",
+     "level": 1,
+     "time": 108.0,
+     "p": 0.857,
+     "n": 1240,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 4,
+     "name": "Stone Form",
+     "level": 2,
+     "time": 202.0,
+     "p": 0.713,
+     "n": 1571,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 5,
+     "name": "Entangling Thorns",
+     "level": 3,
+     "time": 259.0,
+     "p": 0.498,
+     "n": 2191,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 6,
+     "name": "Air Drop",
+     "level": 1,
+     "time": 341.0,
+     "p": 0.965,
+     "n": 1205,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 7,
+     "name": "Entangling Thorns",
+     "level": 4,
+     "time": 392.0,
+     "p": 0.777,
+     "n": 1339,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 8,
+     "name": "Air Drop",
+     "level": 2,
+     "time": 512.0,
+     "p": 0.433,
+     "n": 213,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 9,
+     "name": "Air Drop",
+     "level": 3,
+     "time": 711.0,
+     "p": 0.384,
+     "n": 386,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 10,
+     "name": "Air Drop",
+     "level": 4,
+     "time": 797.0,
+     "p": 0.375,
+     "n": 391,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 11,
+     "name": "Stone Form",
+     "level": 3,
+     "time": 987.0,
+     "p": 0.139,
+     "n": 602,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 12,
+     "name": "Kudzu Connection",
+     "level": 1,
+     "time": 1162.0,
+     "p": 0.165,
+     "n": 265,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 13,
+     "name": "Kudzu Connection",
+     "level": 2,
+     "time": 1504.0,
+     "p": 0.825,
+     "n": 148,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 14,
+     "name": "Kudzu Connection",
+     "level": 3,
+     "time": 1621.0,
+     "p": 0.357,
+     "n": 227,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 15,
+     "name": "Kudzu Connection",
+     "level": 4,
+     "time": 1826.0,
+     "p": 0.903,
+     "n": 630,
+     "backoff": "L0",
+     "thin": false
+    },
+    {
+     "position": 16,
+     "name": "Stone Form",
+     "level": 4,
+     "time": 2353.0,
+     "p": 0.032,
+     "n": 630,
+     "backoff": "L0",
+     "thin": false
+    }
+   ],
+   "imbue": [
+    {
+     "item": "Mystic Expansion",
+     "ability": "Stone Form",
+     "share": 0.526,
+     "n": 2291,
+     "thin": false,
+     "split": false
+    },
+    {
+     "item": "Compress Cooldown",
+     "ability": "Air Drop",
+     "share": 0.391,
+     "n": 1570,
+     "thin": false,
+     "split": true
+    },
+    {
+     "item": "Echo Shard",
+     "ability": "Stone Form",
+     "share": 0.99,
+     "n": 1213,
+     "thin": false,
+     "split": false
+    }
+   ],
+   "counters": [
+    {
+     "item": "Slowing Hex",
+     "enemy": "Apollo",
+     "lift": 0.0578,
+     "facing": 0.2109,
+     "baseline": 0.1531,
+     "n": 30690
+    },
+    {
+     "item": "Healbane",
+     "enemy": "Victor",
+     "lift": 0.0457,
+     "facing": 0.2961,
+     "baseline": 0.2503,
+     "n": 49220
+    }
+   ]
+  }
+ ]
+}

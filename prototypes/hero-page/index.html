@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PROTOTYPE -- hero page: chooser or tabs? (#24)</title>
+<!--
+  PROTOTYPE, throwaway. Issue #24.
+
+  Two variants of the hero surface on one route, switchable via ?variant=.
+  Real Ivy data (three archetypes, the hardest case) from prepare_data.py.
+
+    A -- one page per hero. Archetype tabs above a single rendered build.
+         Selection happens in place, no navigation.
+    B -- hero page is a chooser: the real side-by-side archetype comparison,
+         linking out to one page per build (75 URLs).
+
+  The build rendering is held constant: identical markup under both, so the
+  prototype is about WHERE SELECTION HAPPENS, not about the visual. The
+  rendering itself is settled by #19 (phase columns, icons, dark palette) and
+  #23 (one <details> disclosure per item row).
+
+  The chooser in B is the real thing per #21: name, share, absolute win rate
+  with n, two labelled item columns ("most common" and "defining"), and the
+  imbue target only where it differs. #21 dropped build descriptions, so the
+  "Gun Ivy fires 2.6x the bullets" line in #24's text is NOT built -- that
+  premise is dead, and reviving it would rig the comparison in B's favour with
+  a claim the project no longer makes.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#12100E; --surface:#191612; --raised:#221D18;
+  --edge:#342D25; --edge-soft:#2A241E;
+  --text:#EDE6D9; --muted:#A79B8A; --faint:#7C7264;
+  --brass:#C9973F; --brass-bright:#E0B15C;
+  --oxblood:#6E2A26; --oxblood-bright:#9A3B35;
+  --good:#8FB37A; --warn:#C9A24A;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--text);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 120px}
+a{color:var(--brass-bright)}
+
+/* ---- shared masthead (#20: portrait, name, one provenance line) ---- */
+header.top{border-bottom:1px solid var(--edge);background:var(--surface);margin-bottom:26px}
+.masthead{display:flex;align-items:center;gap:20px;padding:26px 0 20px;flex-wrap:wrap}
+.portrait{width:68px;height:68px;border-radius:2px;object-fit:cover;
+  border:1px solid var(--edge);background:var(--raised);flex:none}
+h1{font-family:Cinzel,Georgia,serif;font-weight:700;font-size:clamp(26px,4vw,38px);
+  margin:0;line-height:1.06}
+h1 .sub{display:block;font-family:"IBM Plex Sans",sans-serif;font-weight:500;font-size:11px;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--brass);margin-bottom:8px}
+.prov{color:var(--faint);font-size:12.5px;margin:6px 0 0}
+
+/* ---- tabs (variant A) ---- */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--edge);margin-bottom:8px;flex-wrap:wrap}
+.tab{appearance:none;border:1px solid transparent;border-bottom:0;background:transparent;
+  color:var(--muted);font:inherit;font-size:14px;padding:11px 18px 10px;cursor:pointer;
+  border-radius:2px 2px 0 0;margin-bottom:-1px}
+.tab:hover{color:var(--text);background:var(--surface)}
+.tab:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+.tab[aria-selected="true"]{background:var(--surface);border-color:var(--edge);
+  color:var(--text);font-weight:600;box-shadow:inset 0 2px 0 var(--brass)}
+.tab .sh{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--faint);
+  margin-left:8px;font-variant-numeric:tabular-nums}
+.tabstats{display:flex;gap:26px;flex-wrap:wrap;padding:12px 0 20px;
+  border-bottom:1px solid var(--edge-soft);margin-bottom:22px}
+
+/* ---- chooser (variant B) ---- */
+.chooser{display:grid;gap:16px;grid-template-columns:repeat(3,1fr);align-items:stretch}
+@media(max-width:900px){.chooser{grid-template-columns:1fr}}
+.card{border:1px solid var(--edge);background:var(--surface);border-radius:2px;
+  display:flex;flex-direction:column;overflow:hidden}
+.card > a.cardlink{display:block;text-decoration:none;color:inherit;padding:18px 18px 4px;
+  border-bottom:1px solid var(--edge-soft)}
+.card > a.cardlink:hover h3{color:var(--brass-bright)}
+.card > a.cardlink:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+.card h3{font-family:Cinzel,Georgia,serif;font-size:21px;margin:0 0 10px;line-height:1.1}
+.cardstats{display:flex;gap:20px;flex-wrap:wrap;padding-bottom:16px}
+.stat{display:flex;flex-direction:column}
+.stat b{font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:500;
+  font-variant-numeric:tabular-nums;color:var(--brass)}
+.stat span{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.itemcol{padding:14px 18px 4px;border-bottom:1px solid var(--edge-soft)}
+.itemcol h4{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  margin:0 0 9px;font-weight:600}
+.itemrow{display:flex;align-items:center;gap:9px;padding:3px 0;font-size:13.5px}
+.itemrow img{width:26px;height:26px;border-radius:2px;flex:none;background:var(--raised)}
+.itemrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.itemrow .pc{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--faint);
+  font-variant-numeric:tabular-nums;flex:none}
+.itemrow.uniq{background:linear-gradient(90deg,rgba(110,42,38,.32),transparent 70%);
+  margin:0 -18px;padding-left:18px;padding-right:18px}
+.itemrow.uniq .nm{font-weight:600}
+.cardfoot{margin-top:auto;padding:13px 18px 16px}
+.imbue{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.imbue b{color:var(--text);font-weight:600}
+.go{display:block;text-align:center;border:1px solid var(--brass);color:var(--brass-bright);
+  text-decoration:none;padding:9px;border-radius:2px;font-size:13.5px;font-weight:600}
+.go:hover{background:var(--brass);color:#12100E}
+.go:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.legendline{color:var(--faint);font-size:12px;margin:18px 0 0}
+.legendline .swatch{display:inline-block;width:20px;height:9px;vertical-align:-1px;
+  background:linear-gradient(90deg,rgba(110,42,38,.55),transparent);border-radius:2px;margin-right:5px}
+
+/* ---- build rendering, IDENTICAL under both variants ---- */
+.buildhead{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;
+  padding-bottom:12px;border-bottom:2px solid var(--brass);margin-bottom:6px}
+h2{font-family:Cinzel,Georgia,serif;font-weight:700;font-size:26px;margin:0;line-height:1.1}
+.back{font-size:12.5px;color:var(--brass-bright);text-decoration:none;display:inline-block;
+  margin-bottom:14px}
+.phase{margin-top:24px}
+.phase > h3{font-family:Cinzel,Georgia,serif;font-size:12px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 6px;font-weight:500;
+  padding-bottom:5px;border-bottom:1px solid var(--edge-soft)}
+details.item{border-bottom:1px solid var(--edge-soft)}
+details.item > summary{display:flex;align-items:center;gap:11px;height:51px;padding:0 4px;
+  cursor:pointer;list-style:none}
+details.item > summary::-webkit-details-marker{display:none}
+details.item > summary:hover{background:var(--surface)}
+details.item > summary:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+.ix{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--faint);width:18px;
+  flex:none;font-variant-numeric:tabular-nums}
+details.item img{width:32px;height:32px;border-radius:2px;flex:none;background:var(--raised)}
+.itxt{flex:1;min-width:0}
+.itxt .nm{display:block;font-size:14.5px;line-height:1.25;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.itxt .sub{display:block;font-size:11.5px;color:var(--faint);line-height:1.3}
+.cost{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);flex:none;
+  font-variant-numeric:tabular-nums}
+.chev{color:var(--faint);flex:none;font-size:11px;transition:transform .12s}
+details.item[open] .chev{transform:rotate(90deg)}
+.detail{padding:2px 4px 14px 61px;font-size:13px;color:var(--muted)}
+.detail .num{font-family:"IBM Plex Mono",monospace;color:var(--text);
+  font-variant-numeric:tabular-nums}
+.sec{margin-top:34px}
+.sec > h3{font-family:Cinzel,Georgia,serif;font-size:17px;margin:0 0 10px;
+  padding-bottom:6px;border-bottom:1px solid var(--edge)}
+.aprow{display:flex;gap:11px;align-items:baseline;padding:5px 4px;font-size:13.5px;
+  border-bottom:1px solid var(--edge-soft)}
+.aprow .ix{width:22px}
+.aprow .lv{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--faint);
+  margin-left:auto}
+.note{color:var(--faint);font-size:12.5px}
+
+/* ---- switcher: deliberately not part of the design ---- */
+#sw{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99;
+  display:flex;align-items:center;gap:2px;background:#fff;color:#111;border-radius:999px;
+  box-shadow:0 6px 28px rgba(0,0,0,.55);font:600 13px/1 "IBM Plex Sans",sans-serif;padding:4px}
+#sw button{appearance:none;border:0;background:transparent;color:#111;font:inherit;
+  font-size:16px;width:32px;height:32px;border-radius:999px;cursor:pointer}
+#sw button:hover{background:#eee}
+#sw .lbl{padding:0 12px;white-space:nowrap}
+#sw .tag{background:#111;color:#fff;border-radius:999px;padding:4px 9px;margin-right:2px;
+  font-size:10px;letter-spacing:.1em}
+</style>
+
+<div class="wrap">
+  <header class="top"><div id="masthead" class="masthead"></div></header>
+  <main id="main"></main>
+</div>
+
+<nav id="sw" aria-label="Prototype variant switcher">
+  <span class="tag">PROTOTYPE</span>
+  <button type="button" id="prev" aria-label="Previous variant">&#8592;</button>
+  <span class="lbl" id="swlbl"></span>
+  <button type="button" id="next" aria-label="Next variant">&#8594;</button>
+</nav>
+
+<script src="data.js"></script>
+<script>
+const VARIANTS = {
+  A: "Tabs in place — one page per hero",
+  B: "Chooser — one page per build",
+};
+const ASSETS = "../../data/assets";
+
+const params = new URLSearchParams(location.search);
+let variant = (params.get("variant") || "A").toUpperCase();
+if (!VARIANTS[variant]) variant = "A";
+// Which archetype is showing. In A this is tab state; in B it is which build
+// page the reader has navigated to, with null meaning the chooser itself.
+let current = variant === "A" ? 0 : (params.get("build") === null ? null : +params.get("build"));
+
+const pct = v => (v * 100).toFixed(1) + "%";
+const clock = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+const commas = n => n.toLocaleString("en-US");
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+function icon(id, cls) {
+  const img = document.createElement("img");
+  img.src = ASSETS + "/items/" + id + ".png";
+  img.alt = "";
+  if (cls) img.className = cls;
+  return img;
+}
+function stat(value, label) {
+  const s = el("div", "stat");
+  s.append(el("b", null, value), el("span", null, label));
+  return s;
+}
+
+/* ---------- masthead ---------- */
+function renderMasthead() {
+  const m = document.getElementById("masthead");
+  m.replaceChildren();
+  const img = document.createElement("img");
+  img.className = "portrait";
+  img.src = ASSETS + "/heroes/" + DATA.hero_id + ".png";
+  img.alt = "";
+  const box = el("div");
+  const h1 = el("h1");
+  h1.append(el("span", "sub", "Deadlock build order"));
+  // In A the hero is the page. In B the build is the page, so once the reader
+  // has navigated the masthead names the build, not just the hero.
+  const onBuild = variant === "B" && current !== null;
+  h1.append(document.createTextNode(onBuild ? DATA.builds[current].archetype : DATA.hero));
+  box.append(h1);
+  box.append(el("p", "prov",
+    "From 296,332 ranked player-matches, weighted toward Oracle and above. Patch window: current."));
+  m.append(img, box);
+}
+
+/* ---------- build rendering: IDENTICAL under both variants ---------- */
+function renderBuild(row) {
+  const frag = document.createDocumentFragment();
+
+  const head = el("div", "buildhead");
+  head.append(el("h2", null, row.archetype));
+  head.append(stat(pct(row.share), "of Ivy players"));
+  head.append(stat(pct(row.win_rate), "win rate"));
+  head.append(stat(commas(row.n), "matches"));
+  frag.append(head);
+
+  // Purchase order, in phase columns (#19).
+  const byPhase = new Map();
+  row.items.forEach((it, i) => {
+    if (!byPhase.has(it.phase)) byPhase.set(it.phase, []);
+    byPhase.get(it.phase).push([it, i]);
+  });
+  [...byPhase.keys()].sort((a, b) => a - b).forEach(p => {
+    const sec = el("div", "phase");
+    sec.append(el("h3", null, DATA.phases[p]));
+    byPhase.get(p).forEach(([it, i]) => sec.append(itemRow(it, i)));
+    frag.append(sec);
+  });
+
+  frag.append(section("Copy this into the build browser", () => {
+    const pre = el("p", "note",
+      row.items.map(it => it.name).join("  ·  "));
+    return [pre];
+  }));
+
+  frag.append(section("Ability order", () => row.abilities.map(a => {
+    const r = el("div", "aprow");
+    r.append(el("span", "ix", a.position + "."));
+    r.append(el("span", null, a.name));
+    r.append(el("span", "lv", "point " + a.level + "  ·  " + clock(a.time)));
+    return r;
+  })));
+
+  if (row.imbue.length) {
+    frag.append(section("What to imbue", () => row.imbue.map(t => {
+      const r = el("div", "aprow");
+      r.append(el("span", null, t.item + " → " + t.ability));
+      r.append(el("span", "lv", pct(t.share) + " of " + commas(row.n)));
+      return r;
+    })));
+  }
+
+  if (row.counters.length) {
+    frag.append(section("If you're facing…", () => row.counters.map(c => {
+      const r = el("div", "aprow");
+      r.append(el("span", null, c.enemy + ": " + c.item));
+      r.append(el("span", "lv", pct(c.facing) + " vs " + pct(c.baseline) + " base"));
+      return r;
+    })));
+  }
+  return frag;
+}
+
+function section(title, build) {
+  const s = el("div", "sec");
+  s.append(el("h3", null, title));
+  build().forEach(n => s.append(n));
+  return s;
+}
+
+// #23: one native <details> disclosure per row, 51px closed, role=button +
+// aria-expanded on the summary. Zero JS for the toggle itself.
+function itemRow(it, i) {
+  const d = el("details", "item");
+  const sm = document.createElement("summary");
+  sm.setAttribute("role", "button");
+  sm.setAttribute("aria-expanded", "false");
+  d.addEventListener("toggle", () => sm.setAttribute("aria-expanded", String(d.open)));
+  sm.append(el("span", "ix", (i + 1) + "."));
+  sm.append(icon(it.id));
+  const t = el("div", "itxt");
+  t.append(el("span", "nm", it.name));
+  t.append(el("span", "sub", it.builds_into ? "builds into " + it.builds_into : ""));
+  sm.append(t);
+  sm.append(el("span", "cost", commas(it.cost)));
+  sm.append(el("span", "chev", "›"));
+  d.append(sm);
+  const det = el("div", "detail");
+  det.append(document.createTextNode("Bought by "));
+  det.append(el("span", "num", pct(it.p)));
+  det.append(document.createTextNode(" of players at this point (n = " + commas(it.n) + "). Typical buy time " + clock(it.time) + "."));
+  d.append(det);
+  return d;
+}
+
+/* ---------- VARIANT A: tabs above one rendered build ---------- */
+function renderA() {
+  const main = document.getElementById("main");
+  main.replaceChildren();
+
+  const tabs = el("div", "tabs");
+  tabs.setAttribute("role", "tablist");
+  DATA.builds.forEach((row, i) => {
+    const b = el("button", "tab");
+    b.type = "button";
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", String(i === current));
+    b.append(document.createTextNode(row.archetype));
+    // A gets its fairest shot: the tab label carries share AND win rate, so
+    // the two comparable numbers are visible without clicking. Everything else
+    // #21 put on the chooser -- the two item columns and the imbue target --
+    // has nowhere to go in a tab strip, which is the finding.
+    b.append(el("span", "sh", pct(row.share) + " · " + pct(row.win_rate) + " WR"));
+    b.onclick = () => { current = i; renderA(); };
+    tabs.append(b);
+  });
+  main.append(tabs);
+
+  // No separate stats bar: the build head already carries share, win rate and
+  // n, and duplicating them would flatter A with a comparison it does not have.
+  // Whatever A shows about the other two archetypes is in the tab labels above,
+  // which is the whole point of the variant.
+  main.append(renderBuild(DATA.builds[current]));
+}
+
+/* ---------- VARIANT B: chooser, then one page per build ---------- */
+function renderB() {
+  const main = document.getElementById("main");
+  main.replaceChildren();
+
+  if (current !== null) {
+    const back = el("a", "back", "← All Ivy builds");
+    back.href = "?variant=B";
+    back.onclick = e => { e.preventDefault(); current = null; sync(); };
+    main.append(back);
+    main.append(renderBuild(DATA.builds[current]));
+    return;
+  }
+
+  main.append(el("p", "note",
+    "Ivy's players split three ways. Pick the build that matches how you want to play her."));
+
+  // Items unique to one archetype's column, computed across all three so the
+  // comparison marks what actually separates them. This is the thing that
+  // makes the chooser a comparison rather than a menu.
+  const seenPrev = new Map();
+  DATA.chooser.forEach(c => c.prevalent.forEach(it =>
+    seenPrev.set(it.id, (seenPrev.get(it.id) || 0) + 1)));
+  const seenDisc = new Map();
+  DATA.chooser.forEach(c => c.discriminative.forEach(it =>
+    seenDisc.set(it.id, (seenDisc.get(it.id) || 0) + 1)));
+
+  // Imbue only where it differs (#21).
+  const imbueKeys = new Set(DATA.chooser.map(c =>
+    c.imbue.length ? c.imbue[0].item + "→" + c.imbue[0].ability : ""));
+  const imbueDiffers = imbueKeys.size > 1;
+
+  const grid = el("div", "chooser");
+  DATA.chooser.forEach(c => {
+    const i = DATA.builds.findIndex(b => b.archetype === c.name);
+    const card = el("div", "card");
+
+    const link = el("a", "cardlink");
+    link.href = "?variant=B&build=" + i;
+    link.onclick = e => { e.preventDefault(); current = i; sync(); };
+    link.append(el("h3", null, c.name));
+    const cs = el("div", "cardstats");
+    cs.append(stat(pct(c.win_rate), "win rate"));
+    cs.append(stat(commas(c.n), "matches"));
+    cs.append(stat(pct(c.share), "of players"));
+    link.append(cs);
+    card.append(link);
+
+    card.append(itemColumn("Most common", c.prevalent, seenPrev, it => pct(it.p)));
+    card.append(itemColumn("Defining", c.discriminative, seenDisc,
+      it => pct(it.p) + " vs " + pct(it.elsewhere)));
+
+    const foot = el("div", "cardfoot");
+    if (imbueDiffers && c.imbue.length) {
+      const p = el("p", "imbue");
+      p.append(document.createTextNode("Imbue "));
+      p.append(el("b", null, c.imbue[0].item));
+      p.append(document.createTextNode(" into "));
+      p.append(el("b", null, c.imbue[0].ability));
+      foot.append(p);
+    }
+    const go = el("a", "go", "See the full build →");
+    go.href = "?variant=B&build=" + i;
+    go.onclick = e => { e.preventDefault(); current = i; sync(); };
+    foot.append(go);
+    card.append(foot);
+    grid.append(card);
+  });
+  main.append(grid);
+
+  const lg = el("p", "legendline");
+  lg.append(el("span", "swatch"));
+  lg.append(document.createTextNode("Highlighted items are bought in this build and not in Ivy's others."));
+  main.append(lg);
+}
+
+function itemColumn(title, items, counts, fmt) {
+  const box = el("div", "itemcol");
+  box.append(el("h4", null, title));
+  items.forEach(it => {
+    const r = el("div", "itemrow" + (counts.get(it.id) === 1 ? " uniq" : ""));
+    r.append(icon(it.id));
+    r.append(el("span", "nm", it.name));
+    r.append(el("span", "pc", fmt(it)));
+    box.append(r);
+  });
+  return box;
+}
+
+/* ---------- switcher ---------- */
+function sync() {
+  const p = new URLSearchParams();
+  p.set("variant", variant);
+  if (variant === "B" && current !== null) p.set("build", String(current));
+  history.replaceState(null, "", "?" + p.toString());
+  render();
+}
+function render() {
+  document.getElementById("swlbl").textContent = variant + " — " + VARIANTS[variant];
+  renderMasthead();
+  if (variant === "A") renderA(); else renderB();
+  window.scrollTo(0, 0);
+}
+function cycle(step) {
+  const keys = Object.keys(VARIANTS);
+  variant = keys[(keys.indexOf(variant) + step + keys.length) % keys.length];
+  current = variant === "A" ? 0 : null;
+  sync();
+}
+document.getElementById("prev").onclick = () => cycle(-1);
+document.getElementById("next").onclick = () => cycle(1);
+document.addEventListener("keydown", e => {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+
+render();
+</script>
+</html>
