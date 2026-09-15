@@ -101,6 +101,10 @@ purchases.
 The population is Ranked + Normal matches, because `average_badge` — the rank
 control — is only populated for Ranked.
 
+Pulls run unauthenticated by default, paced under the per-IP rate limits. An
+API key lifts those limits several-fold; set `DEADLOCK_API_KEY` and the client
+sends it and paces faster. No command needs a key.
+
 Training uses **all** matches, with badge, outcome, and hero familiarity as row
 *weights* rather than filters. Filtering to won + high-badge costs about 9× and
 leaves the median hero with ~366 player-matches per archetype, too thin to

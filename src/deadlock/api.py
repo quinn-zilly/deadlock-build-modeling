@@ -9,6 +9,11 @@ Encodes three access constraints measured against the live API on 2026-09-03:
    we pace below it rather than relying on 429 handling alone.
 3. Responses are large (a 200-match page is ~35 MB), so every response is
    cached on disk. Re-runs of a completed pull cost zero requests.
+
+An API key lifts every documented limit, some of them several-fold. Set
+``DEADLOCK_API_KEY`` and the key is sent and the higher pacing applied; leave
+it unset and the client behaves exactly as it did before. Nothing here
+requires a key.
 """
 
 from __future__ import annotations
@@ -16,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import random
 import threading
 import time
@@ -34,15 +40,30 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 )
 
-# Requests per minute, keyed by path prefix. Deliberately below the documented
-# limits: /v1/matches/metadata documents 10/min but 429s at ~6.
-RATE_LIMITS: dict[str, float] = {
-    "/v1/sql": 2.0,           # also capped at 20/hr — exploration only
-    "/v1/matches": 5.0,       # documented 10, observed ~6
-    "/v1/analytics": 100.0,   # documented 200, shared across analytics
-    "/v1/assets": 30.0,
+# The header the API authenticates with. Read from the environment on every
+# call rather than at import, so a key set after this module loads still
+# takes effect. Never logged.
+API_KEY_ENV = "DEADLOCK_API_KEY"
+API_KEY_HEADER = "X-API-KEY"
+
+
+def api_key() -> str | None:
+    """The configured API key, or None when running unauthenticated."""
+    return os.environ.get(API_KEY_ENV) or None
+
+
+# Requests per minute, keyed by path prefix, as (anonymous, with a key).
+# Both columns sit at half the documented ceiling, because the documented
+# ceiling is optimistic: /v1/matches/metadata documents 10/min but 429s at ~6.
+RATE_LIMITS: dict[str, tuple[float, float]] = {
+    # Anonymous is also capped at 20/hr, which nothing here enforces, so the
+    # unauthenticated path stays exploration-only. A key lifts the hourly cap.
+    "/v1/sql": (2.0, 5.0),            # documented 2/min anon, 10/min keyed
+    "/v1/matches": (5.0, 30.0),       # documented 10/min anon, 10/10s keyed
+    "/v1/analytics": (100.0, 200.0),  # documented 200/400, shared across analytics
+    "/v1/assets": (30.0, 30.0),       # no documented limit either way
 }
-DEFAULT_RATE_LIMIT = 10.0
+DEFAULT_RATE_LIMIT = (10.0, 10.0)
 
 
 class RateLimiter:
@@ -68,11 +89,13 @@ class RateLimiter:
 _limiter = RateLimiter()
 
 
-def _rate_key(path: str) -> tuple[str, float]:
-    for prefix, rpm in RATE_LIMITS.items():
+def _rate_key(path: str, *, keyed: bool) -> tuple[str, float]:
+    """The limiter bucket for a path, and the requests/minute to pace it at."""
+    column = 1 if keyed else 0
+    for prefix, limits in RATE_LIMITS.items():
         if path.startswith(prefix):
-            return prefix, rpm
-    return path, DEFAULT_RATE_LIMIT
+            return prefix, limits[column]
+    return path, DEFAULT_RATE_LIMIT[column]
 
 
 def _cache_path(cache_dir: Path, path: str, params: dict[str, Any]) -> Path:
@@ -106,9 +129,12 @@ def get(
             with cached_at.open(encoding="utf-8") as fh:
                 return json.load(fh)
 
-    key, rpm = _rate_key(path)
+    token = api_key()
+    key, rpm = _rate_key(path, keyed=token is not None)
     url = f"{BASE_URL}{path}"
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    if token is not None:
+        headers[API_KEY_HEADER] = token
 
     last_error: Exception | None = None
     for attempt in range(max_retries):
@@ -129,9 +155,16 @@ def get(
             time.sleep(wait)
             continue
 
-        if resp.status_code == 403:
+        if resp.status_code in (401, 403):
+            if token is not None:
+                raise RuntimeError(
+                    f"{resp.status_code} on {path} — either the User-Agent was "
+                    f"blocked by Cloudflare or ${API_KEY_ENV} is rejected. "
+                    f"Unset {API_KEY_ENV} to tell the two apart."
+                )
             raise RuntimeError(
-                f"403 on {path} — Cloudflare block. Check the User-Agent header."
+                f"{resp.status_code} on {path} — Cloudflare block. "
+                "Check the User-Agent header."
             )
 
         resp.raise_for_status()
