@@ -1,12 +1,14 @@
 """HTTP client for api.deadlock-api.com.
 
-Encodes three access constraints measured against the live API on 2026-09-03:
+Encodes three access constraints measured against the live API:
 
 1. The default urllib/requests User-Agent is rejected by Cloudflare with a
    403 (error 1010). A browser-like UA is required.
-2. Rate limits are per-endpoint and tighter than documented. The observed
-   ceiling on /v1/matches/metadata was ~6 req/min against a documented 10, so
-   we pace below it rather than relying on 429 handling alone.
+2. Rate limits are per-endpoint, and each endpoint carries three of them: a
+   per-IP limit, a higher per-key limit, and a global limit shared with every
+   other caller. We pace against the per-IP limit, because it is the only one
+   we control. A 429 from the global pool can still arrive at any rate, so the
+   pacing does not replace 429 handling.
 3. Responses are large (a 200-match page is ~35 MB), so every response is
    cached on disk. Re-runs of a completed pull cost zero requests.
 
@@ -53,14 +55,25 @@ def api_key() -> str | None:
 
 
 # Requests per minute, keyed by path prefix, as (anonymous, with a key).
-# Both columns sit at half the documented ceiling, because the documented
-# ceiling is optimistic: /v1/matches/metadata documents 10/min but 429s at ~6.
+#
+# Only /v1/matches is measured. On 2026-09-15 the anonymous limit was probed
+# directly: ten requests succeed and the eleventh returns
+#   {"type":"IP","quota":{"limit":10,"period":60},"next_request_in":56}
+# so the documented 10/min is exactly what the server enforces. An earlier
+# note here claimed a ~6/min ceiling; that was never reproduced, and stray
+# 429s are better explained by the global pool, which is shared with every
+# other caller and can reject a request at any rate.
+#
+# Measured rows sit ~10% under the ceiling, which is headroom for clock drift
+# against the server's window, not a guess about the ceiling. Unmeasured rows
+# stay well under it, because guessing high costs a 429 and guessing low costs
+# only time.
 RATE_LIMITS: dict[str, tuple[float, float]] = {
     # Anonymous is also capped at 20/hr, which nothing here enforces, so the
     # unauthenticated path stays exploration-only. A key lifts the hourly cap.
-    "/v1/sql": (2.0, 5.0),            # documented 2/min anon, 10/min keyed
-    "/v1/matches": (5.0, 30.0),       # documented 10/min anon, 10/10s keyed
-    "/v1/analytics": (100.0, 200.0),  # documented 200/400, shared across analytics
+    "/v1/sql": (2.0, 5.0),            # unmeasured; documented 2/min, 10/min keyed
+    "/v1/matches": (9.0, 50.0),       # measured 10/min; documented 10req/10s keyed
+    "/v1/analytics": (100.0, 200.0),  # unmeasured; documented 200/400, shared pool
     "/v1/assets": (30.0, 30.0),       # no documented limit either way
 }
 DEFAULT_RATE_LIMIT = (10.0, 10.0)
@@ -149,9 +162,14 @@ def get(
             continue
 
         if resp.status_code == 429:
-            # Server knows better than our pacing; prefer its hint.
+            # Server knows better than our pacing; prefer its hint. Log which
+            # pool rejected us: "IP" means our own pacing is too fast and this
+            # table should be lowered, anything else (notably the global pool)
+            # is congestion we cannot pace around.
             wait = _retry_after(resp, attempt)
-            log.warning("429 on %s, sleeping %.1fs", path, wait)
+            log.warning(
+                "429 on %s (%s pool), sleeping %.1fs", path, _quota_type(resp), wait
+            )
             time.sleep(wait)
             continue
 
@@ -180,6 +198,14 @@ def get(
     raise RuntimeError(
         f"GET {path} failed after {max_retries} attempts"
     ) from last_error
+
+
+def _quota_type(resp: requests.Response) -> str:
+    """Which limit rejected the request: "IP", "Key", "Global", or "unknown"."""
+    try:  # the API returns {"error": {"type": "IP", "quota": {...}}}
+        return str(resp.json().get("error", {}).get("type") or "unknown")
+    except Exception:
+        return "unknown"
 
 
 def _retry_after(resp: requests.Response, attempt: int) -> float:

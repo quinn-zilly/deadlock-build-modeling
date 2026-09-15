@@ -45,8 +45,18 @@ and `pregame_hero_id`), `include_objectives` and `include_mid_boss`. Still
 unrequested: `include_player_death_details` and `include_player_final_stats`.
 **Prefer this endpoint over SQL for anything it covers** — it is the path the
 ingest already walks, and a field it returns is one flag away from being a
-column, not a research project. Documented at 10 req/min per IP, though
-`api.py` records 429s at ~6.
+column, not a research project. Limited to 10 req/min per IP, measured
+2026-09-15: ten requests succeed and the eleventh returns a 429 naming its own
+quota, `{"type":"IP","quota":{"limit":10,"period":60}}`. A key raises that to
+10 req/10s. An earlier note here claimed a ~6/min ceiling; it was never
+reproduced, and the global pool — 100 req/min shared across every caller —
+explains stray 429s better, since it can reject at any rate.
+
+Do not reach for the per-match `/v1/matches/{match_id}/metadata` to escape the
+limit. Its limit really is generous (measured at 2.6 req/s serially with no
+429), but it carries one match per request against the bulk endpoint's 200, so
+it is ~12x slower per match and returns 1.2 MB per match against 175 KB.
+Packing beats rate here.
 
 > When testing this endpoint, **pass Unix timestamps for the intended year**.
 > A window accidentally set to 2025 returns real matches that predate demo

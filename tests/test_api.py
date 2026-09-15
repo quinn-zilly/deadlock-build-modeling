@@ -81,3 +81,37 @@ def test_get_sends_the_key_only_when_one_is_set(monkeypatch):
     monkeypatch.setenv(api.API_KEY_ENV, "secret")
     api.get("/v1/assets/ranks")
     assert sent[-1][api.API_KEY_HEADER] == "secret"
+
+
+def test_matches_pacing_stays_under_the_measured_ceiling():
+    """The per-IP ceiling on /v1/matches was measured at exactly 10/min.
+
+    Pacing at or above it turns every pull into a 429-and-retry loop, so the
+    anonymous column must keep headroom under the measured number.
+    """
+    _, anon = api._rate_key("/v1/matches/metadata", keyed=False)
+    assert anon < 10.0
+    assert anon > 5.0, "5/min was the old guess; the measurement supersedes it"
+
+
+class _QuotaResp:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def json(self):
+        if self._payload is None:
+            raise ValueError("not json")
+        return self._payload
+
+
+def test_quota_type_names_the_pool_that_rejected_us():
+    resp = _QuotaResp(
+        {"status": 429, "error": {"type": "IP", "quota": {"limit": 10, "period": 60}}}
+    )
+    assert api._quota_type(resp) == "IP"
+
+
+def test_quota_type_survives_a_body_it_cannot_parse():
+    assert api._quota_type(_QuotaResp(None)) == "unknown"
+    assert api._quota_type(_QuotaResp({})) == "unknown"
+    assert api._quota_type(_QuotaResp({"error": {}})) == "unknown"
