@@ -57,8 +57,8 @@ log = logging.getLogger(__name__)
 # the weight, so lambda = n/(n+kappa) is exactly 0.5 at n = kappa.
 DEFAULT_KAPPA = 20.0
 
-# Where the badge kernel points by default, and how wide it is. 80 is roughly
-# the top 30% of a distribution whose median is 61: high enough that the tables
+# Where the badge kernel points by default, and how wide it is. 80 is the top
+# 29.6% of a distribution whose median is 56: high enough that the tables
 # describe strong play, low enough that the kernel still reaches most of the
 # data. The halfwidth is deliberately generous -- a narrow kernel would starve
 # the thin hero-and-archetype cells that the whole archetype split exists to

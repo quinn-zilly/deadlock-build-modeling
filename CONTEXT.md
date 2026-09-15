@@ -316,10 +316,10 @@ and `badge % 10` the subrank within it. The names come from the assets API
 (`/v2/ranks`) and are the form to use in anything a player reads, since the
 number means nothing in game: Obscurus, Initiate, Seeker, Acolyte, Sentinel,
 Mystic, Ritualist, Emissary, **Oracle** (tier 8), Phantom, Ascendant, Eternus.
-Badge 80 is Oracle; the population median of 61 is Ritualist.
+Badge 80 is Oracle; the population median of 56 is Mystic.
 
-The tool weights its tables toward badge 80 by default — the top 30.2% of a
-distribution whose median is 61, measured over all 296,332 player-matches — so
+The tool weights its tables toward badge 80 by default — the top 29.6% of a
+distribution whose median is 56, measured over all 296,478 player-matches — so
 the advice imitates strong play rather
 than median play. It is a soft Gaussian kernel and not a filter: filtering to
 the same bracket costs about nine times the data, and the thin
@@ -327,7 +327,7 @@ hero-and-archetype cells are exactly the ones that cannot afford it. `--badge`
 asks for another bracket, `--badge all` for none.
 
 Badge enters as a **weight, never as a key**. Keying on it would split every
-cell three ways against a median cell of 3,313 player-matches. Weights are
+cell three ways against a median cell of 3,232 player-matches. Weights are
 computed on the training split alone, and the weighted model is judged on
 high-badge held-out accuracy — never on general-population accuracy, which it
 makes worse by design, and never on win rate, which is an outcome downstream of

@@ -10,7 +10,7 @@ a rule fixed before the numbers -- see
 `docs/adr/0001-imbue-out-of-the-clustering.md`. It names clusters below
 and tells the player what to imbue; it does not find clusters.
 
-**28 of 38 heroes split.** Seed 0, so a refit reproduces this exactly.
+**31 of 38 heroes split.** Seed 0, so a refit reproduces this exactly.
 
 Names below are proposed from what each cluster's discriminative items
 do, sharpened by its ability focus where two would otherwise collide. Edit
@@ -19,1374 +19,1534 @@ overrule any of them.
 
 ## Heroes that split
 
-### McGinnis  (2 archetypes, n=4,656)
+### Shiv  (2 archetypes, n=8,600)
 
 | criterion | value | threshold |
 |---|---|---|
-| silhouette | 0.608 | >= 0.15 |
-| replication | 0.998 | >= 0.90 |
-| separation | 0.805 | >= 0.45 |
-| smallest share | 0.288 | >= 0.12 |
+| silhouette | 0.586 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.931 | >= 0.45 |
+| smallest share | 0.234 | >= 0.12 |
 
-**Spirit McGinnis** — 71% of players (n=3,313), named at 3.5x over the runner-up
+**Spirit Shiv** — 77% of players (n=6,589), named at 2.4x over the runner-up
+
+_Souls by shop tab: gun 3%  spirit 26%  melee 2%  support 1%  tank 33%  sustain 26%  control 4%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Extra Charge | 82% | 9% |
+| Torment Pulse | 73% | 1% |
+| Healbane | 89% | 18% |
+| Compress Cooldown | 69% | 2% |
+| Mystic Vulnerability | 66% | 1% |
+| Superior Cooldown | 61% | 1% |
+| Escalating Exposure | 57% | 1% |
+| Healing Booster | 61% | 22% |
+| Restorative Locket | 37% | 2% |
+| Mystic Reverb | 32% | 0% |
+
+**Gun Shiv** — 23% of players (n=2,011), named at 2.9x over the runner-up
+
+_Souls by shop tab: gun 39%  spirit 12%  melee 0%  support 0%  tank 21%  sustain 21%  control 2%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Swift Striker | 94% | 1% |
+| Mercurial Magnum | 93% | 0% |
+| Bullet Resist Shredder | 90% | 4% |
+| Quicksilver Reload | 87% | 1% |
+| Battle Vest | 88% | 6% |
+| Rapid Rounds | 77% | 1% |
+| Monster Rounds | 84% | 10% |
+| Spiritual Overflow | 76% | 2% |
+| Golden Goose Egg | 80% | 7% |
+| Fleetfoot | 68% | 1% |
+
+### Victor  (2 archetypes, n=8,402)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.631 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.906 | >= 0.45 |
+| smallest share | 0.187 | >= 0.12 |
+
+**Spirit Victor** — 81% of players (n=6,834), named at 2.3x over the runner-up
+
+_Souls by shop tab: gun 4%  spirit 32%  melee 0%  support 1%  tank 38%  sustain 17%  control 2%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Infuser | 87% | 2% |
+| Escalating Exposure | 88% | 5% |
+| Mystic Vulnerability | 88% | 6% |
+| Torment Pulse | 82% | 3% |
+| Mystic Expansion | 79% | 5% |
+| Greater Expansion | 69% | 4% |
+| Improved Spirit | 85% | 27% |
+| Extra Spirit | 85% | 33% |
+| Warp Stone | 45% | 2% |
+| Superior Cooldown | 50% | 13% |
+
+**Gun Victor** — 19% of players (n=1,568), named at 2.7x over the runner-up
+
+_Souls by shop tab: gun 38%  spirit 16%  melee 0%  support 1%  tank 21%  sustain 16%  control 2%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Mercurial Magnum | 92% | 1% |
+| Quicksilver Reload | 88% | 2% |
+| Titanic Magazine | 85% | 1% |
+| Opening Rounds | 92% | 8% |
+| High-Velocity Rounds | 91% | 7% |
+| Swift Striker | 83% | 0% |
+| Spiritual Overflow | 77% | 4% |
+| Extended Magazine | 73% | 1% |
+| Rapid Rounds | 70% | 0% |
+| Spirit Shielding | 60% | 2% |
+
+### Viscous  (2 archetypes, n=5,700)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.290 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.807 | >= 0.45 |
+| smallest share | 0.419 | >= 0.12 |
+
+**Spirit Viscous** — 58% of players (n=3,314), named at 1.9x over the runner-up
+
+_Souls by shop tab: gun 10%  spirit 29%  melee 3%  support 3%  tank 23%  sustain 18%  control 7%  mobility 7%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Improved Spirit | 67% | 7% |
+| Mystic Shot | 57% | 13% |
+| Extra Spirit | 48% | 6% |
+| Superior Cooldown | 72% | 31% |
+| Express Shot | 54% | 14% |
+| Boundless Spirit | 43% | 5% |
+| Compress Cooldown | 64% | 30% |
+| Tankbuster | 85% | 52% |
+| Spirit Burn | 39% | 6% |
+| Veil Walker | 37% | 7% |
+
+**Melee Viscous** — 42% of players (n=2,386), named at 6.8x over the runner-up
+
+_Souls by shop tab: gun 16%  spirit 24%  melee 21%  support 1%  tank 18%  sustain 8%  control 7%  mobility 4%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Melee Charge | 88% | 7% |
+| Melee Lifesteal | 85% | 7% |
+| Crushing Fists | 82% | 5% |
+| Lifestrike | 81% | 4% |
+| Rapid Recharge | 83% | 16% |
+| Extra Charge | 89% | 24% |
+| Ballistic Enchantment | 66% | 3% |
+| Spirit Strike | 89% | 39% |
+| Spirit Snatch | 91% | 48% |
+| Close Quarters | 38% | 4% |
+
+### McGinnis  (2 archetypes, n=4,600)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.597 | >= 0.15 |
+| replication | 0.998 | >= 0.90 |
+| separation | 0.785 | >= 0.45 |
+| smallest share | 0.299 | >= 0.12 |
+
+**Spirit McGinnis** — 70% of players (n=3,225), named at 3.5x over the runner-up
 
 _Souls by shop tab: gun 8%  spirit 34%  melee 0%  support 3%  tank 24%  sustain 14%  control 6%  mobility 11%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Mystic Vulnerability | 87% | 6% |
-| Escalating Exposure | 81% | 5% |
-| Mystic Expansion | 80% | 4% |
-| Extra Charge | 88% | 17% |
-| Rapid Recharge | 76% | 12% |
-| Compress Cooldown | 63% | 2% |
-| Mystic Slow | 66% | 7% |
-| Greater Expansion | 59% | 2% |
-| Superior Cooldown | 58% | 2% |
-| Improved Spirit | 55% | 4% |
+| Mystic Vulnerability | 85% | 7% |
+| Escalating Exposure | 79% | 5% |
+| Extra Charge | 88% | 15% |
+| Mystic Expansion | 75% | 3% |
+| Rapid Recharge | 75% | 9% |
+| Mystic Slow | 71% | 6% |
+| Compress Cooldown | 65% | 1% |
+| Superior Cooldown | 60% | 1% |
+| Greater Expansion | 57% | 1% |
+| Enchanter's Emblem | 49% | 3% |
 
-**Gun McGinnis** — 29% of players (n=1,343), named at 4.2x over the runner-up
+**Gun McGinnis** — 30% of players (n=1,375), named at 4.1x over the runner-up
 
-_Souls by shop tab: gun 52%  spirit 7%  melee 0%  support 1%  tank 17%  sustain 10%  control 5%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 51%  spirit 9%  melee 0%  support 1%  tank 17%  sustain 10%  control 5%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Quicksilver Reload | 76% | 3% |
-| Extended Magazine | 75% | 4% |
-| Mercurial Magnum | 69% | 2% |
-| Fleetfoot | 58% | 2% |
-| Bullet Lifesteal | 58% | 2% |
-| Rapid Rounds | 56% | 1% |
-| Swift Striker | 54% | 1% |
-| Titanic Magazine | 52% | 3% |
-| Tesla Bullets | 46% | 5% |
-| Vampiric Burst | 35% | 0% |
+| Quicksilver Reload | 82% | 5% |
+| Extended Magazine | 79% | 5% |
+| Mercurial Magnum | 77% | 4% |
+| Swift Striker | 63% | 1% |
+| Fleetfoot | 63% | 2% |
+| Rapid Rounds | 57% | 1% |
+| Titanic Magazine | 45% | 4% |
+| Tesla Bullets | 46% | 4% |
+| Bullet Lifesteal | 42% | 1% |
+| Escalating Resilience | 40% | 1% |
 
-### Holliday  (3 archetypes, n=4,839)
+### Abrams  (2 archetypes, n=8,096)
 
 | criterion | value | threshold |
 |---|---|---|
-| silhouette | 0.235 | >= 0.15 |
-| replication | 0.998 | >= 0.90 |
-| separation | 0.770 | >= 0.45 |
-| smallest share | 0.141 | >= 0.12 |
-
-**Rush Spirit Holliday** — 43% of players (n=2,069), named at 2.8x over the runner-up
-
-_Souls by shop tab: gun 10%  spirit 35%  melee 0%  support 0%  tank 23%  sustain 14%  control 1%  mobility 17%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Recharging Rush | 86% | 49% |
-| Improved Spirit | 80% | 46% |
-| Tankbuster | 72% | 43% |
-| Mystic Burst | 65% | 37% |
-| Superior Duration | 61% | 36% |
-| Duration Extender | 47% | 25% |
-| Extra Spirit | 90% | 68% |
-| Compress Cooldown | 42% | 21% |
-| Sprint Boots | 55% | 35% |
-| Mystic Vulnerability | 40% | 21% |
-
-**Burn Spirit Holliday** — 43% of players (n=2,089), named at 3.0x over the runner-up
-
-_Souls by shop tab: gun 7%  spirit 34%  melee 0%  support 0%  tank 21%  sustain 13%  control 12%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Spirit Burn | 82% | 2% |
-| Tankbuster | 82% | 38% |
-| Superior Duration | 70% | 32% |
-| Improved Spirit | 82% | 45% |
-| Boundless Spirit | 67% | 31% |
-| Mystic Burst | 70% | 34% |
-| Recharging Rush | 84% | 50% |
-| Escalating Exposure | 50% | 18% |
-| Trophy Collector | 65% | 33% |
-| Superior Cooldown | 53% | 23% |
-
-**Gun Holliday** — 14% of players (n=681), named at 6.1x over the runner-up
-
-_Souls by shop tab: gun 43%  spirit 13%  melee 0%  support 0%  tank 12%  sustain 6%  control 5%  mobility 20%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Sharpshooter | 77% | 1% |
-| Swift Striker | 75% | 1% |
-| Titanic Magazine | 71% | 0% |
-| Headhunter | 81% | 15% |
-| Extended Magazine | 66% | 0% |
-| Fortitude | 62% | 4% |
-| Bullet Resist Shredder | 59% | 1% |
-| Headshot Booster | 83% | 25% |
-| Extra Health | 63% | 5% |
-| Glass Cannon | 57% | 1% |
-
-### Abrams  (2 archetypes, n=9,082)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.401 | >= 0.15 |
+| silhouette | 0.391 | >= 0.15 |
 | replication | 0.999 | >= 0.90 |
-| separation | 0.764 | >= 0.45 |
-| smallest share | 0.188 | >= 0.12 |
+| separation | 0.754 | >= 0.45 |
+| smallest share | 0.193 | >= 0.12 |
 
-**Hybrid-Spirit Abrams** — 19% of players (n=1,708), named at 1.3x over the runner-up
+**Hybrid-Spirit Abrams** — 19% of players (n=1,561), named at 1.6x over the runner-up
 
-_Souls by shop tab: gun 4%  spirit 32%  melee 7%  support 2%  tank 28%  sustain 17%  control 4%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 4%  spirit 32%  melee 7%  support 2%  tank 27%  sustain 17%  control 4%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Arcane Surge | 81% | 6% |
-| Superior Cooldown | 63% | 2% |
-| Spirit Strike | 87% | 26% |
-| Extra Stamina | 63% | 5% |
-| Healing Booster | 83% | 28% |
+| Arcane Surge | 79% | 6% |
+| Superior Cooldown | 67% | 2% |
+| Extra Stamina | 62% | 6% |
+| Healing Booster | 84% | 28% |
 | Compress Cooldown | 56% | 2% |
-| Spirit Snatch | 85% | 31% |
-| Healbane | 57% | 7% |
-| Mystic Expansion | 51% | 3% |
-| Duration Extender | 84% | 38% |
+| Healbane | 59% | 7% |
+| Mystic Expansion | 53% | 3% |
+| Spirit Strike | 83% | 35% |
+| Spirit Snatch | 81% | 37% |
+| Extra Spirit | 45% | 2% |
 
-**Melee Abrams** — 81% of players (n=7,374), named at 2.8x over the runner-up
+**Melee Abrams** — 81% of players (n=6,535), named at 3.1x over the runner-up
 
-_Souls by shop tab: gun 19%  spirit 11%  melee 14%  support 1%  tank 30%  sustain 11%  control 9%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 18%  spirit 11%  melee 15%  support 1%  tank 30%  sustain 11%  control 9%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Close Quarters | 92% | 15% |
-| Stalker | 75% | 7% |
-| Hunter's Aura | 76% | 9% |
-| Bullet Resist Shredder | 70% | 4% |
-| Melee Charge | 98% | 38% |
-| Melee Lifesteal | 64% | 15% |
-| Point Blank | 50% | 7% |
-| Crushing Fists | 50% | 10% |
-| Phantom Strike | 57% | 17% |
-| Spirit Resilience | 55% | 24% |
+| Close Quarters | 92% | 16% |
+| Hunter's Aura | 67% | 10% |
+| Melee Charge | 98% | 41% |
+| Stalker | 64% | 7% |
+| Bullet Resist Shredder | 60% | 3% |
+| Melee Lifesteal | 66% | 17% |
+| Point Blank | 54% | 7% |
+| Crushing Fists | 53% | 12% |
+| Phantom Strike | 56% | 20% |
+| Extra Health | 34% | 5% |
 
-### Dynamo  (2 archetypes, n=7,828)
+### Holliday  (3 archetypes, n=4,667)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.236 | >= 0.15 |
+| replication | 0.998 | >= 0.90 |
+| separation | 0.749 | >= 0.45 |
+| smallest share | 0.167 | >= 0.12 |
+
+**Rush Spirit Holliday** — 41% of players (n=1,900), named at 2.8x over the runner-up
+
+_Souls by shop tab: gun 10%  spirit 34%  melee 0%  support 0%  tank 23%  sustain 14%  control 1%  mobility 17%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Recharging Rush | 85% | 50% |
+| Improved Spirit | 80% | 47% |
+| Tankbuster | 75% | 45% |
+| Mystic Burst | 63% | 37% |
+| Superior Duration | 62% | 37% |
+| Sprint Boots | 58% | 35% |
+| Extra Spirit | 87% | 65% |
+| Duration Extender | 46% | 24% |
+| Compress Cooldown | 41% | 21% |
+| Superior Cooldown | 47% | 28% |
+
+**Burn Spirit Holliday** — 43% of players (n=1,986), named at 3.1x over the runner-up
+
+_Souls by shop tab: gun 8%  spirit 33%  melee 0%  support 0%  tank 21%  sustain 13%  control 12%  mobility 13%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Spirit Burn | 82% | 1% |
+| Tankbuster | 84% | 41% |
+| Superior Duration | 70% | 33% |
+| Improved Spirit | 83% | 46% |
+| Boundless Spirit | 66% | 30% |
+| Recharging Rush | 85% | 50% |
+| Trophy Collector | 68% | 34% |
+| Mystic Burst | 67% | 35% |
+| Escalating Exposure | 45% | 16% |
+| Superior Cooldown | 53% | 25% |
+
+**Gun Holliday** — 17% of players (n=781), named at 6.2x over the runner-up
+
+_Souls by shop tab: gun 43%  spirit 13%  melee 0%  support 0%  tank 13%  sustain 6%  control 5%  mobility 19%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Sharpshooter | 77% | 2% |
+| Swift Striker | 73% | 1% |
+| Titanic Magazine | 68% | 1% |
+| Headhunter | 79% | 18% |
+| Extended Magazine | 60% | 0% |
+| Headshot Booster | 85% | 29% |
+| Fortitude | 61% | 5% |
+| Extra Health | 59% | 5% |
+| Bullet Resist Shredder | 52% | 1% |
+| Glass Cannon | 50% | 0% |
+
+### Dynamo  (2 archetypes, n=8,508)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.308 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.675 | >= 0.45 |
+| smallest share | 0.424 | >= 0.12 |
+
+**Hybrid-Gun Dynamo** — 42% of players (n=3,607), named at 1.4x over the runner-up
+
+_Souls by shop tab: gun 16%  spirit 29%  melee 0%  support 2%  tank 21%  sustain 19%  control 4%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Enduring Speed | 52% | 16% |
+| Recharging Rush | 62% | 37% |
+| Mystic Reverb | 30% | 8% |
+| Extra Spirit | 42% | 20% |
+| Mercurial Magnum | 20% | 0% |
+| Swift Striker | 19% | 1% |
+| Opening Rounds | 19% | 2% |
+| High-Velocity Rounds | 19% | 2% |
+| Rapid Rounds | 17% | 1% |
+| Surge of Power | 22% | 6% |
+
+**Dynamo** — 58% of players (n=4,901), **unnamed** — the families are too close to call
+
+_Souls by shop tab: gun 6%  spirit 28%  melee 0%  support 1%  tank 41%  sustain 15%  control 2%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Refresher | 81% | 13% |
+| Warp Stone | 68% | 19% |
+| Unstoppable | 56% | 9% |
+| Duration Extender | 67% | 30% |
+| Superior Duration | 61% | 28% |
+| Debuff Reducer | 43% | 10% |
+| Arcane Surge | 46% | 18% |
+| Greater Expansion | 73% | 50% |
+| Trophy Collector | 59% | 37% |
+| Extra Stamina | 38% | 16% |
+
+### Paradox  (3 archetypes, n=9,340)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.273 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.665 | >= 0.45 |
+| smallest share | 0.137 | >= 0.12 |
+
+**Spirit Paradox** — 14% of players (n=1,278), named at 3.0x over the runner-up
+
+_Souls by shop tab: gun 8%  spirit 32%  melee 0%  support 0%  tank 29%  sustain 13%  control 6%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Duration Extender | 88% | 4% |
+| Mystic Expansion | 85% | 3% |
+| Echo Shard | 81% | 1% |
+| Superior Duration | 82% | 6% |
+| Greater Expansion | 71% | 2% |
+| Extra Spirit | 57% | 1% |
+| Arcane Surge | 57% | 1% |
+| Spirit Lifesteal | 48% | 1% |
+| Improved Spirit | 42% | 1% |
+| Vortex Web | 41% | 1% |
+
+**Burn Gun Paradox** — 49% of players (n=4,604), named at 2.9x over the runner-up
+
+_Souls by shop tab: gun 26%  spirit 17%  melee 0%  support 0%  tank 16%  sustain 18%  control 11%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Spirit Burn | 70% | 16% |
+| Mystic Reverb | 78% | 30% |
+| Sharpshooter | 87% | 49% |
+| Express Shot | 85% | 47% |
+| Tankbuster | 91% | 55% |
+| Long Range | 79% | 46% |
+| High-Velocity Rounds | 78% | 51% |
+| Mystic Burst | 73% | 48% |
+| Restorative Shot | 55% | 34% |
+| Crippling Headshot | 25% | 7% |
+
+**Sharpshooter Gun Paradox** — 37% of players (n=3,458), named at 7.1x over the runner-up
+
+_Souls by shop tab: gun 36%  spirit 12%  melee 0%  support 0%  tank 17%  sustain 15%  control 3%  mobility 17%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Sharpshooter | 91% | 47% |
+| Long Range | 86% | 43% |
+| Express Shot | 87% | 46% |
+| High-Velocity Rounds | 82% | 49% |
+| Tankbuster | 89% | 55% |
+| Mystic Burst | 77% | 46% |
+| Headhunter | 66% | 42% |
+| Headshot Booster | 72% | 50% |
+| Restorative Shot | 55% | 34% |
+| Hollow Point | 34% | 16% |
+
+### Bebop  (2 archetypes, n=13,228)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.406 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.656 | >= 0.45 |
+| smallest share | 0.401 | >= 0.12 |
+
+**Spirit Bebop** — 60% of players (n=7,930), named at 2.0x over the runner-up
+
+_Souls by shop tab: gun 3%  spirit 23%  melee 4%  support 0%  tank 30%  sustain 22%  control 6%  mobility 11%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Improved Spirit | 70% | 12% |
+| Mystic Burst | 87% | 29% |
+| Tankbuster | 57% | 7% |
+| Boundless Spirit | 51% | 6% |
+| Extra Spirit | 60% | 16% |
+| Echo Shard | 44% | 1% |
+| Trophy Collector | 80% | 42% |
+| Compress Cooldown | 41% | 3% |
+| Mystic Reverb | 40% | 2% |
+| Superior Cooldown | 42% | 4% |
+
+**Gun Bebop** — 40% of players (n=5,298), named at 2.7x over the runner-up
+
+_Souls by shop tab: gun 29%  spirit 9%  melee 5%  support 1%  tank 19%  sustain 15%  control 8%  mobility 14%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Headshot Booster | 72% | 6% |
+| Headhunter | 70% | 5% |
+| Fleetfoot | 45% | 4% |
+| Tesla Bullets | 41% | 3% |
+| Stalker | 41% | 6% |
+| Siphon Bullets | 35% | 1% |
+| Capacitor | 33% | 0% |
+| Rapid Rounds | 29% | 1% |
+| Slowing Hex | 60% | 33% |
+| Spirit Snatch | 77% | 51% |
+
+### Infernus  (2 archetypes, n=12,820)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.345 | >= 0.15 |
+| replication | 1.000 | >= 0.90 |
+| separation | 0.647 | >= 0.45 |
+| smallest share | 0.285 | >= 0.12 |
+
+**Spirit Infernus** — 28% of players (n=3,653), named at 2.4x over the runner-up
+
+_Souls by shop tab: gun 11%  spirit 34%  melee 0%  support 1%  tank 29%  sustain 15%  control 5%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Rapid Recharge | 79% | 26% |
+| Extra Charge | 69% | 22% |
+| Healbane | 63% | 32% |
+| Suppressor | 29% | 11% |
+| Radiant Regeneration | 23% | 5% |
+| Extra Regen | 38% | 21% |
+| Infuser | 18% | 3% |
+| Mystic Regeneration | 21% | 5% |
+| Healing Booster | 20% | 5% |
+| Grit | 27% | 14% |
+
+**Gun Infernus** — 72% of players (n=9,167), named at 3.6x over the runner-up
+
+_Souls by shop tab: gun 29%  spirit 27%  melee 0%  support 1%  tank 21%  sustain 10%  control 6%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Ricochet | 67% | 2% |
+| Toxic Bullets | 81% | 33% |
+| Rapid Rounds | 88% | 54% |
+| Quicksilver Reload | 42% | 9% |
+| Swift Striker | 74% | 44% |
+| Titanic Magazine | 86% | 57% |
+| Extended Magazine | 83% | 58% |
+| Mercurial Magnum | 19% | 1% |
+| Burst Fire | 22% | 4% |
+| Leech | 22% | 5% |
+
+### Graves  (3 archetypes, n=8,575)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.295 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.639 | >= 0.45 |
+| smallest share | 0.230 | >= 0.12 |
+
+**Spirit Graves** — 38% of players (n=3,239), named at 4.6x over the runner-up
+
+_Souls by shop tab: gun 10%  spirit 31%  melee 0%  support 2%  tank 22%  sustain 17%  control 8%  mobility 11%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Superior Cooldown | 56% | 18% |
+| Compress Cooldown | 56% | 19% |
+| Arcane Surge | 72% | 43% |
+| Transcendent Cooldown | 39% | 12% |
+| Heroic Aura | 67% | 43% |
+| Improved Spirit | 83% | 61% |
+| Enchanter's Emblem | 45% | 25% |
+| Mystic Reverb | 22% | 3% |
+| Boundless Spirit | 59% | 40% |
+| Spirit Burn | 30% | 14% |
+
+**Graves** — 39% of players (n=3,368), **unnamed** — the families are too close to call
+
+_Souls by shop tab: gun 8%  spirit 25%  melee 0%  support 1%  tank 38%  sustain 12%  control 6%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Echo Shard | 82% | 11% |
+| Superior Duration | 65% | 27% |
+| Duration Extender | 59% | 24% |
+| Refresher | 39% | 6% |
+| Mystic Shot | 62% | 37% |
+| Arcane Surge | 69% | 44% |
+| Heroic Aura | 67% | 43% |
+| Improved Spirit | 84% | 60% |
+| Mystic Vulnerability | 50% | 30% |
+| Boundless Spirit | 58% | 40% |
+
+**Gun Graves** — 23% of players (n=1,968), named at 4.5x over the runner-up
+
+_Souls by shop tab: gun 39%  spirit 14%  melee 0%  support 1%  tank 16%  sustain 10%  control 8%  mobility 13%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Tesla Bullets | 69% | 4% |
+| Ricochet | 62% | 5% |
+| Surge of Power | 46% | 5% |
+| Active Reload | 36% | 1% |
+| Toxic Bullets | 78% | 45% |
+| Capacitor | 33% | 0% |
+| Quicksilver Reload | 36% | 4% |
+| Stamina Mastery | 64% | 36% |
+| Bullet Lifesteal | 28% | 3% |
+| Mercurial Magnum | 27% | 2% |
+
+### Vyper  (2 archetypes, n=4,814)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.279 | >= 0.15 |
+| replication | 0.998 | >= 0.90 |
+| separation | 0.623 | >= 0.45 |
+| smallest share | 0.360 | >= 0.12 |
+
+**Gun Vyper** — 64% of players (n=3,079), named at 5.8x over the runner-up
+
+_Souls by shop tab: gun 53%  spirit 11%  melee 1%  support 0%  tank 14%  sustain 8%  control 3%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Tesla Bullets | 47% | 31% |
+| Bullet Lifesteal | 56% | 45% |
+| Ricochet | 34% | 25% |
+| Capacitor | 16% | 8% |
+| Improved Spirit | 45% | 38% |
+| Lucky Shot | 11% | 4% |
+| Point Blank | 31% | 25% |
+| Intensifying Magazine | 19% | 15% |
+| Glass Cannon | 8% | 4% |
+| Extended Magazine | 9% | 6% |
+
+**Tank Vyper** — 36% of players (n=1,735), named at 2.2x over the runner-up
+
+_Souls by shop tab: gun 40%  spirit 11%  melee 1%  support 0%  tank 27%  sustain 9%  control 4%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Unstoppable | 70% | 8% |
+| Debuff Reducer | 56% | 12% |
+| Spirit Shielding | 44% | 25% |
+| Grit | 53% | 36% |
+| Spiritual Overflow | 55% | 38% |
+| Weakening Headshot | 36% | 20% |
+| Silencer | 33% | 18% |
+| Crippling Headshot | 22% | 7% |
+| Spirit Lifesteal | 45% | 32% |
+| Indomitable | 17% | 4% |
+
+### Silver  (2 archetypes, n=3,290)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.244 | >= 0.15 |
+| replication | 0.996 | >= 0.90 |
+| separation | 0.618 | >= 0.45 |
+| smallest share | 0.365 | >= 0.12 |
+
+**Hybrid-Melee Silver** — 64% of players (n=2,090), named at 1.7x over the runner-up
+
+_Souls by shop tab: gun 24%  spirit 9%  melee 5%  support 0%  tank 29%  sustain 11%  control 10%  mobility 13%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Close Quarters | 65% | 38% |
+| Extra Stamina | 42% | 16% |
+| Point Blank | 45% | 20% |
+| Stamina Mastery | 29% | 11% |
+| Lifestrike | 23% | 6% |
+| Phantom Strike | 21% | 9% |
+| Enduring Speed | 20% | 9% |
+| Bullet Lifesteal | 13% | 2% |
+| Slowing Bullets | 48% | 38% |
+| Extra Regen | 14% | 5% |
+
+**Tank Silver** — 36% of players (n=1,200), named at 3.1x over the runner-up
+
+_Souls by shop tab: gun 17%  spirit 7%  melee 3%  support 0%  tank 47%  sustain 10%  control 6%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Unstoppable | 75% | 13% |
+| Debuff Reducer | 70% | 23% |
+| Tankbuster | 62% | 27% |
+| Spirit Shielding | 55% | 26% |
+| Grit | 55% | 27% |
+| Veil Walker | 51% | 26% |
+| Mystic Burst | 40% | 18% |
+| Berserker | 73% | 52% |
+| Restorative Shot | 90% | 69% |
+| Cold Front | 33% | 14% |
+
+### Mirage  (2 archetypes, n=3,136)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.321 | >= 0.15 |
+| replication | 0.998 | >= 0.90 |
+| separation | 0.609 | >= 0.45 |
+| smallest share | 0.207 | >= 0.12 |
+
+**Spirit Mirage** — 79% of players (n=2,487), named at 2.6x over the runner-up
+
+_Souls by shop tab: gun 28%  spirit 25%  melee 0%  support 1%  tank 20%  sustain 14%  control 9%  mobility 3%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Escalating Exposure | 85% | 24% |
+| Superior Cooldown | 69% | 39% |
+| Mystic Vulnerability | 87% | 60% |
+| Spiritual Overflow | 50% | 23% |
+| Spirit Lifesteal | 43% | 19% |
+| Compress Cooldown | 88% | 65% |
+| Transcendent Cooldown | 22% | 4% |
+| Boundless Spirit | 23% | 7% |
+| Spirit Sap | 18% | 4% |
+| Dispel Magic | 66% | 56% |
+
+**Gun Mirage** — 21% of players (n=649), named at 6.0x over the runner-up
+
+_Souls by shop tab: gun 43%  spirit 17%  melee 0%  support 0%  tank 13%  sustain 12%  control 11%  mobility 4%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Quicksilver Reload | 53% | 21% |
+| Mercurial Magnum | 34% | 14% |
+| Ricochet | 96% | 81% |
+| Swift Striker | 14% | 4% |
+| Rapid Rounds | 14% | 3% |
+| Headshot Booster | 34% | 24% |
+| Opening Rounds | 16% | 7% |
+| High-Velocity Rounds | 14% | 6% |
+| Recharging Rush | 29% | 22% |
+| Headhunter | 27% | 20% |
+
+### Celeste  (2 archetypes, n=6,747)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.282 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.595 | >= 0.45 |
+| smallest share | 0.212 | >= 0.12 |
+
+**Grit Celeste** — 79% of players (n=5,314), named by what it imbues — the families are too close to call
+
+_Souls by shop tab: gun 7%  spirit 26%  melee 0%  support 2%  tank 36%  sustain 20%  control 2%  mobility 7%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Grit | 51% | 24% |
+| Torment Pulse | 90% | 63% |
+| Spirit Shielding | 53% | 28% |
+| Mystic Burst | 28% | 4% |
+| Tankbuster | 26% | 2% |
+| Restorative Locket | 70% | 47% |
+| Mystic Expansion | 80% | 58% |
+| Witchmail | 62% | 42% |
+| Greater Expansion | 86% | 67% |
+| Superior Cooldown | 29% | 11% |
+
+**Spellslinger Celeste** — 21% of players (n=1,433), named by what it imbues — the families are too close to call
+
+_Souls by shop tab: gun 22%  spirit 26%  melee 0%  support 1%  tank 24%  sustain 15%  control 2%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Spellslinger | 72% | 12% |
+| Swift Striker | 39% | 3% |
+| Kinetic Dash | 38% | 3% |
+| Spiritual Overflow | 61% | 30% |
+| Quicksilver Reload | 30% | 1% |
+| Spirit Lifesteal | 65% | 37% |
+| Opening Rounds | 86% | 60% |
+| Mercurial Magnum | 25% | 0% |
+| Rapid Rounds | 26% | 2% |
+| Extra Stamina | 48% | 31% |
+
+### Billy  (2 archetypes, n=7,972)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.161 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.594 | >= 0.45 |
+| smallest share | 0.279 | >= 0.12 |
+
+**Spirit Billy** — 28% of players (n=2,224), named at 5.9x over the runner-up
+
+_Souls by shop tab: gun 16%  spirit 20%  melee 14%  support 1%  tank 25%  sustain 12%  control 6%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Rapid Recharge | 79% | 19% |
+| Extra Charge | 57% | 15% |
+| Greater Expansion | 55% | 21% |
+| Cultist Sacrifice | 55% | 29% |
+| Mystic Expansion | 37% | 12% |
+| Enchanter's Emblem | 55% | 35% |
+| Slowing Hex | 39% | 30% |
+| Witchmail | 12% | 4% |
+| Battle Vest | 53% | 45% |
+| Spirit Strike | 72% | 65% |
+
+**Billy** — 72% of players (n=5,748), **unnamed** — the families are too close to call
+
+_Souls by shop tab: gun 20%  spirit 9%  melee 15%  support 1%  tank 29%  sustain 12%  control 8%  mobility 7%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Point Blank | 71% | 43% |
+| Close Quarters | 91% | 69% |
+| Weakening Headshot | 28% | 8% |
+| Melee Lifesteal | 54% | 37% |
+| Dispel Magic | 30% | 16% |
+| Berserker | 36% | 22% |
+| Colossus | 36% | 23% |
+| Extra Health | 33% | 21% |
+| Crippling Headshot | 15% | 3% |
+| Debuff Reducer | 17% | 6% |
+
+### Lady Geist  (3 archetypes, n=6,002)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.323 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.574 | >= 0.45 |
+| smallest share | 0.318 | >= 0.12 |
+
+**Reverb Spirit Lady Geist** — 36% of players (n=2,181), named at 4.0x over the runner-up
+
+_Souls by shop tab: gun 1%  spirit 33%  melee 0%  support 0%  tank 25%  sustain 29%  control 6%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Mystic Reverb | 82% | 12% |
+| Superior Cooldown | 85% | 33% |
+| Compress Cooldown | 79% | 34% |
+| Tankbuster | 89% | 46% |
+| Greater Expansion | 68% | 28% |
+| Mystic Expansion | 93% | 53% |
+| Extra Spirit | 82% | 44% |
+| Sprint Boots | 75% | 39% |
+| Improved Spirit | 79% | 43% |
+| Transcendent Cooldown | 47% | 14% |
+
+**Exposure Spirit Lady Geist** — 32% of players (n=1,911), named at 2.3x over the runner-up
+
+_Souls by shop tab: gun 7%  spirit 31%  melee 0%  support 0%  tank 31%  sustain 19%  control 5%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Escalating Exposure | 76% | 28% |
+| Mystic Vulnerability | 82% | 37% |
+| Improved Spirit | 84% | 41% |
+| Extra Spirit | 83% | 44% |
+| Tankbuster | 86% | 48% |
+| Leech | 52% | 19% |
+| Mystic Expansion | 88% | 56% |
+| Boundless Spirit | 52% | 20% |
+| Enduring Speed | 65% | 38% |
+| Compress Cooldown | 66% | 41% |
+
+**Gun Lady Geist** — 32% of players (n=1,910), named at 2.4x over the runner-up
+
+_Souls by shop tab: gun 33%  spirit 14%  melee 0%  support 1%  tank 22%  sustain 19%  control 3%  mobility 7%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Kinetic Dash | 88% | 4% |
+| Berserker | 96% | 13% |
+| Monster Rounds | 80% | 5% |
+| Bullet Resist Shredder | 64% | 1% |
+| Spellslinger | 63% | 2% |
+| Extra Regen | 92% | 35% |
+| Extra Stamina | 62% | 11% |
+| Mercurial Magnum | 47% | 1% |
+| Cultist Sacrifice | 48% | 2% |
+| Healing Booster | 66% | 25% |
+
+### Paige  (2 archetypes, n=9,052)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.240 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.534 | >= 0.45 |
+| smallest share | 0.333 | >= 0.12 |
+
+**Spirit Paige** — 67% of players (n=6,036), named at 4.6x over the runner-up
+
+_Souls by shop tab: gun 5%  spirit 36%  melee 0%  support 5%  tank 20%  sustain 16%  control 8%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Rapid Recharge | 78% | 24% |
+| Extra Charge | 89% | 49% |
+| Improved Spirit | 60% | 24% |
+| Superior Cooldown | 81% | 47% |
+| Compress Cooldown | 71% | 39% |
+| Greater Expansion | 79% | 47% |
+| Transcendent Cooldown | 59% | 29% |
+| Duration Extender | 47% | 18% |
+| Boundless Spirit | 42% | 13% |
+| Superior Duration | 55% | 26% |
+
+**Gun Paige** — 33% of players (n=3,016), named at 2.5x over the runner-up
+
+_Souls by shop tab: gun 14%  spirit 23%  melee 0%  support 6%  tank 15%  sustain 12%  control 13%  mobility 16%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Express Shot | 41% | 5% |
+| Cursed Relic | 43% | 15% |
+| Slowing Hex | 59% | 35% |
+| Opening Rounds | 70% | 47% |
+| High-Velocity Rounds | 89% | 68% |
+| Surge of Power | 30% | 13% |
+| Spirit Shielding | 19% | 6% |
+| Vortex Web | 35% | 23% |
+| Arcane Surge | 27% | 17% |
+| Split Shot | 9% | 1% |
+
+### Ivy  (3 archetypes, n=8,544)
 
 | criterion | value | threshold |
 |---|---|---|
 | silhouette | 0.320 | >= 0.15 |
 | replication | 0.999 | >= 0.90 |
-| separation | 0.687 | >= 0.45 |
-| smallest share | 0.294 | >= 0.12 |
+| separation | 0.531 | >= 0.45 |
+| smallest share | 0.314 | >= 0.12 |
 
-**Kinetic Pulse Dynamo** — 29% of players (n=2,304), named by what it imbues — the families are too close to call
+**Spirit Ivy** — 34% of players (n=2,869), named at 3.3x over the runner-up
 
-_Souls by shop tab: gun 11%  spirit 32%  melee 0%  support 2%  tank 20%  sustain 21%  control 4%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Mystic Reverb | 42% | 10% |
-| Enduring Speed | 50% | 18% |
-| Extra Spirit | 50% | 20% |
-| Surge of Power | 33% | 6% |
-| Tankbuster | 52% | 28% |
-| Recharging Rush | 60% | 36% |
-| Headhunter | 60% | 37% |
-| Headshot Booster | 65% | 45% |
-| Rapid Recharge | 82% | 66% |
-| Spirit Burn | 22% | 7% |
-
-**Ult Dynamo** — 71% of players (n=5,524), named by what it imbues — the families are too close to call
-
-_Souls by shop tab: gun 6%  spirit 29%  melee 0%  support 1%  tank 40%  sustain 15%  control 2%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 6%  spirit 34%  melee 0%  support 2%  tank 26%  sustain 12%  control 9%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Refresher | 76% | 7% |
-| Warp Stone | 65% | 19% |
-| Unstoppable | 50% | 4% |
-| Duration Extender | 64% | 28% |
-| Superior Duration | 59% | 26% |
-| Debuff Reducer | 38% | 8% |
-| Arcane Surge | 46% | 21% |
-| Greater Expansion | 73% | 52% |
-| Extra Stamina | 37% | 18% |
-| Compress Cooldown | 69% | 52% |
+| Trophy Collector | 72% | 12% |
+| Extra Charge | 90% | 33% |
+| Superior Duration | 67% | 15% |
+| Superior Cooldown | 61% | 14% |
+| Rapid Recharge | 75% | 28% |
+| Greater Expansion | 79% | 33% |
+| Compress Cooldown | 56% | 12% |
+| Echo Shard | 42% | 3% |
+| Mystic Expansion | 86% | 49% |
+| Duration Extender | 51% | 14% |
 
-### Sinclair  (2 archetypes, n=3,690)
+**Ivy** — 35% of players (n=2,988), **unnamed** — the families are too close to call
+
+_Souls by shop tab: gun 31%  spirit 21%  melee 0%  support 4%  tank 15%  sustain 12%  control 7%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Tesla Bullets | 92% | 54% |
+| Titanic Magazine | 92% | 57% |
+| Extended Magazine | 89% | 55% |
+| Healing Booster | 57% | 28% |
+| Healing Tempo | 48% | 20% |
+| Healing Nova | 34% | 8% |
+| Healing Rite | 38% | 16% |
+| Extra Regen | 48% | 26% |
+| Mystic Slow | 48% | 28% |
+| Quicksilver Reload | 31% | 11% |
+
+**Gun Ivy** — 31% of players (n=2,687), named at 4.9x over the runner-up
+
+_Souls by shop tab: gun 52%  spirit 7%  melee 0%  support 2%  tank 13%  sustain 11%  control 7%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Capacitor | 94% | 30% |
+| Active Reload | 58% | 2% |
+| Bullet Resist Shredder | 59% | 5% |
+| Tesla Bullets | 99% | 50% |
+| Titanic Magazine | 99% | 54% |
+| Extended Magazine | 95% | 52% |
+| Siphon Bullets | 35% | 6% |
+| Swift Striker | 29% | 1% |
+| Headhunter | 33% | 5% |
+| Fleetfoot | 38% | 10% |
+
+### Rem  (2 archetypes, n=8,589)
 
 | criterion | value | threshold |
 |---|---|---|
-| silhouette | 0.349 | >= 0.15 |
-| replication | 0.992 | >= 0.90 |
-| separation | 0.678 | >= 0.45 |
-| smallest share | 0.146 | >= 0.12 |
+| silhouette | 0.266 | >= 0.15 |
+| replication | 0.996 | >= 0.90 |
+| separation | 0.525 | >= 0.45 |
+| smallest share | 0.310 | >= 0.12 |
 
-**Spirit Sinclair** — 85% of players (n=3,153), named at 5.2x over the runner-up
+**Spirit Rem** — 69% of players (n=5,924), named at 1.8x over the runner-up
 
-_Souls by shop tab: gun 4%  spirit 41%  melee 0%  support 0%  tank 26%  sustain 16%  control 5%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Rapid Recharge | 89% | 21% |
-| Extra Charge | 91% | 30% |
-| Improved Spirit | 90% | 29% |
-| Extra Spirit | 84% | 28% |
-| Boundless Spirit | 75% | 20% |
-| Enchanter's Emblem | 62% | 11% |
-| Superior Cooldown | 53% | 17% |
-| Compress Cooldown | 36% | 14% |
-| Greater Expansion | 85% | 65% |
-| Mystic Expansion | 81% | 62% |
-
-**Melee Sinclair** — 15% of players (n=537), named at 3.6x over the runner-up
-
-_Souls by shop tab: gun 11%  spirit 23%  melee 5%  support 2%  tank 28%  sustain 10%  control 10%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 5%  spirit 32%  melee 0%  support 7%  tank 22%  sustain 19%  control 7%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Melee Charge | 34% | 1% |
-| Close Quarters | 23% | 1% |
-| Arcane Surge | 30% | 8% |
-| Crushing Fists | 21% | 0% |
-| Grit | 32% | 11% |
-| Point Blank | 20% | 0% |
-| Melee Lifesteal | 19% | 0% |
-| Cold Front | 18% | 1% |
-| Slowing Hex | 32% | 16% |
-| Lifestrike | 17% | 0% |
+| Superior Cooldown | 67% | 15% |
+| Mystic Expansion | 66% | 20% |
+| Compress Cooldown | 56% | 11% |
+| Rapid Recharge | 74% | 31% |
+| Mystic Burst | 59% | 21% |
+| Tankbuster | 53% | 17% |
+| Greater Expansion | 51% | 17% |
+| Improved Spirit | 75% | 41% |
+| Transcendent Cooldown | 40% | 8% |
+| Extra Spirit | 66% | 35% |
 
-### Infernus  (2 archetypes, n=11,884)
+**Gun Rem** — 31% of players (n=2,665), named at 2.2x over the runner-up
+
+_Souls by shop tab: gun 14%  spirit 17%  melee 0%  support 6%  tank 24%  sustain 14%  control 17%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Cursed Relic | 66% | 25% |
+| High-Velocity Rounds | 60% | 19% |
+| Opening Rounds | 52% | 16% |
+| Decay | 30% | 12% |
+| Echo Shard | 34% | 18% |
+| Sprint Boots | 63% | 48% |
+| Cheat Death | 20% | 4% |
+| Trophy Collector | 74% | 61% |
+| Spirit Shielding | 15% | 2% |
+| Scourge | 21% | 11% |
+
+### Grey Talon  (3 archetypes, n=4,059)
 
 | criterion | value | threshold |
 |---|---|---|
-| silhouette | 0.344 | >= 0.15 |
-| replication | 1.000 | >= 0.90 |
-| separation | 0.658 | >= 0.45 |
-| smallest share | 0.292 | >= 0.12 |
-
-**Spirit Infernus** — 29% of players (n=3,465), named at 2.4x over the runner-up
-
-_Souls by shop tab: gun 11%  spirit 35%  melee 0%  support 1%  tank 29%  sustain 14%  control 5%  mobility 4%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Rapid Recharge | 83% | 33% |
-| Extra Charge | 73% | 27% |
-| Healbane | 66% | 30% |
-| Infuser | 23% | 3% |
-| Extra Regen | 43% | 23% |
-| Suppressor | 28% | 9% |
-| Warp Stone | 25% | 6% |
-| Radiant Regeneration | 19% | 5% |
-| Escalating Exposure | 75% | 63% |
-| Mystic Regeneration | 17% | 6% |
-
-**Gun Infernus** — 71% of players (n=8,419), named at 4.4x over the runner-up
-
-_Souls by shop tab: gun 28%  spirit 28%  melee 0%  support 1%  tank 22%  sustain 10%  control 6%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Ricochet | 68% | 3% |
-| Toxic Bullets | 80% | 30% |
-| Rapid Rounds | 88% | 47% |
-| Swift Striker | 75% | 41% |
-| Quicksilver Reload | 35% | 8% |
-| Titanic Magazine | 85% | 58% |
-| Extended Magazine | 83% | 60% |
-| Leech | 25% | 5% |
-| Burst Fire | 21% | 4% |
-| Duration Extender | 76% | 61% |
-
-### Yamato  (2 archetypes, n=6,280)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.359 | >= 0.15 |
+| silhouette | 0.294 | >= 0.15 |
 | replication | 0.998 | >= 0.90 |
-| separation | 0.657 | >= 0.45 |
-| smallest share | 0.126 | >= 0.12 |
+| separation | 0.519 | >= 0.45 |
+| smallest share | 0.144 | >= 0.12 |
 
-**Spirit Yamato** — 87% of players (n=5,490), named at 2.1x over the runner-up
+**Spirit Grey Talon** — 52% of players (n=2,106), named at 4.9x over the runner-up
 
-_Souls by shop tab: gun 7%  spirit 24%  melee 6%  support 1%  tank 29%  sustain 24%  control 5%  mobility 4%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Improved Spirit | 80% | 15% |
-| Extra Spirit | 68% | 13% |
-| Mystic Reverb | 61% | 6% |
-| Boundless Spirit | 55% | 4% |
-| Tankbuster | 56% | 9% |
-| Healing Booster | 60% | 23% |
-| Mystic Burst | 45% | 8% |
-| Extra Regen | 57% | 25% |
-| Spirit Burn | 23% | 3% |
-| Cold Front | 22% | 4% |
-
-**Yamato** — 13% of players (n=790), **unnamed** — the families are too close to call
-
-_Souls by shop tab: gun 22%  spirit 13%  melee 12%  support 1%  tank 24%  sustain 13%  control 7%  mobility 7%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 7%  spirit 37%  melee 0%  support 0%  tank 19%  sustain 21%  control 8%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Stalker | 79% | 28% |
-| Bullet Resist Shredder | 56% | 6% |
-| Recharging Rush | 52% | 11% |
-| Colossus | 39% | 4% |
-| Hunter's Aura | 62% | 34% |
-| Extra Health | 32% | 6% |
-| Grit | 45% | 22% |
-| Spirit Shielding | 38% | 18% |
-| Crushing Fists | 21% | 1% |
-| Melee Charge | 26% | 6% |
+| Boundless Spirit | 90% | 36% |
+| Spirit Burn | 75% | 22% |
+| Mystic Reverb | 65% | 13% |
+| Enchanter's Emblem | 81% | 32% |
+| Superior Cooldown | 82% | 34% |
+| Tankbuster | 96% | 49% |
+| Rapid Recharge | 97% | 51% |
+| Extra Charge | 98% | 54% |
+| Improved Spirit | 96% | 53% |
+| Mystic Burst | 99% | 55% |
 
-### Seven  (2 archetypes, n=9,575)
+**Hybrid-Spirit Grey Talon** — 34% of players (n=1,367), named at 1.4x over the runner-up
 
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.252 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.644 | >= 0.45 |
-| smallest share | 0.487 | >= 0.12 |
-
-**Spirit Seven** — 51% of players (n=4,911), named at 1.7x over the runner-up
-
-_Souls by shop tab: gun 12%  spirit 36%  melee 0%  support 1%  tank 27%  sustain 13%  control 5%  mobility 7%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 19%  spirit 30%  melee 0%  support 0%  tank 17%  sustain 13%  control 5%  mobility 15%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Rapid Recharge | 37% | 14% |
-| Extra Charge | 36% | 16% |
-| Spiritual Overflow | 47% | 29% |
-| Mercurial Magnum | 18% | 3% |
-| Quicksilver Reload | 18% | 4% |
-| Ballistic Enchantment | 15% | 3% |
-| Extra Spirit | 58% | 46% |
-| Improved Spirit | 51% | 40% |
-| Extra Regen | 46% | 36% |
-| Mystic Expansion | 35% | 25% |
+| Rapid Recharge | 93% | 53% |
+| Tankbuster | 91% | 52% |
+| Extra Charge | 94% | 56% |
+| Mystic Burst | 95% | 57% |
+| Opening Rounds | 77% | 39% |
+| Improved Spirit | 90% | 56% |
+| Stamina Mastery | 75% | 50% |
+| Extra Spirit | 74% | 52% |
+| High-Velocity Rounds | 83% | 61% |
+| Recharging Rush | 43% | 22% |
 
-**Hybrid-Tank Seven** — 49% of players (n=4,664), named at 1.4x over the runner-up
+**Gun Grey Talon** — 14% of players (n=586), named at 6.1x over the runner-up
 
-_Souls by shop tab: gun 7%  spirit 30%  melee 0%  support 0%  tank 40%  sustain 12%  control 5%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Unstoppable | 85% | 20% |
-| Debuff Reducer | 60% | 17% |
-| Refresher | 31% | 4% |
-| Infuser | 47% | 25% |
-| Cultist Sacrifice | 68% | 50% |
-| Arcane Surge | 66% | 51% |
-| Lightning Scroll | 27% | 12% |
-| Indomitable | 32% | 20% |
-| Monster Rounds | 78% | 67% |
-| Mystic Slow | 25% | 15% |
-
-### Paradox  (3 archetypes, n=9,477)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.258 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.638 | >= 0.45 |
-| smallest share | 0.131 | >= 0.12 |
-
-**Spirit Paradox** — 13% of players (n=1,239), named at 2.7x over the runner-up
-
-_Souls by shop tab: gun 8%  spirit 31%  melee 0%  support 0%  tank 30%  sustain 14%  control 6%  mobility 11%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 49%  spirit 10%  melee 0%  support 0%  tank 12%  sustain 7%  control 6%  mobility 16%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Duration Extender | 81% | 6% |
-| Mystic Expansion | 76% | 2% |
-| Echo Shard | 75% | 1% |
-| Superior Duration | 80% | 8% |
-| Greater Expansion | 65% | 2% |
-| Arcane Surge | 45% | 1% |
-| Extra Spirit | 44% | 1% |
-| Mystic Vulnerability | 39% | 1% |
-| Improved Spirit | 39% | 1% |
-| Monster Rounds | 49% | 15% |
-
-**Burn Gun Paradox** — 46% of players (n=4,401), named at 2.6x over the runner-up
-
-_Souls by shop tab: gun 26%  spirit 18%  melee 0%  support 0%  tank 15%  sustain 18%  control 11%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Spirit Burn | 69% | 17% |
-| Mystic Reverb | 81% | 32% |
-| Express Shot | 83% | 48% |
-| Sharpshooter | 85% | 49% |
-| Tankbuster | 89% | 57% |
-| Long Range | 76% | 46% |
-| High-Velocity Rounds | 76% | 52% |
-| Mystic Burst | 73% | 51% |
-| Glass Cannon | 30% | 10% |
-| Mystic Shot | 73% | 55% |
-
-**Sharpshooter Gun Paradox** — 40% of players (n=3,837), named at 7.6x over the runner-up
-
-_Souls by shop tab: gun 35%  spirit 12%  melee 0%  support 0%  tank 17%  sustain 15%  control 3%  mobility 17%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Sharpshooter | 90% | 47% |
-| Long Range | 85% | 42% |
-| Express Shot | 87% | 46% |
-| High-Velocity Rounds | 81% | 50% |
-| Tankbuster | 86% | 58% |
-| Mystic Burst | 76% | 50% |
-| Hollow Point | 40% | 20% |
-| Headhunter | 58% | 38% |
-| Mystic Shot | 72% | 56% |
-| Headshot Booster | 64% | 49% |
-
-### Mina  (2 archetypes, n=9,691)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.215 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.632 | >= 0.45 |
-| smallest share | 0.259 | >= 0.12 |
-
-**Spirit Mina** — 74% of players (n=7,185), named at 2.8x over the runner-up
-
-_Souls by shop tab: gun 12%  spirit 25%  melee 0%  support 2%  tank 24%  sustain 15%  control 10%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Spirit Burn | 87% | 24% |
-| Superior Cooldown | 58% | 34% |
-| Transcendent Cooldown | 26% | 8% |
-| Compress Cooldown | 41% | 23% |
-| Spiritual Overflow | 22% | 7% |
-| Mercurial Magnum | 16% | 4% |
-| Greater Expansion | 32% | 20% |
-| Spirit Lifesteal | 17% | 8% |
-| Spirit Rend | 49% | 41% |
-| Ricochet | 8% | 1% |
-
-**Tank Mina** — 26% of players (n=2,506), named at 4.2x over the runner-up
-
-_Souls by shop tab: gun 10%  spirit 20%  melee 0%  support 2%  tank 32%  sustain 18%  control 3%  mobility 15%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Reactive Barrier | 46% | 31% |
-| Extra Health | 56% | 41% |
-| Grit | 53% | 40% |
-| Spellbreaker | 16% | 5% |
-| Indomitable | 25% | 14% |
-| Debuff Reducer | 17% | 9% |
-| Dispel Magic | 86% | 78% |
-| Swift Striker | 40% | 33% |
-| Mystic Expansion | 74% | 68% |
-| Rapid Rounds | 28% | 25% |
-
-### Bebop  (2 archetypes, n=13,017)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.403 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.631 | >= 0.45 |
-| smallest share | 0.387 | >= 0.12 |
-
-**Spirit Bebop** — 61% of players (n=7,976), named at 2.0x over the runner-up
-
-_Souls by shop tab: gun 3%  spirit 23%  melee 4%  support 0%  tank 30%  sustain 21%  control 6%  mobility 11%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Improved Spirit | 72% | 12% |
-| Mystic Burst | 86% | 32% |
-| Tankbuster | 54% | 7% |
-| Extra Spirit | 64% | 20% |
-| Boundless Spirit | 50% | 6% |
-| Echo Shard | 43% | 1% |
-| Superior Cooldown | 42% | 4% |
-| Trophy Collector | 79% | 43% |
-| Mystic Reverb | 36% | 2% |
-| Compress Cooldown | 34% | 2% |
-
-**Gun Bebop** — 39% of players (n=5,041), named at 2.8x over the runner-up
-
-_Souls by shop tab: gun 30%  spirit 8%  melee 5%  support 1%  tank 20%  sustain 14%  control 8%  mobility 14%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Headshot Booster | 69% | 6% |
-| Headhunter | 67% | 5% |
-| Tesla Bullets | 48% | 4% |
-| Stalker | 49% | 6% |
-| Capacitor | 40% | 1% |
-| Siphon Bullets | 31% | 1% |
-| Fleetfoot | 32% | 3% |
-| Rapid Rounds | 28% | 1% |
-| Weighted Shots | 27% | 1% |
-| Slowing Hex | 61% | 35% |
-
-### Venator  (2 archetypes, n=7,241)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.186 | >= 0.15 |
-| replication | 0.998 | >= 0.90 |
-| separation | 0.612 | >= 0.45 |
-| smallest share | 0.402 | >= 0.12 |
-
-**Venator** — 60% of players (n=4,330), **unnamed** — the families are too close to call
-
-_Souls by shop tab: gun 37%  spirit 12%  melee 2%  support 1%  tank 21%  sustain 15%  control 5%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Rapid Recharge | 71% | 10% |
-| Extra Charge | 65% | 12% |
-| Extra Regen | 35% | 10% |
-| Healing Booster | 26% | 1% |
-| Radiant Regeneration | 24% | 0% |
-| Tesla Bullets | 25% | 1% |
-| Mystic Regeneration | 24% | 0% |
-| Ballistic Enchantment | 32% | 8% |
-| Quicksilver Reload | 26% | 3% |
-| Healing Tempo | 24% | 1% |
-
-**Gun Venator** — 40% of players (n=2,911), named at 2.9x over the runner-up
-
-_Souls by shop tab: gun 47%  spirit 3%  melee 1%  support 0%  tank 25%  sustain 12%  control 7%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Berserker | 57% | 12% |
-| Fleetfoot | 61% | 17% |
-| Vampiric Burst | 82% | 42% |
-| Intensifying Magazine | 72% | 38% |
-| Bullet Lifesteal | 94% | 61% |
-| Close Quarters | 81% | 49% |
-| Weakening Headshot | 76% | 51% |
-| Restorative Shot | 75% | 52% |
-| Swift Striker | 28% | 6% |
-| Rapid Rounds | 27% | 7% |
-
-### Celeste  (2 archetypes, n=6,931)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.279 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.590 | >= 0.45 |
-| smallest share | 0.222 | >= 0.12 |
-
-**Celeste** — 78% of players (n=5,395), **unnamed** — the families are too close to call
-
-_Souls by shop tab: gun 8%  spirit 26%  melee 0%  support 2%  tank 35%  sustain 20%  control 2%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Grit | 51% | 22% |
-| Torment Pulse | 91% | 64% |
-| Restorative Locket | 70% | 43% |
-| Spirit Shielding | 51% | 28% |
-| Witchmail | 60% | 39% |
-| Greater Expansion | 86% | 68% |
-| Mystic Expansion | 77% | 60% |
-| Superior Cooldown | 31% | 14% |
-| Healing Booster | 86% | 71% |
-| Refresher | 20% | 5% |
-
-**Hybrid-Gun Celeste** — 22% of players (n=1,536), named at 1.3x over the runner-up
-
-_Souls by shop tab: gun 21%  spirit 26%  melee 0%  support 1%  tank 24%  sustain 15%  control 2%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Spellslinger | 72% | 13% |
-| Swift Striker | 41% | 4% |
-| Kinetic Dash | 40% | 5% |
-| Opening Rounds | 84% | 58% |
-| Rapid Rounds | 28% | 3% |
-| Quicksilver Reload | 24% | 1% |
-| Spiritual Overflow | 56% | 33% |
-| Mercurial Magnum | 20% | 0% |
-| Spirit Lifesteal | 59% | 42% |
-| Extra Stamina | 50% | 33% |
-
-### Graves  (3 archetypes, n=8,247)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.283 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.587 | >= 0.45 |
-| smallest share | 0.228 | >= 0.12 |
-
-**Spirit Graves** — 35% of players (n=2,877), named at 4.7x over the runner-up
-
-_Souls by shop tab: gun 10%  spirit 31%  melee 0%  support 2%  tank 22%  sustain 16%  control 7%  mobility 11%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Superior Cooldown | 55% | 19% |
-| Compress Cooldown | 56% | 20% |
-| Transcendent Cooldown | 38% | 12% |
-| Arcane Surge | 65% | 40% |
-| Heroic Aura | 70% | 46% |
-| Improved Spirit | 81% | 60% |
-| Boundless Spirit | 58% | 38% |
-| Rapid Recharge | 30% | 13% |
-| Superior Duration | 52% | 35% |
-| Duration Extender | 47% | 30% |
-
-**Graves** — 42% of players (n=3,488), **unnamed** — the families are too close to call
-
-_Souls by shop tab: gun 8%  spirit 25%  melee 0%  support 2%  tank 37%  sustain 12%  control 6%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Echo Shard | 83% | 16% |
-| Refresher | 37% | 6% |
-| Heroic Aura | 74% | 44% |
-| Superior Duration | 60% | 31% |
-| Arcane Surge | 67% | 39% |
-| Improved Spirit | 85% | 59% |
-| Mystic Shot | 62% | 37% |
-| Duration Extender | 51% | 28% |
-| Boundless Spirit | 57% | 39% |
-| Mystic Vulnerability | 45% | 27% |
-
-**Gun Graves** — 23% of players (n=1,882), named at 4.6x over the runner-up
-
-_Souls by shop tab: gun 38%  spirit 13%  melee 0%  support 1%  tank 16%  sustain 9%  control 8%  mobility 14%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Tesla Bullets | 70% | 5% |
-| Ricochet | 62% | 5% |
-| Surge of Power | 59% | 5% |
-| Active Reload | 42% | 2% |
-| Toxic Bullets | 77% | 46% |
-| Quicksilver Reload | 31% | 2% |
-| Capacitor | 27% | 1% |
-| Stamina Mastery | 64% | 38% |
-| Bullet Lifesteal | 28% | 3% |
-| Split Shot | 28% | 4% |
-
-### Vyper  (2 archetypes, n=4,515)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.262 | >= 0.15 |
-| replication | 0.998 | >= 0.90 |
-| separation | 0.583 | >= 0.45 |
-| smallest share | 0.331 | >= 0.12 |
-
-**Gun Vyper** — 67% of players (n=3,022), named at 8.4x over the runner-up
-
-_Souls by shop tab: gun 52%  spirit 10%  melee 1%  support 0%  tank 15%  sustain 8%  control 4%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Ricochet | 33% | 22% |
-| Tesla Bullets | 41% | 30% |
-| Bullet Lifesteal | 58% | 50% |
-| Capacitor | 13% | 6% |
-| Lucky Shot | 11% | 5% |
-| Improved Spirit | 41% | 36% |
-| Glass Cannon | 9% | 4% |
-| Opening Rounds | 28% | 24% |
-| Point Blank | 36% | 33% |
-| Intensifying Magazine | 25% | 21% |
-
-**Tank Vyper** — 33% of players (n=1,493), named at 2.9x over the runner-up
-
-_Souls by shop tab: gun 40%  spirit 10%  melee 0%  support 0%  tank 27%  sustain 9%  control 5%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Unstoppable | 65% | 7% |
-| Debuff Reducer | 52% | 10% |
-| Grit | 52% | 36% |
-| Silencer | 35% | 20% |
-| Indomitable | 20% | 5% |
-| Spirit Resilience | 40% | 26% |
-| Spellbreaker | 14% | 1% |
-| Spirit Shielding | 39% | 27% |
-| Spiritual Overflow | 44% | 32% |
-| Crippling Headshot | 21% | 9% |
-
-### Warden  (2 archetypes, n=10,626)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.263 | >= 0.15 |
-| replication | 1.000 | >= 0.90 |
-| separation | 0.569 | >= 0.45 |
-| smallest share | 0.473 | >= 0.12 |
-
-**Hybrid-Spirit Warden** — 47% of players (n=5,027), named at 1.6x over the runner-up
-
-_Souls by shop tab: gun 33%  spirit 19%  melee 0%  support 0%  tank 21%  sustain 15%  control 3%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Boundless Spirit | 63% | 6% |
-| Improved Spirit | 48% | 11% |
-| Extra Spirit | 46% | 24% |
-| Spiritual Overflow | 85% | 66% |
-| Witchmail | 20% | 2% |
-| Spirit Lifesteal | 66% | 50% |
-| Veil Walker | 62% | 46% |
-| Unstoppable | 16% | 1% |
-| Siphon Bullets | 30% | 18% |
-| Debuff Reducer | 15% | 3% |
-
-**Gun Warden** — 53% of players (n=5,599), named at 4.9x over the runner-up
-
-_Souls by shop tab: gun 46%  spirit 15%  melee 0%  support 0%  tank 15%  sustain 12%  control 3%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Battle Vest | 36% | 18% |
-| Kinetic Dash | 23% | 8% |
-| Bullet Resist Shredder | 27% | 13% |
-| Surge of Power | 26% | 13% |
-| Intensifying Magazine | 17% | 5% |
-| Bullet Lifesteal | 20% | 9% |
-| Berserker | 15% | 6% |
-| Vampiric Burst | 13% | 6% |
-| Spellslinger | 12% | 6% |
-| Extra Stamina | 15% | 10% |
-
-### Mirage  (2 archetypes, n=3,397)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.293 | >= 0.15 |
-| replication | 0.997 | >= 0.90 |
-| separation | 0.558 | >= 0.45 |
-| smallest share | 0.181 | >= 0.12 |
-
-**Spirit Mirage** — 82% of players (n=2,783), named at 2.5x over the runner-up
-
-_Souls by shop tab: gun 29%  spirit 24%  melee 0%  support 1%  tank 20%  sustain 14%  control 9%  mobility 3%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Escalating Exposure | 83% | 27% |
-| Spiritual Overflow | 39% | 10% |
-| Superior Cooldown | 69% | 43% |
-| Mystic Vulnerability | 84% | 61% |
-| Suppressor | 60% | 37% |
-| Spirit Lifesteal | 28% | 8% |
-| Compress Cooldown | 84% | 65% |
-| Transcendent Cooldown | 20% | 3% |
-| Boundless Spirit | 21% | 6% |
-| Inhibitor | 29% | 16% |
-
-**Gun Mirage** — 18% of players (n=614), named at 6.3x over the runner-up
-
-_Souls by shop tab: gun 43%  spirit 17%  melee 0%  support 1%  tank 13%  sustain 12%  control 10%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Quicksilver Reload | 60% | 23% |
-| Mercurial Magnum | 31% | 13% |
-| Opening Rounds | 27% | 10% |
-| High-Velocity Rounds | 25% | 8% |
-| Rapid Rounds | 14% | 3% |
-| Extended Magazine | 29% | 19% |
-| Ricochet | 96% | 87% |
-| Swift Striker | 11% | 3% |
-| Burst Fire | 7% | 1% |
-| Surge of Power | 7% | 2% |
-
-### Lady Geist  (3 archetypes, n=5,950)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.319 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.556 | >= 0.45 |
-| smallest share | 0.321 | >= 0.12 |
-
-**Reverb Spirit Lady Geist** — 35% of players (n=2,072), named at 3.6x over the runner-up
-
-_Souls by shop tab: gun 1%  spirit 33%  melee 0%  support 0%  tank 25%  sustain 30%  control 5%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Mystic Reverb | 84% | 15% |
-| Superior Cooldown | 87% | 34% |
-| Compress Cooldown | 77% | 33% |
-| Tankbuster | 90% | 47% |
-| Sprint Boots | 78% | 36% |
-| Extra Spirit | 85% | 44% |
-| Greater Expansion | 69% | 30% |
-| Mystic Expansion | 93% | 55% |
-| Improved Spirit | 79% | 42% |
-| Transcendent Cooldown | 50% | 14% |
-
-**Exposure Spirit Lady Geist** — 32% of players (n=1,908), named at 2.5x over the runner-up
-
-_Souls by shop tab: gun 6%  spirit 32%  melee 0%  support 0%  tank 30%  sustain 19%  control 6%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Escalating Exposure | 74% | 27% |
-| Mystic Vulnerability | 78% | 34% |
-| Improved Spirit | 81% | 41% |
-| Extra Spirit | 83% | 45% |
-| Tankbuster | 85% | 50% |
-| Spirit Lifesteal | 85% | 54% |
-| Spirit Burn | 56% | 26% |
-| Boundless Spirit | 50% | 20% |
-| Mystic Expansion | 86% | 59% |
-| Greater Expansion | 58% | 36% |
-
-**Gun Lady Geist** — 33% of players (n=1,970), named at 3.1x over the runner-up
-
-_Souls by shop tab: gun 31%  spirit 12%  melee 0%  support 1%  tank 23%  sustain 20%  control 4%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Berserker | 96% | 10% |
-| Kinetic Dash | 89% | 4% |
-| Spellslinger | 84% | 2% |
-| Monster Rounds | 79% | 4% |
-| Bullet Resist Shredder | 61% | 1% |
-| Extra Regen | 93% | 36% |
-| Healing Booster | 80% | 24% |
-| Extra Stamina | 65% | 11% |
-| Cultist Sacrifice | 43% | 2% |
-| Recharging Rush | 29% | 2% |
-
-### Silver  (2 archetypes, n=3,764)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.225 | >= 0.15 |
-| replication | 0.995 | >= 0.90 |
-| separation | 0.556 | >= 0.45 |
-| smallest share | 0.382 | >= 0.12 |
-
-**Melee Silver** — 62% of players (n=2,328), named at 1.8x over the runner-up
-
-_Souls by shop tab: gun 24%  spirit 9%  melee 6%  support 0%  tank 28%  sustain 11%  control 9%  mobility 13%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Close Quarters | 64% | 40% |
-| Point Blank | 43% | 20% |
-| Extra Stamina | 48% | 27% |
-| Stamina Mastery | 33% | 14% |
-| Lifestrike | 23% | 9% |
-| Spirit Snatch | 31% | 18% |
-| Spirit Strike | 26% | 13% |
-| Slowing Bullets | 49% | 36% |
-| Enduring Speed | 18% | 6% |
-| Weighted Shots | 54% | 43% |
-
-**Tank Silver** — 38% of players (n=1,436), named at 3.3x over the runner-up
-
-_Souls by shop tab: gun 18%  spirit 7%  melee 4%  support 0%  tank 46%  sustain 9%  control 7%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Unstoppable | 69% | 13% |
-| Debuff Reducer | 64% | 24% |
-| Spirit Shielding | 61% | 26% |
-| Grit | 56% | 28% |
-| Tankbuster | 45% | 21% |
-| Cold Front | 36% | 13% |
-| Veil Walker | 33% | 13% |
-| Warp Stone | 32% | 13% |
-| Berserker | 69% | 52% |
-| Mystic Burst | 31% | 14% |
-
-### Kelvin  (2 archetypes, n=5,400)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.265 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.536 | >= 0.45 |
-| smallest share | 0.364 | >= 0.12 |
-
-**Spirit Kelvin** — 64% of players (n=3,436), named at 2.6x over the runner-up
-
-_Souls by shop tab: gun 2%  spirit 41%  melee 0%  support 1%  tank 27%  sustain 18%  control 5%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Escalating Exposure | 82% | 29% |
-| Mystic Vulnerability | 82% | 34% |
-| Mystic Expansion | 81% | 45% |
-| Torment Pulse | 42% | 8% |
-| Spirit Lifesteal | 46% | 11% |
-| Superior Duration | 51% | 19% |
-| Duration Extender | 44% | 14% |
-| Greater Expansion | 66% | 40% |
-| Extra Spirit | 86% | 61% |
-| Boundless Spirit | 73% | 51% |
-
-**Support Kelvin** — 36% of players (n=1,964), named at 3.9x over the runner-up
-
-_Souls by shop tab: gun 6%  spirit 31%  melee 0%  support 5%  tank 18%  sustain 22%  control 7%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Rescue Beam | 43% | 8% |
-| Healing Rite | 41% | 10% |
-| Healing Tempo | 37% | 8% |
-| Healing Booster | 86% | 61% |
-| Guardian Ward | 23% | 3% |
-| Slowing Hex | 23% | 9% |
-| Divine Barrier | 16% | 1% |
-| Opening Rounds | 21% | 7% |
-| High-Velocity Rounds | 23% | 9% |
-| Extra Regen | 85% | 71% |
-
-### Drifter  (3 archetypes, n=11,741)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.274 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.522 | >= 0.45 |
-| smallest share | 0.302 | >= 0.12 |
-
-**Melee Drifter** — 37% of players (n=4,294), named at 2.0x over the runner-up
-
-_Souls by shop tab: gun 9%  spirit 18%  melee 9%  support 1%  tank 32%  sustain 10%  control 13%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Tankbuster | 91% | 34% |
-| Spirit Snatch | 97% | 40% |
-| Spirit Strike | 97% | 41% |
-| Veil Walker | 80% | 26% |
-| Superior Duration | 56% | 6% |
-| Cold Front | 46% | 2% |
-| Spirit Burn | 45% | 3% |
-| Melee Lifesteal | 86% | 48% |
-| Mystic Burst | 85% | 49% |
-| Duration Extender | 35% | 3% |
-
-**Drifter** — 33% of players (n=3,896), **unnamed** — the families are too close to call
-
-_Souls by shop tab: gun 26%  spirit 8%  melee 6%  support 0%  tank 26%  sustain 10%  control 10%  mobility 13%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Kinetic Dash | 66% | 40% |
-| Silencer | 39% | 18% |
-| Weakening Headshot | 27% | 9% |
-| Opening Rounds | 25% | 7% |
-| Extra Stamina | 48% | 32% |
-| Melee Lifesteal | 70% | 56% |
-| Crippling Headshot | 23% | 10% |
-| Bullet Resist Shredder | 20% | 6% |
-| Slowing Hex | 25% | 13% |
-| Spirit Snatch | 66% | 56% |
-
-**Gun Drifter** — 30% of players (n=3,551), named at 3.7x over the runner-up
-
-_Souls by shop tab: gun 43%  spirit 3%  melee 2%  support 0%  tank 20%  sustain 9%  control 9%  mobility 14%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Close Quarters | 78% | 18% |
-| Point Blank | 72% | 16% |
-| Burst Fire | 80% | 26% |
-| Lucky Shot | 54% | 3% |
-| Rapid Rounds | 67% | 19% |
-| Fortitude | 59% | 19% |
-| Kinetic Dash | 72% | 37% |
-| Vampiric Burst | 44% | 9% |
-| Swift Striker | 40% | 8% |
-| Extra Stamina | 57% | 27% |
-
-### Paige  (2 archetypes, n=8,994)
+| Burst Fire | 73% | 3% |
+| Swift Striker | 85% | 26% |
+| Bullet Lifesteal | 60% | 1% |
+| Rapid Rounds | 79% | 21% |
+| Glass Cannon | 59% | 2% |
+| Sharpshooter | 95% | 45% |
+| Vampiric Burst | 41% | 0% |
+| Weakening Headshot | 42% | 3% |
+| Long Range | 93% | 54% |
+| Lucky Shot | 33% | 1% |
+
+### Yamato  (2 archetypes, n=5,674)
 
 | criterion | value | threshold |
 |---|---|---|
 | silhouette | 0.242 | >= 0.15 |
 | replication | 0.999 | >= 0.90 |
 | separation | 0.519 | >= 0.45 |
-| smallest share | 0.323 | >= 0.12 |
+| smallest share | 0.426 | >= 0.12 |
 
-**Spirit Paige** — 68% of players (n=6,088), named at 4.3x over the runner-up
+**Spirit Yamato** — 57% of players (n=3,255), named at 1.8x over the runner-up
 
-_Souls by shop tab: gun 5%  spirit 36%  melee 0%  support 5%  tank 20%  sustain 16%  control 8%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Rapid Recharge | 75% | 23% |
-| Extra Charge | 87% | 46% |
-| Improved Spirit | 62% | 21% |
-| Greater Expansion | 79% | 45% |
-| Boundless Spirit | 44% | 12% |
-| Superior Cooldown | 79% | 47% |
-| Transcendent Cooldown | 59% | 28% |
-| Compress Cooldown | 67% | 37% |
-| Duration Extender | 45% | 18% |
-| Superior Duration | 54% | 27% |
-
-**Gun Paige** — 32% of players (n=2,906), named at 1.7x over the runner-up
-
-_Souls by shop tab: gun 14%  spirit 23%  melee 0%  support 7%  tank 15%  sustain 13%  control 13%  mobility 16%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 7%  spirit 26%  melee 7%  support 1%  tank 24%  sustain 27%  control 5%  mobility 3%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Express Shot | 44% | 5% |
-| Cursed Relic | 42% | 17% |
-| Slowing Hex | 60% | 36% |
-| Opening Rounds | 71% | 48% |
-| High-Velocity Rounds | 89% | 69% |
-| Surge of Power | 32% | 12% |
-| Vortex Web | 37% | 23% |
-| Spirit Shielding | 20% | 7% |
-| Arcane Surge | 29% | 17% |
-| Grit | 68% | 58% |
+| Mystic Reverb | 80% | 28% |
+| Healing Booster | 67% | 34% |
+| Extra Spirit | 74% | 48% |
+| Improved Spirit | 90% | 64% |
+| Restorative Locket | 48% | 26% |
+| Extra Regen | 58% | 38% |
+| Boundless Spirit | 59% | 40% |
+| Superior Cooldown | 44% | 29% |
+| Healbane | 81% | 69% |
+| Spiritual Overflow | 25% | 14% |
 
-### Viscous  (3 archetypes, n=6,152)
+**Yamato** — 43% of players (n=2,419), **unnamed** — the families are too close to call
+
+_Souls by shop tab: gun 11%  spirit 18%  melee 8%  support 1%  tank 33%  sustain 17%  control 6%  mobility 4%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Stalker | 48% | 19% |
+| Torment Pulse | 49% | 33% |
+| Cold Front | 32% | 17% |
+| Scourge | 15% | 2% |
+| Refresher | 27% | 15% |
+| Arctic Blast | 15% | 3% |
+| Colossus | 12% | 1% |
+| Mystic Vulnerability | 22% | 12% |
+| Extra Health | 14% | 4% |
+| Bullet Resist Shredder | 11% | 1% |
+
+### Seven  (3 archetypes, n=9,436)
 
 | criterion | value | threshold |
 |---|---|---|
-| silhouette | 0.262 | >= 0.15 |
-| replication | 0.998 | >= 0.90 |
-| separation | 0.509 | >= 0.45 |
-| smallest share | 0.189 | >= 0.12 |
-
-**Spirit Viscous** — 41% of players (n=2,495), named at 1.9x over the runner-up
-
-_Souls by shop tab: gun 12%  spirit 30%  melee 4%  support 2%  tank 18%  sustain 19%  control 7%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Mystic Shot | 70% | 15% |
-| Express Shot | 69% | 15% |
-| High-Velocity Rounds | 73% | 25% |
-| Veil Walker | 52% | 6% |
-| Improved Spirit | 66% | 28% |
-| Superior Cooldown | 78% | 47% |
-| Extra Spirit | 48% | 21% |
-| Transcendent Cooldown | 53% | 26% |
-| Mystic Burst | 93% | 67% |
-| Boundless Spirit | 45% | 19% |
-
-**Viscous** — 19% of players (n=1,161), **unnamed** — the families are too close to call
-
-_Souls by shop tab: gun 5%  spirit 28%  melee 3%  support 3%  tank 33%  sustain 14%  control 7%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Echo Shard | 44% | 2% |
-| Duration Extender | 42% | 4% |
-| Superior Duration | 36% | 5% |
-| Rescue Beam | 52% | 25% |
-| Healing Rite | 49% | 23% |
-| Golden Goose Egg | 25% | 3% |
-| Arcane Surge | 29% | 11% |
-| Compress Cooldown | 67% | 50% |
-| Warp Stone | 18% | 3% |
-| Majestic Leap | 17% | 2% |
-
-**Melee Viscous** — 41% of players (n=2,496), named at 6.9x over the runner-up
-
-_Souls by shop tab: gun 15%  spirit 25%  melee 23%  support 1%  tank 18%  sustain 7%  control 7%  mobility 3%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Melee Charge | 95% | 10% |
-| Crushing Fists | 89% | 6% |
-| Lifestrike | 89% | 6% |
-| Melee Lifesteal | 93% | 10% |
-| Rapid Recharge | 89% | 14% |
-| Ballistic Enchantment | 73% | 4% |
-| Extra Charge | 94% | 25% |
-| Spirit Strike | 90% | 36% |
-| Spirit Snatch | 92% | 44% |
-| Close Quarters | 42% | 2% |
-
-### Ivy  (3 archetypes, n=8,208)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.321 | >= 0.15 |
+| silhouette | 0.260 | >= 0.15 |
 | replication | 0.999 | >= 0.90 |
-| separation | 0.508 | >= 0.45 |
-| smallest share | 0.332 | >= 0.12 |
+| separation | 0.518 | >= 0.45 |
+| smallest share | 0.198 | >= 0.12 |
 
-**Spirit Ivy** — 34% of players (n=2,751), named at 3.4x over the runner-up
+**Spirit Seven** — 34% of players (n=3,163), named at 6.8x over the runner-up
 
-_Souls by shop tab: gun 6%  spirit 34%  melee 1%  support 2%  tank 26%  sustain 12%  control 9%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Extra Charge | 88% | 27% |
-| Trophy Collector | 68% | 12% |
-| Superior Duration | 66% | 13% |
-| Rapid Recharge | 71% | 24% |
-| Greater Expansion | 79% | 33% |
-| Superior Cooldown | 60% | 16% |
-| Compress Cooldown | 57% | 14% |
-| Echo Shard | 44% | 2% |
-| Duration Extender | 54% | 15% |
-| Alchemical Fire | 42% | 3% |
-
-**Ivy** — 33% of players (n=2,726), **unnamed** — the families are too close to call
-
-_Souls by shop tab: gun 31%  spirit 20%  melee 0%  support 4%  tank 16%  sustain 12%  control 8%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 8%  spirit 40%  melee 0%  support 0%  tank 27%  sustain 15%  control 5%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Tesla Bullets | 93% | 55% |
-| Titanic Magazine | 93% | 59% |
-| Extended Magazine | 89% | 57% |
-| Healing Nova | 39% | 9% |
-| Healing Tempo | 46% | 20% |
-| Healing Booster | 52% | 27% |
-| Healing Rite | 40% | 16% |
-| Mystic Slow | 48% | 26% |
-| Quicksilver Reload | 30% | 11% |
-| Mystic Expansion | 72% | 54% |
+| Mystic Expansion | 57% | 22% |
+| Extra Charge | 56% | 23% |
+| Rapid Recharge | 51% | 21% |
+| Superior Cooldown | 51% | 23% |
+| Improved Spirit | 67% | 40% |
+| Greater Expansion | 47% | 24% |
+| Compress Cooldown | 43% | 22% |
+| Boundless Spirit | 49% | 29% |
+| Transcendent Cooldown | 29% | 9% |
+| Duration Extender | 60% | 43% |
 
-**Gun Ivy** — 33% of players (n=2,731), named at 5.2x over the runner-up
+**Hybrid-Tank Seven** — 47% of players (n=4,409), named at 1.3x over the runner-up
 
-_Souls by shop tab: gun 52%  spirit 8%  melee 0%  support 2%  tank 13%  sustain 11%  control 7%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 6%  spirit 30%  melee 0%  support 1%  tank 40%  sustain 12%  control 5%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Capacitor | 94% | 30% |
-| Active Reload | 58% | 4% |
-| Bullet Resist Shredder | 60% | 7% |
-| Tesla Bullets | 100% | 52% |
-| Extended Magazine | 96% | 54% |
-| Titanic Magazine | 98% | 56% |
-| Siphon Bullets | 39% | 6% |
-| Swift Striker | 32% | 1% |
-| Enduring Speed | 35% | 8% |
-| Rapid Rounds | 27% | 1% |
+| Unstoppable | 83% | 21% |
+| Debuff Reducer | 58% | 17% |
+| Refresher | 33% | 4% |
+| Infuser | 45% | 23% |
+| Lightning Scroll | 26% | 10% |
+| Indomitable | 34% | 19% |
+| Arcane Surge | 64% | 50% |
+| Cultist Sacrifice | 65% | 51% |
+| Reactive Barrier | 30% | 19% |
+| Mystic Slow | 23% | 13% |
 
-### Billy  (2 archetypes, n=8,201)
+**Gun Seven** — 20% of players (n=1,864), named at 1.8x over the runner-up
+
+_Souls by shop tab: gun 19%  spirit 30%  melee 0%  support 1%  tank 25%  sustain 11%  control 6%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Mercurial Magnum | 55% | 3% |
+| Quicksilver Reload | 46% | 5% |
+| Spiritual Overflow | 60% | 37% |
+| Toxic Bullets | 40% | 21% |
+| Extended Magazine | 21% | 4% |
+| Surge of Power | 38% | 22% |
+| Bullet Resist Shredder | 21% | 6% |
+| Spirit Shielding | 33% | 18% |
+| Titanic Magazine | 18% | 4% |
+| Spirit Shredder Bullets | 30% | 17% |
+
+### Sinclair  (2 archetypes, n=3,957)
 
 | criterion | value | threshold |
 |---|---|---|
-| silhouette | 0.186 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
+| silhouette | 0.243 | >= 0.15 |
+| replication | 0.996 | >= 0.90 |
 | separation | 0.493 | >= 0.45 |
-| smallest share | 0.329 | >= 0.12 |
+| smallest share | 0.451 | >= 0.12 |
 
-**Melee Billy** — 33% of players (n=2,697), named at 9.8x over the runner-up
+**Spirit Sinclair** — 55% of players (n=2,172), named at 5.7x over the runner-up
 
-_Souls by shop tab: gun 16%  spirit 13%  melee 21%  support 1%  tank 22%  sustain 11%  control 8%  mobility 7%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Crushing Fists | 80% | 31% |
-| Melee Charge | 80% | 33% |
-| Lifestrike | 52% | 14% |
-| Rapid Recharge | 50% | 15% |
-| Melee Lifesteal | 77% | 44% |
-| Extra Charge | 40% | 10% |
-| Sprint Boots | 40% | 21% |
-| Enduring Speed | 40% | 25% |
-| Extra Regen | 35% | 23% |
-| Trophy Collector | 19% | 9% |
-
-**Billy** — 67% of players (n=5,504), **unnamed** — the families are too close to call
-
-_Souls by shop tab: gun 21%  spirit 10%  melee 11%  support 1%  tank 31%  sustain 12%  control 7%  mobility 7%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 4%  spirit 43%  melee 0%  support 0%  tank 22%  sustain 17%  control 5%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Spirit Shielding | 58% | 24% |
-| Grit | 69% | 37% |
-| Bullet Resist Shredder | 59% | 27% |
-| Stalker | 84% | 60% |
-| Weakening Headshot | 31% | 10% |
-| Monster Rounds | 70% | 51% |
-| Dispel Magic | 32% | 15% |
-| Berserker | 35% | 19% |
-| Cultist Sacrifice | 38% | 23% |
-| Escalating Resilience | 32% | 19% |
+| Rapid Recharge | 93% | 44% |
+| Extra Charge | 95% | 51% |
+| Improved Spirit | 94% | 53% |
+| Boundless Spirit | 78% | 40% |
+| Extra Spirit | 88% | 51% |
+| Enchanter's Emblem | 62% | 29% |
+| Superior Cooldown | 57% | 33% |
+| Magic Carpet | 28% | 8% |
+| Compress Cooldown | 41% | 23% |
+| Veil Walker | 66% | 47% |
 
-### Haze  (2 archetypes, n=11,825)
+**Melee Sinclair** — 45% of players (n=1,785), named at 1.7x over the runner-up
+
+_Souls by shop tab: gun 8%  spirit 30%  melee 2%  support 1%  tank 31%  sustain 12%  control 6%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Arcane Surge | 28% | 5% |
+| Grit | 30% | 9% |
+| Warp Stone | 26% | 5% |
+| Unstoppable | 23% | 3% |
+| Echo Shard | 24% | 4% |
+| Mystic Slow | 33% | 13% |
+| Debuff Reducer | 22% | 3% |
+| Extra Stamina | 25% | 8% |
+| Guardian Ward | 18% | 3% |
+| High-Velocity Rounds | 53% | 40% |
+
+### Venator  (2 archetypes, n=7,059)
 
 | criterion | value | threshold |
 |---|---|---|
-| silhouette | 0.256 | >= 0.15 |
-| replication | 0.999 | >= 0.90 |
-| separation | 0.488 | >= 0.45 |
-| smallest share | 0.190 | >= 0.12 |
-
-**Spirit Haze** — 19% of players (n=2,247), named at 3.0x over the runner-up
-
-_Souls by shop tab: gun 33%  spirit 13%  melee 0%  support 0%  tank 20%  sustain 11%  control 5%  mobility 18%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Enchanter's Emblem | 29% | 8% |
-| Spiritual Overflow | 30% | 9% |
-| Improved Spirit | 26% | 6% |
-| Spirit Lifesteal | 26% | 8% |
-| Veil Walker | 26% | 10% |
-| Boundless Spirit | 18% | 2% |
-| Extra Charge | 20% | 6% |
-| Echo Shard | 14% | 1% |
-| Sprint Boots | 40% | 27% |
-| Extra Spirit | 91% | 78% |
-
-**Gun Haze** — 81% of players (n=9,578), named at 4.3x over the runner-up
-
-_Souls by shop tab: gun 49%  spirit 4%  melee 0%  support 0%  tank 18%  sustain 7%  control 8%  mobility 13%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Ricochet | 76% | 27% |
-| Bullet Lifesteal | 74% | 36% |
-| Silencer | 46% | 16% |
-| Vampiric Burst | 30% | 7% |
-| Fury Trance | 34% | 15% |
-| Titanic Magazine | 30% | 10% |
-| Active Reload | 71% | 53% |
-| Extended Magazine | 34% | 16% |
-| Capacitor | 32% | 16% |
-| Lucky Shot | 19% | 3% |
-
-### Lash  (3 archetypes, n=12,951)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.323 | >= 0.15 |
-| replication | 1.000 | >= 0.90 |
-| separation | 0.472 | >= 0.45 |
-| smallest share | 0.257 | >= 0.12 |
-
-**Spirit Lash** — 36% of players (n=4,722), named at 5.1x over the runner-up
-
-_Souls by shop tab: gun 11%  spirit 28%  melee 0%  support 0%  tank 25%  sustain 16%  control 8%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Extra Spirit | 90% | 37% |
-| Superior Cooldown | 78% | 26% |
-| Improved Spirit | 89% | 38% |
-| Compress Cooldown | 61% | 19% |
-| Boundless Spirit | 64% | 24% |
-| Spirit Burn | 59% | 20% |
-| Mystic Expansion | 70% | 34% |
-| Greater Expansion | 66% | 33% |
-| Trophy Collector | 47% | 17% |
-| Transcendent Cooldown | 36% | 9% |
-
-**Hybrid-Tank Lash** — 26% of players (n=3,328), named at 1.4x over the runner-up
-
-_Souls by shop tab: gun 14%  spirit 18%  melee 0%  support 0%  tank 40%  sustain 11%  control 6%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Refresher | 58% | 15% |
-| Unstoppable | 55% | 12% |
-| Debuff Reducer | 40% | 12% |
-| Improved Spirit | 71% | 47% |
-| Greater Expansion | 59% | 37% |
-| Extra Spirit | 69% | 48% |
-| Mystic Expansion | 58% | 40% |
-| Mystic Shot | 39% | 23% |
-| Boundless Spirit | 46% | 33% |
-| Majestic Leap | 24% | 14% |
-
-**Gun Lash** — 38% of players (n=4,901), named at 4.9x over the runner-up
-
-_Souls by shop tab: gun 37%  spirit 7%  melee 0%  support 0%  tank 25%  sustain 11%  control 5%  mobility 14%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Bullet Resist Shredder | 91% | 12% |
-| Siphon Bullets | 87% | 13% |
-| Recharging Rush | 96% | 29% |
-| Sharpshooter | 57% | 2% |
-| Crippling Headshot | 42% | 8% |
-| Weakening Headshot | 40% | 6% |
-| High-Velocity Rounds | 31% | 1% |
-| Long Range | 29% | 1% |
-| Headhunter | 99% | 72% |
-| Restorative Locket | 44% | 17% |
-
-### Grey Talon  (3 archetypes, n=4,201)
-
-| criterion | value | threshold |
-|---|---|---|
-| silhouette | 0.279 | >= 0.15 |
+| silhouette | 0.163 | >= 0.15 |
 | replication | 0.998 | >= 0.90 |
-| separation | 0.463 | >= 0.45 |
-| smallest share | 0.122 | >= 0.12 |
+| separation | 0.485 | >= 0.45 |
+| smallest share | 0.359 | >= 0.12 |
 
-**Spirit Grey Talon** — 50% of players (n=2,104), named at 4.7x over the runner-up
+**Hybrid-Spirit Venator** — 64% of players (n=4,526), named at 1.5x over the runner-up
 
-_Souls by shop tab: gun 7%  spirit 37%  melee 0%  support 0%  tank 19%  sustain 21%  control 8%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
-
-| item | in this build | in the others |
-|---|---|---|
-| Spirit Burn | 77% | 21% |
-| Boundless Spirit | 91% | 36% |
-| Mystic Reverb | 67% | 13% |
-| Enchanter's Emblem | 80% | 33% |
-| Rapid Recharge | 98% | 51% |
-| Tankbuster | 96% | 50% |
-| Improved Spirit | 96% | 50% |
-| Extra Charge | 98% | 54% |
-| Mystic Burst | 98% | 55% |
-| Superior Cooldown | 81% | 40% |
-
-**Hybrid-Spirit Grey Talon** — 38% of players (n=1,585), named at 1.6x over the runner-up
-
-_Souls by shop tab: gun 18%  spirit 31%  melee 0%  support 0%  tank 17%  sustain 14%  control 5%  mobility 15%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 36%  spirit 12%  melee 2%  support 1%  tank 23%  sustain 15%  control 6%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Rapid Recharge | 94% | 53% |
-| Extra Charge | 96% | 54% |
-| Opening Rounds | 75% | 34% |
-| Tankbuster | 93% | 52% |
-| Mystic Burst | 97% | 56% |
-| Improved Spirit | 92% | 52% |
-| Recharging Rush | 52% | 22% |
-| Stamina Mastery | 76% | 48% |
-| High-Velocity Rounds | 80% | 53% |
-| Extra Spirit | 77% | 50% |
+| Rapid Recharge | 69% | 21% |
+| Extra Charge | 60% | 19% |
+| Ballistic Enchantment | 30% | 11% |
+| Enduring Speed | 64% | 46% |
+| Cultist Sacrifice | 37% | 19% |
+| Extra Regen | 28% | 12% |
+| Monster Rounds | 43% | 28% |
+| Hollow Point | 39% | 24% |
+| Radiant Regeneration | 16% | 1% |
+| Healing Booster | 17% | 3% |
 
-**Gun Grey Talon** — 12% of players (n=512), named at 5.8x over the runner-up
+**Gun Venator** — 36% of players (n=2,533), named at 4.2x over the runner-up
 
-_Souls by shop tab: gun 49%  spirit 9%  melee 0%  support 0%  tank 12%  sustain 7%  control 6%  mobility 16%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+_Souls by shop tab: gun 48%  spirit 4%  melee 1%  support 0%  tank 23%  sustain 11%  control 7%  mobility 5%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
 
 | item | in this build | in the others |
 |---|---|---|
-| Burst Fire | 76% | 3% |
-| Bullet Lifesteal | 73% | 1% |
-| Glass Cannon | 62% | 1% |
-| Swift Striker | 83% | 25% |
-| Sharpshooter | 92% | 38% |
-| Vampiric Burst | 53% | 0% |
-| Rapid Rounds | 71% | 21% |
-| Kinetic Dash | 48% | 1% |
-| Long Range | 96% | 49% |
-| Weakening Headshot | 40% | 1% |
+| Intensifying Magazine | 63% | 30% |
+| Vampiric Burst | 78% | 46% |
+| Berserker | 57% | 27% |
+| Swift Striker | 36% | 9% |
+| Fleetfoot | 55% | 28% |
+| Rapid Rounds | 35% | 9% |
+| Bullet Lifesteal | 86% | 67% |
+| Ricochet | 20% | 4% |
+| Close Quarters | 77% | 61% |
+| Restorative Shot | 67% | 51% |
+
+### Warden  (2 archetypes, n=10,117)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.263 | >= 0.15 |
+| replication | 1.000 | >= 0.90 |
+| separation | 0.484 | >= 0.45 |
+| smallest share | 0.438 | >= 0.12 |
+
+**Hybrid-Spirit Warden** — 44% of players (n=4,431), named at 1.3x over the runner-up
+
+_Souls by shop tab: gun 34%  spirit 18%  melee 0%  support 0%  tank 22%  sustain 15%  control 3%  mobility 8%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Boundless Spirit | 55% | 7% |
+| Improved Spirit | 40% | 10% |
+| Extra Spirit | 39% | 15% |
+| Unstoppable | 19% | 1% |
+| Spirit Resilience | 53% | 38% |
+| Witchmail | 17% | 1% |
+| Juggernaut | 24% | 11% |
+| Debuff Reducer | 15% | 2% |
+| Spiritual Overflow | 87% | 77% |
+| Spirit Lifesteal | 68% | 58% |
+
+**Gun Warden** — 56% of players (n=5,686), named at 5.7x over the runner-up
+
+_Souls by shop tab: gun 46%  spirit 15%  melee 0%  support 0%  tank 15%  sustain 13%  control 2%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Bullet Lifesteal | 19% | 10% |
+| Battle Vest | 27% | 21% |
+| Kinetic Dash | 11% | 6% |
+| Intensifying Magazine | 9% | 4% |
+| Vampiric Burst | 14% | 9% |
+| Extended Magazine | 77% | 73% |
+| High-Velocity Rounds | 93% | 89% |
+| Spellslinger | 9% | 5% |
+| Extra Regen | 47% | 43% |
+| Quicksilver Reload | 98% | 94% |
+
+### Mina  (3 archetypes, n=8,941)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.241 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.483 | >= 0.45 |
+| smallest share | 0.167 | >= 0.12 |
+
+**Spirit Mina** — 59% of players (n=5,243), named at 2.6x over the runner-up
+
+_Souls by shop tab: gun 9%  spirit 26%  melee 0%  support 2%  tank 24%  sustain 16%  control 11%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Spirit Burn | 95% | 47% |
+| Superior Cooldown | 62% | 40% |
+| Compress Cooldown | 45% | 29% |
+| Transcendent Cooldown | 29% | 17% |
+| Ethereal Shift | 25% | 13% |
+| Spirit Sap | 43% | 31% |
+| Spirit Rend | 51% | 39% |
+| Spirit Shredder Bullets | 63% | 53% |
+| Boundless Spirit | 91% | 81% |
+| Dispel Magic | 83% | 73% |
+
+**Hybrid-Gun Mina** — 17% of players (n=1,491), named at 1.6x over the runner-up
+
+_Souls by shop tab: gun 22%  spirit 23%  melee 0%  support 2%  tank 20%  sustain 13%  control 8%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Mercurial Magnum | 57% | 7% |
+| Ricochet | 36% | 1% |
+| Spiritual Overflow | 37% | 16% |
+| Rapid Rounds | 39% | 21% |
+| Spirit Lifesteal | 30% | 12% |
+| Toxic Bullets | 25% | 8% |
+| Swift Striker | 46% | 31% |
+| Focus Lens | 17% | 5% |
+| Titanic Magazine | 11% | 1% |
+| Extended Magazine | 10% | 1% |
+
+**Tank Mina** — 25% of players (n=2,207), named at 5.2x over the runner-up
+
+_Souls by shop tab: gun 10%  spirit 20%  melee 0%  support 2%  tank 31%  sustain 18%  control 3%  mobility 15%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Grit | 49% | 33% |
+| Reactive Barrier | 43% | 27% |
+| Dispel Magic | 87% | 71% |
+| Extra Health | 58% | 43% |
+| Indomitable | 27% | 13% |
+| Mystic Expansion | 72% | 60% |
+| Spellbreaker | 15% | 4% |
+| Debuff Reducer | 14% | 6% |
+| Tankbuster | 97% | 93% |
+| Spirit Shielding | 17% | 13% |
+
+### Lash  (3 archetypes, n=12,795)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.307 | >= 0.15 |
+| replication | 1.000 | >= 0.90 |
+| separation | 0.466 | >= 0.45 |
+| smallest share | 0.270 | >= 0.12 |
+
+**Spirit Lash** — 39% of players (n=4,970), named at 5.3x over the runner-up
+
+_Souls by shop tab: gun 11%  spirit 29%  melee 0%  support 0%  tank 24%  sustain 16%  control 8%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Superior Cooldown | 78% | 27% |
+| Extra Spirit | 90% | 40% |
+| Improved Spirit | 84% | 38% |
+| Boundless Spirit | 64% | 23% |
+| Compress Cooldown | 60% | 19% |
+| Spirit Burn | 60% | 21% |
+| Mystic Expansion | 71% | 36% |
+| Greater Expansion | 65% | 33% |
+| Trophy Collector | 47% | 17% |
+| Transcendent Cooldown | 34% | 8% |
+
+**Lash** — 27% of players (n=3,460), **unnamed** — the families are too close to call
+
+_Souls by shop tab: gun 13%  spirit 19%  melee 0%  support 0%  tank 40%  sustain 11%  control 6%  mobility 11%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Refresher | 60% | 15% |
+| Unstoppable | 54% | 13% |
+| Debuff Reducer | 40% | 12% |
+| Extra Spirit | 74% | 48% |
+| Improved Spirit | 71% | 45% |
+| Greater Expansion | 59% | 36% |
+| Mystic Expansion | 62% | 41% |
+| Mystic Shot | 43% | 24% |
+| Majestic Leap | 25% | 13% |
+| Boundless Spirit | 44% | 33% |
+
+**Gun Lash** — 34% of players (n=4,365), named at 5.0x over the runner-up
+
+_Souls by shop tab: gun 38%  spirit 7%  melee 0%  support 0%  tank 25%  sustain 11%  control 4%  mobility 14%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Bullet Resist Shredder | 91% | 11% |
+| Siphon Bullets | 87% | 11% |
+| Recharging Rush | 96% | 26% |
+| Sharpshooter | 56% | 2% |
+| Crippling Headshot | 37% | 6% |
+| Weakening Headshot | 35% | 5% |
+| High-Velocity Rounds | 29% | 1% |
+| Headhunter | 99% | 71% |
+| Mercurial Magnum | 34% | 6% |
+| Long Range | 27% | 1% |
+
+### Haze  (3 archetypes, n=13,486)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.226 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.460 | >= 0.45 |
+| smallest share | 0.233 | >= 0.12 |
+
+**Spirit Haze** — 23% of players (n=3,144), named at 2.2x over the runner-up
+
+_Souls by shop tab: gun 41%  spirit 16%  melee 0%  support 0%  tank 12%  sustain 10%  control 4%  mobility 16%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Spiritual Overflow | 68% | 14% |
+| Veil Walker | 61% | 11% |
+| Spirit Lifesteal | 58% | 11% |
+| Extra Charge | 49% | 8% |
+| Sprint Boots | 68% | 29% |
+| Quicksilver Reload | 62% | 26% |
+| Mercurial Magnum | 56% | 22% |
+| Enchanter's Emblem | 28% | 5% |
+| Tesla Bullets | 45% | 31% |
+| Surge of Power | 86% | 73% |
+
+**Haze** — 39% of players (n=5,218), **unnamed** — the families are too close to call
+
+_Souls by shop tab: gun 40%  spirit 5%  melee 0%  support 0%  tank 25%  sustain 9%  control 9%  mobility 12%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Unstoppable | 54% | 7% |
+| Debuff Reducer | 37% | 7% |
+| Silencer | 55% | 28% |
+| Active Reload | 72% | 48% |
+| Extra Health | 45% | 24% |
+| Ricochet | 77% | 57% |
+| Inhibitor | 28% | 10% |
+| Spirit Resilience | 38% | 19% |
+| Siphon Bullets | 34% | 19% |
+| Golden Goose Egg | 42% | 29% |
+
+**Gun Haze** — 38% of players (n=5,124), named at 7.2x over the runner-up
+
+_Souls by shop tab: gun 55%  spirit 5%  melee 0%  support 0%  tank 13%  sustain 7%  control 6%  mobility 13%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Bullet Lifesteal | 67% | 36% |
+| Ricochet | 82% | 55% |
+| Active Reload | 68% | 51% |
+| Titanic Magazine | 31% | 15% |
+| Extended Magazine | 35% | 22% |
+| Lucky Shot | 18% | 5% |
+| Vampiric Burst | 28% | 16% |
+| Fury Trance | 25% | 14% |
+| Tesla Bullets | 43% | 32% |
+| Capacitor | 38% | 27% |
+
+### Drifter  (3 archetypes, n=11,599)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.255 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.459 | >= 0.45 |
+| smallest share | 0.289 | >= 0.12 |
+
+**Stalker's Mark Melee Drifter** — 40% of players (n=4,639), named at 2.2x over the runner-up
+
+_Souls by shop tab: gun 9%  spirit 18%  melee 9%  support 0%  tank 31%  sustain 10%  control 14%  mobility 9%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Tankbuster | 93% | 36% |
+| Spirit Snatch | 98% | 45% |
+| Superior Duration | 62% | 10% |
+| Spirit Strike | 96% | 45% |
+| Veil Walker | 84% | 34% |
+| Spirit Burn | 50% | 4% |
+| Mystic Burst | 87% | 47% |
+| Cold Front | 43% | 4% |
+| Melee Lifesteal | 89% | 51% |
+| Duration Extender | 36% | 5% |
+
+**Rend Melee Drifter** — 31% of players (n=3,605), named at 1.9x over the runner-up
+
+_Souls by shop tab: gun 25%  spirit 10%  melee 7%  support 0%  tank 25%  sustain 10%  control 9%  mobility 13%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Spirit Snatch | 72% | 58% |
+| Melee Lifesteal | 72% | 59% |
+| Kinetic Dash | 51% | 38% |
+| Weakening Headshot | 20% | 7% |
+| Silencer | 28% | 17% |
+| Extra Stamina | 39% | 29% |
+| Opening Rounds | 19% | 9% |
+| Spiritual Overflow | 19% | 10% |
+| Spirit Strike | 68% | 59% |
+| Crippling Headshot | 17% | 9% |
+
+**Gun Drifter** — 29% of players (n=3,355), named at 4.0x over the runner-up
+
+_Souls by shop tab: gun 42%  spirit 4%  melee 2%  support 0%  tank 20%  sustain 9%  control 9%  mobility 14%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Burst Fire | 76% | 26% |
+| Close Quarters | 70% | 25% |
+| Rapid Rounds | 62% | 19% |
+| Lucky Shot | 46% | 4% |
+| Kinetic Dash | 70% | 28% |
+| Point Blank | 64% | 23% |
+| Fortitude | 51% | 16% |
+| Vampiric Burst | 41% | 7% |
+| Extra Stamina | 53% | 22% |
+| Bullet Lifesteal | 42% | 12% |
+
+### Kelvin  (2 archetypes, n=5,357)
+
+| criterion | value | threshold |
+|---|---|---|
+| silhouette | 0.269 | >= 0.15 |
+| replication | 0.999 | >= 0.90 |
+| separation | 0.455 | >= 0.45 |
+| smallest share | 0.304 | >= 0.12 |
+
+**Spirit Kelvin** — 70% of players (n=3,729), named at 3.0x over the runner-up
+
+_Souls by shop tab: gun 2%  spirit 40%  melee 0%  support 1%  tank 27%  sustain 19%  control 6%  mobility 6%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Escalating Exposure | 79% | 33% |
+| Mystic Vulnerability | 77% | 37% |
+| Superior Duration | 48% | 20% |
+| Mystic Expansion | 74% | 46% |
+| Duration Extender | 40% | 12% |
+| Superior Cooldown | 70% | 42% |
+| Boundless Spirit | 72% | 45% |
+| Greater Expansion | 62% | 37% |
+| Torment Pulse | 34% | 10% |
+| Spirit Lifesteal | 38% | 16% |
+
+**Support Kelvin** — 30% of players (n=1,628), named at 2.0x over the runner-up
+
+_Souls by shop tab: gun 9%  spirit 29%  melee 0%  support 5%  tank 19%  sustain 21%  control 8%  mobility 10%. Shown for reference only — the name comes from what the items below do, not from the tab they are sold in._
+
+| item | in this build | in the others |
+|---|---|---|
+| Healing Tempo | 39% | 11% |
+| Rescue Beam | 36% | 10% |
+| Opening Rounds | 36% | 12% |
+| High-Velocity Rounds | 38% | 15% |
+| Healing Rite | 33% | 11% |
+| Healing Booster | 83% | 64% |
+| Slowing Hex | 23% | 8% |
+| Guardian Ward | 17% | 3% |
+| Cursed Relic | 16% | 2% |
+| Quicksilver Reload | 13% | 0% |
 
 ## Heroes that did not split
 
 | hero | n | why |
 |---|---|---|
-| Apollo | 5,178 | single archetype: best split fails smallest share |
-| Calico | 8,038 | single archetype: best split fails smallest share |
-| Mo & Krill | 9,553 | single archetype: best split k=3 fails separation (all clusters merged) |
-| Pocket | 7,085 | single archetype: best split k=3 fails separation (all clusters merged) |
-| Rem | 8,096 | single archetype: best split fails smallest share |
-| Shiv | 7,631 | single archetype: best split fails smallest share |
-| The Doorman | 4,492 | single archetype: best split fails smallest share |
-| Victor | 8,310 | single archetype: best split fails smallest share |
-| Vindicta | 8,652 | single archetype: best split fails smallest share |
-| Wraith | 10,934 | single archetype: best split k=3 fails separation (all clusters merged) |
+| Apollo | 5,074 | single archetype: best split fails smallest share |
+| Calico | 7,936 | single archetype: best split fails smallest share |
+| Mo & Krill | 9,856 | single archetype: best split k=3 fails separation (all clusters merged) |
+| Pocket | 6,510 | single archetype: best split fails smallest share |
+| The Doorman | 4,366 | single archetype: best split fails smallest share |
+| Vindicta | 8,460 | single archetype: best split fails smallest share |
+| Wraith | 11,114 | single archetype: best split k=3 fails separation (all clusters merged) |

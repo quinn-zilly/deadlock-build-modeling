@@ -13,24 +13,27 @@ Each number is marked:
 - **UNVERIFIED** — stated by <https://deadlock.wiki> and not checkable against
   what we hold. Believe it, but do not build a gate on it without measuring.
 
-> **The local population changed on 2026-09-14 and the tables no longer agree.**
-> Adding `include_objectives` and `include_mid_boss` to `ingest.BASE_PARAMS`
-> invalidated the whole page cache, and the re-pull fetched newest-first, so it
-> returned a **newer window** rather than the same matches. Today
-> `data/processed/purchases.parquet` holds **5,119,990 purchase rows over
-> 296,478 player-matches in 24,999 matches**, and the 125 pages it came from
-> are the only ones in `data/raw/matches/`.
+> **The local population changed on 2026-09-14, and every table was refitted
+> onto it on 2026-09-15.** Adding `include_objectives` and `include_mid_boss`
+> to `ingest.BASE_PARAMS` invalidated the whole page cache, and the re-pull
+> fetched newest-first, so it returned a **newer window** rather than the same
+> matches. The 125 pages it produced are the only ones in `data/raw/matches/`.
 >
-> `abilities.parquet` (4,454,785 ability level-ups), `imbues.parquet` (452,103
-> imbues), `archetypes.parquet` and every fitted model still come from the
-> **old** window, whose purchase table had 5,095,598 rows over 299,983
-> player-matches. **Joining them to the current `purchases.parquet` joins two
-> different populations.** Rebuild the one you need before joining, or restore
-> the old pages from `data/raw/matches_prechange/`.
+> The tables agree again, all six rebuilt from those pages by
+> `scripts/refit.py`: `purchases.parquet` **5,119,990 purchases over 296,478
+> player-matches in 24,999 matches**, `abilities.parquet` **4,460,944** ability
+> level-ups, `imbues.parquet` **467,271** imbues, `archetypes.parquet`
+> **296,478** labelled player-matches over 80 hero-and-archetype cells, and all
+> 80 generated builds pass the prevalence gate.
 >
-> Every number below that cites 5,095,598 or 299,983 was measured on that older
-> population. It is not wrong; it is measured on a file this repo no longer
-> holds, and it does not compare to a number measured on the current one.
+> The **old** window is still on disk as `data/raw/matches_prechange/` (125
+> pages, 5.3 GB, git-ignored, so only on the machine that pulled it). Its
+> purchase table had 5,095,598 rows over 299,983 player-matches. Every number
+> in this repo that cites 5,095,598 or 299,983 was measured there. It is not
+> wrong; it is measured on a file this repo no longer builds from, and per
+> `CLAUDE.md` it does not compare to a number measured on the current one.
+> Restoring that directory and re-running `scripts/refit.py` reproduces the old
+> population exactly.
 
 **Two sources exist beyond local parquet and the assets API.**
 
@@ -681,14 +684,22 @@ usually yields 8-12 of its 12 players.
 **1 match**. The two numbers are measured on different windows and must not be
 blended.
 
-**On the window this project actually models, the coverage is 0.35%, and that
+**On the window this project actually models, the coverage is 0.21%, and that
 is too thin to model on** (**VERIFIED**, the full 24,999-match training set as
 rebuilt on 2026-09-14). `hero_build_id` is present for **623 of 296,478
 player-matches**, in **87 of 24,999 matches**, spread across **371 distinct
 builds** and all 38 heroes. That is roughly 16 rows per hero and 1.7 per build,
-before any split by archetype. `pregame_hero_id` is present slightly more often
-(0.35% of player-matches), and **128 of those players swapped hero** after
-locking in.
+before any split by archetype. `pregame_hero_id` is present more often --
+**1,029 player-matches, 0.35%** -- and **128 of those players swapped hero**
+after locking in. The two fields have different coverage and the two shares are
+not interchangeable.
+
+**Split by archetype, no cell survives** (**VERIFIED**, same population, against
+the 80 hero-and-archetype cells of the 2026-09-15 fit). All 623 analyzed rows
+carry an archetype label, and they reach **78 of the 80 cells** -- but the
+median cell holds **6.5 rows**, the largest holds **26**, and **no cell reaches
+30**. `evaluate.prevalence_gate` calls a cell inconclusive below 300. Widening
+the window is the only thing that changes this; the split cannot.
 
 The cause is the ingest window, not the API. `scripts/pull_data.py` starts at
 the current patch (2026-08-22) and `ingest.pull_matches` pages newest-first, so

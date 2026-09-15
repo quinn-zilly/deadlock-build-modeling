@@ -178,6 +178,49 @@ class TestComponentPreference:
         )
         assert scored[0] == pytest.approx(0.5)
 
+    def test_the_penalty_survives_the_staple_force(self):
+        """A composite and its own component can both be staples.
+
+        Gun Shiv has three such pairs -- Radiant Regeneration over Mystic
+        Regeneration, Swift Striker over Rapid Rounds, Mercurial Magnum over
+        Quicksilver Reload. Forcing by raw prevalence ranks each composite
+        first, so its component arrives after its parent, absorbs nothing, and
+        13 staples need 13 slots against a cap of 12. The completion pass must
+        not erase the penalty that puts the component first.
+        """
+        composite, component = REAL_ITEMS[0], REAL_ITEMS[1]
+        scored = build._apply_priors(
+            np.array([composite, component]),
+            np.array([0.0, 0.0]),
+            inventory=build.Inventory(),
+            components={composite: (component,)},
+            component_penalty=build.COMPONENT_PENALTY,
+            # The composite is the more prevalent of the two, as it is in every
+            # real pair: a player who buys the composite bought the component.
+            staples={composite: 0.972, component: 0.959},
+            remaining=2,
+        )
+        assert scored[1] > scored[0]
+
+    def test_a_staple_is_not_demoted_for_a_component_nobody_buys(self):
+        """The demotion applies only while both items are owed.
+
+        Enduring Speed is bought by 85% of Gun Victor, and its component Sprint
+        Boots is bought too rarely to be a staple. Demoting on a component that
+        is never coming drops the staple for an absorption that cannot happen.
+        """
+        composite, component = REAL_ITEMS[0], REAL_ITEMS[1]
+        scored = build._apply_priors(
+            np.array([composite]),
+            np.array([0.0]),
+            inventory=build.Inventory(),
+            components={composite: (component,)},
+            component_penalty=build.COMPONENT_PENALTY,
+            staples={composite: 0.848},
+            remaining=1,
+        )
+        assert scored[0] == pytest.approx(0.848)
+
 
 class TestStapleCompletion:
     def test_a_reserved_slot_admits_a_missing_staple(self):

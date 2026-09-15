@@ -17,9 +17,13 @@ from deadlock import evaluate
 
 PURCHASES = Path("data/processed/purchases.parquet")
 
-# The nine items >=70% of Wraith players buy, measured 2026-09-04 on 25k
-# matches. docs/DIAGNOSIS.md records that the old planner recommended none of
-# them while every aggregate metric passed.
+# The ten items >=70% of Wraith's 11,114 players buy, measured 2026-09-15 on
+# the post-re-pull population. docs/DIAGNOSIS.md records that the old planner
+# recommended none of them while every aggregate metric passed.
+#
+# The nine measured on 2026-09-04 all survived the re-pull. Spirit Lifesteal is
+# the tenth, and it sits 0.0013 above the threshold, so expect this one to
+# cross back on the next window. The rest range from 0.708 to 0.992.
 WRAITH_STAPLES = [
     "Quicksilver Reload",
     "Monster Rounds",
@@ -30,6 +34,7 @@ WRAITH_STAPLES = [
     "Extra Spirit",
     "Rapid Rounds",
     "Tesla Bullets",
+    "Spirit Lifesteal",
 ]
 
 

@@ -241,9 +241,31 @@ def _apply_priors(
             remaining <= len(missing) + PEAK_WINDOW or free_slots <= len(missing)
         )
         if forced:
+            owed = set(missing)
             for i, item_id in enumerate(ids):
-                if int(item_id) in missing:
-                    scored[i] = max(scored[i], staples[int(item_id)])
+                iid = int(item_id)
+                if iid not in owed:
+                    continue
+                value = staples[iid]
+                # A composite and its own component can both be staples -- Gun
+                # Shiv has three such pairs, and the composite is always the
+                # more prevalent of the two, because buying it implies buying
+                # the component. Forcing on raw prevalence ranks the parent
+                # first, so the component arrives too late to be absorbed and
+                # the cell's 13 staples need 13 slots against a cap of 12.
+                # Demoting the parent while both are owed puts the component
+                # first and the absorption back.
+                #
+                # Only while both are owed. Enduring Speed's component is
+                # Sprint Boots, which its cells do not buy often enough to be a
+                # staple; demoting on that would drop an item 85% of Gun Victor
+                # buys for a component absorption that was never going to
+                # happen.
+                needed = components.get(iid, ())
+                if any(c in owed and c not in inventory.held for c in needed):
+                    value *= component_penalty
+                scored[i] = max(scored[i], value)
+
     return scored
 
 
