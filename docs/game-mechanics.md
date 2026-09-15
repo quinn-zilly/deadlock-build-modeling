@@ -55,8 +55,18 @@ explains stray 429s better, since it can reject at any rate.
 Do not reach for the per-match `/v1/matches/{match_id}/metadata` to escape the
 limit. Its limit really is generous (measured at 2.6 req/s serially with no
 429), but it carries one match per request against the bulk endpoint's 200, so
-it is ~12x slower per match and returns 1.2 MB per match against 175 KB.
+it is ~12x slower per match and returns 1.2 MB per match against 430 KB.
 Packing beats rate here.
+
+**A pull is bound by bytes, not by requests.** 25,000 matches is ~11.6 GB at
+the ~430 KB/match this endpoint returns today, and ~14 minutes at the
+13.5 MB/s measured on one machine on 2026-09-15. Pacing at 9 req/min costs
+about the same 14 minutes, so the two floors coincide. Anything that attacks
+the request count — a larger `MATCHES_PER_PAGE`, an API key — therefore buys
+close to nothing on the ingest, and a larger page costs real memory
+(`ingest.MATCHES_PER_PAGE` carries the numbers). The lever that would work is
+fewer `include_` flags, because that is the one that removes bytes. Both
+measurements are one machine on one day; re-measure before trusting either.
 
 > When testing this endpoint, **pass Unix timestamps for the intended year**.
 > A window accidentally set to 2025 returns real matches that predate demo

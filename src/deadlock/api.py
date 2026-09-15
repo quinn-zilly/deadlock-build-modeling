@@ -9,8 +9,10 @@ Encodes three access constraints measured against the live API:
    other caller. We pace against the per-IP limit, because it is the only one
    we control. A 429 from the global pool can still arrive at any rate, so the
    pacing does not replace 429 handling.
-3. Responses are large (a 200-match page is ~35 MB), so every response is
-   cached on disk. Re-runs of a completed pull cost zero requests.
+3. Responses are large (a 200-match page is ~92 MB, measured 2026-09-15), so
+   every response is cached on disk. Re-runs of a completed pull cost zero
+   requests. Bytes, not requests, are what bound a full pull; ingest.py
+   carries that measurement.
 
 An API key lifts every documented limit, some of them several-fold. Set
 ``DEADLOCK_API_KEY`` and the key is sent and the higher pacing applied; leave

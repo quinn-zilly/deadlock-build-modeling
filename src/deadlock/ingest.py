@@ -16,6 +16,17 @@ Two parameter details are load-bearing and were established by testing:
 average_badge is populated only for Ranked matches (verified: 1.14M/1.14M
 Ranked vs 0/2.13M Unranked), and rank is an essential control, so the modeling
 population is Ranked + Normal.
+
+What actually bounds a pull, measured 2026-09-15: bytes, not requests. A
+25,000-match pull moves ~11.6 GB, which at the ~13.5 MB/s this machine saw
+takes ~14 minutes on its own. Pacing at the endpoint's 9 req/min costs about
+the same 14 minutes, so the two floors now coincide and neither dominates.
+
+That has one consequence worth knowing before optimising: raising
+MATCHES_PER_PAGE or adding an API key buys close to nothing here, because
+both attack the request count while the bytes stay put. Fewer *fields* would
+be the lever — see BASE_PARAMS — and 13.5 MB/s is a property of one machine
+on one day, so re-measure before trusting the number.
 """
 
 from __future__ import annotations
@@ -29,7 +40,16 @@ from . import api
 
 log = logging.getLogger(__name__)
 
-MATCHES_PER_PAGE = 200      # endpoint allows 10000 but responses are ~35 MB/200
+# The endpoint allows 10000 per page and defaults to 1000. We ask for 200
+# because a page is held whole in memory: iter_matches json.loads the entire
+# cached file. Measured 2026-09-15 at ~430 KB/match, linear from limit=10 to
+# limit=200, so a page costs ~92 MB on disk and ~150 MB parsed. At the
+# endpoint's own maximum that would be ~4.7 GB parsing to ~7.5 GB, and the
+# download alone would exceed api.get's 180s timeout.
+#
+# An earlier note here said ~35 MB/200. That was true before e7be5da added
+# include_objectives and include_mid_boss; each match grew, the note did not.
+MATCHES_PER_PAGE = 200
 PLAYERS_PER_MATCH = 12
 
 # What each include flag buys, so a session can see what the endpoint offers
