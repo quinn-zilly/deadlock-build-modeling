@@ -45,10 +45,13 @@ the clustering.
 **Nothing about abilities is in the clustering.** Ability state at a fixed
 instant was measured and degrades every hero tried; [[imbue]] was tried in two
 forms and rejected, because it splits heroes on whether they bought one of the
-nine imbueable items rather than on what they aimed it at. Both still name
-clusters, which is a different job -- see [[ability focus]] and
-`docs/adr/0001-imbue-out-of-the-clustering.md`. Ability *order* is a third
-feature and has never been tested as a clustering input.
+nine imbueable items rather than on what they aimed it at. Ability
+*order* is a third feature, measured separately and rejected too: it loses more
+heroes a split than it gains, 4 to 15 depending on the form, even though it is
+defined for every player and concentrates on no small set of items. All three
+still name clusters, which is a different job -- see [[ability focus]],
+`docs/adr/0001-imbue-out-of-the-clustering.md` and
+`docs/adr/0003-ability-order-out-of-the-clustering.md`.
 
 Two clusters are only two archetypes if a player would call them different
 builds. Differing by [[counter-pick]]s alone does not qualify: Kelvin's two

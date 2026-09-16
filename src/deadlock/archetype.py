@@ -41,9 +41,13 @@ the player what to imbue; it does not find clusters.
 `docs/adr/0001-imbue-out-of-the-clustering.md` is the decision, and every other
 statement of it in this repo points there rather than repeating the numbers.
 
-Ability *order* -- how far into a player's spending each ability reached each
-level -- is a different feature from ability state, and it has never been
-tested here. Neither result above stands in for measuring it.
+**Ability order was tried and rejected too**, in three forms: raw, minus the
+hero's own mean, and as a within-hero percentile. Every one loses heroes a
+split that build families alone found -- 4, 14 and 15 of 31 -- and gains fewer
+back. It is not the imbue failure repeated: order is defined for all 296,478
+players and its separating items concentrate no more than the families control
+does. It fails on its merits.
+`docs/adr/0003-ability-order-out-of-the-clustering.md` is the decision.
 
 Shares are left unstandardized. They already sum to 1, so they are commensurate;
 z-scoring inflates whichever family happens to have low variance for that hero

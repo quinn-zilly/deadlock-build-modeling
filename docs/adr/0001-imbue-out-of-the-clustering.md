@@ -115,7 +115,10 @@ come from this run and neither is comparable to a figure recorded elsewhere.
   Dynamo's two builds when the item lifts cannot.
 - Ability **order** remains untested as a clustering feature. It is a different
   feature from ability state, which was tested and rejected, and this decision
-  does not stand in for a measurement of it.
+  does not stand in for a measurement of it. **Discharged by
+  `docs/adr/0003-ability-order-out-of-the-clustering.md`**, which measured it
+  and rejected it -- on R1, losing splits, not on the concentration test this
+  ADR turns on.
 - Re-opening this needs a block whose separating items are not concentrated in
   the items the block is derived from. Reporting the separating item, not only
   the separation score, is what makes that checkable —

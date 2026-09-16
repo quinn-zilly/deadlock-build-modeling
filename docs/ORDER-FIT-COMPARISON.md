@@ -1,0 +1,89 @@
+# Does ability point order belong in the archetype clustering?
+
+Four fits over the same purchase table in the same run. `families` is
+build-family shares alone, `order` is `point_order_features` raw, and
+`order_mean` and `order_rank` are the same twelve columns residualised
+against the hero's own average -- a difference from the hero mean and a
+within-hero percentile respectively.
+
+The separating item is the item carrying each fit's weakest cluster
+pair: the claim behind the separation score, and the thing that says
+whether a split is a playstyle or a restatement of the block.
+
+Separation is **not comparable across columns** where k differs -- it
+falls when k rises, and a hero that did not split reports the score of
+a rejected candidate. Read the k columns; the separations are here to
+be read next to a k, not across a row.
+
+| hero | k families | k order | k order_mean | k order_rank | sep families | sep order_mean | separating item (families) | separating item (order_mean) |
+|---|---|---|---|---|---|---|---|---|
+| Abrams | 2 | 3 | 2 | 3 | 0.75 | 0.65 | Close Quarters | Spirit Strike |
+| Apollo | 1 | 1 | 1 | 3 | -- | -- | -- | -- |
+| Bebop | 2 | 2 | 2 | 2 | 0.66 | 0.70 | Headshot Booster | Headshot Booster |
+| Billy | 2 | 1 | 1 | 1 | 0.59 | -- | Rapid Recharge | -- |
+| Calico | 1 | 1 | 1 | 1 | -- | -- | -- | -- |
+| Celeste | 2 | 2 | 3 | 2 | 0.59 | 0.46 | Spellslinger | Suppressor |
+| Drifter | 3 | 3 | 2 | 3 | 0.46 | 0.63 | Kinetic Dash | Tankbuster |
+| Dynamo | 2 | 2 | 3 | 2 | 0.67 | 0.48 | Refresher | Extra Charge |
+| Graves | 3 | 3 | 1 | 2 | 0.64 | -- | Tesla Bullets | -- |
+| Grey Talon | 3 | 3 | 3 | 3 | 0.52 | 0.48 | Sharpshooter | Long Range |
+| Haze | 3 | 1 | 2 | 2 | 0.46 | 0.61 | Unstoppable | Bullet Lifesteal |
+| Holliday | 3 | 3 | 2 | 2 | 0.75 | 0.74 | Sharpshooter | Sharpshooter |
+| Infernus | 2 | 2 | 3 | 2 | 0.65 | 0.49 | Ricochet | Quicksilver Reload |
+| Ivy | 3 | 3 | 3 | 3 | 0.53 | 0.53 | Active Reload | Active Reload |
+| Kelvin | 2 | 2 | 2 | 1 | 0.45 | 0.58 | Escalating Exposure | Escalating Exposure |
+| Lady Geist | 3 | 3 | 2 | 2 | 0.57 | 0.62 | Mystic Reverb | Mystic Expansion |
+| Lash | 3 | 3 | 2 | 2 | 0.47 | 0.88 | Unstoppable | Bullet Resist Shredder |
+| McGinnis | 2 | 2 | 3 | 3 | 0.79 | 0.50 | Mystic Vulnerability | Arcane Surge |
+| Mina | 3 | 3 | 1 | 1 | 0.48 | -- | Mercurial Magnum | -- |
+| Mirage | 2 | 3 | 1 | 1 | 0.61 | -- | Escalating Exposure | -- |
+| Mo & Krill | 1 | 1 | 1 | 1 | -- | -- | -- | -- |
+| Paige | 2 | 2 | 2 | 2 | 0.53 | 0.51 | Rapid Recharge | Rapid Recharge |
+| Paradox | 3 | 3 | 1 | 2 | 0.66 | -- | Spirit Burn | -- |
+| Pocket | 1 | 1 | 2 | 1 | -- | 0.48 | -- | Extra Spirit |
+| Rem | 2 | 1 | 3 | 2 | 0.53 | 0.45 | Superior Cooldown | Superior Duration |
+| Seven | 3 | 3 | 1 | 1 | 0.52 | -- | Mercurial Magnum | -- |
+| Shiv | 2 | 2 | 3 | 2 | 0.93 | 0.50 | Swift Striker | Extra Charge |
+| Silver | 2 | 2 | 1 | 1 | 0.62 | -- | Unstoppable | -- |
+| Sinclair | 2 | 2 | 3 | 2 | 0.49 | 0.53 | Rapid Recharge | Opening Rounds |
+| The Doorman | 1 | 1 | 1 | 1 | -- | -- | -- | -- |
+| Venator | 2 | 1 | 1 | 1 | 0.49 | -- | Rapid Recharge | -- |
+| Victor | 2 | 2 | 2 | 2 | 0.91 | 0.57 | Mercurial Magnum | Titanic Magazine |
+| Vindicta | 1 | 1 | 1 | 2 | -- | -- | -- | -- |
+| Viscous | 2 | 2 | 3 | 2 | 0.81 | 0.58 | Melee Charge | Extra Charge |
+| Vyper | 2 | 2 | 1 | 1 | 0.62 | -- | Unstoppable | -- |
+| Warden | 2 | 2 | 2 | 2 | 0.48 | 0.54 | Boundless Spirit | Veil Walker |
+| Wraith | 1 | 2 | 1 | 1 | -- | -- | -- | -- |
+| Yamato | 2 | 2 | 2 | 1 | 0.52 | 0.55 | Mystic Reverb | Stalker |
+
+## Verdict
+
+Families control: 31 split heroes, top separating item 'Unstoppable' carries 13%, top three carry 35%.
+
+### `order`
+
+- Splits gained: Abrams, Mirage, Wraith
+- Splits **lost**: Billy, Haze, Rem, Venator
+- Split heroes: 28; top separating item 'Rapid Recharge' at 11%, top three at 32%
+- **R1 no hero loses a split: NO. R2 a hero gains a split: yes. R3 separating items do not concentrate: yes.**
+
+The pre-committed rule removes `order` from the clustering.
+
+### `order_mean`
+
+- Splits gained: Celeste, Dynamo, Infernus, McGinnis, Pocket, Rem, Shiv, Sinclair, Viscous
+- Splits **lost**: Billy, Drifter, Graves, Haze, Holliday, Lady Geist, Lash, Mina, Mirage, Paradox, Seven, Silver, Venator, Vyper
+- Split heroes: 23; top separating item 'Extra Charge' at 13%, top three at 22%
+- **R1 no hero loses a split: NO. R2 a hero gains a split: yes. R3 separating items do not concentrate: yes.**
+
+The pre-committed rule removes `order_mean` from the clustering.
+
+### `order_rank`
+
+- Splits gained: Abrams, Apollo, McGinnis, Vindicta
+- Splits **lost**: Billy, Graves, Haze, Holliday, Kelvin, Lady Geist, Lash, Mina, Mirage, Paradox, Seven, Silver, Venator, Vyper, Yamato
+- Split heroes: 24; top separating item 'Rapid Recharge' at 12%, top three at 25%
+- **R1 no hero loses a split: NO. R2 a hero gains a split: yes. R3 separating items do not concentrate: yes.**
+
+The pre-committed rule removes `order_rank` from the clustering.
+

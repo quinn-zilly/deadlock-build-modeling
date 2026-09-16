@@ -202,10 +202,14 @@ def point_order_features(
     snapshot of state; `CONTEXT.md` says of items that a build is a sequence and
     not an inventory, and the same holds here. State was measured and rejected
     for the archetype clustering (see the module docstring in `archetype.py`),
-    but what was measured was state. Order was never tried, and it separates
-    clusters state could not -- on Ivy, 67% of one cluster maxes Stone Form
-    first against 9% of another, where the largest gap in levels at 480s was
-    0.48 of 4.
+    and **order was measured separately and rejected there too** --
+    `docs/adr/0003-ability-order-out-of-the-clustering.md`. What survives that
+    rejection is the claim these columns were built on: order does vary across
+    a hero's archetypes. On Ivy 67% of one cluster maxes Stone Form first
+    against 9% of another, where the largest gap in levels at 480s was 0.48 of
+    4, and Ivy keeps all three archetypes under every order fit tried. Order
+    describes archetypes; it does not find them, which is why these columns
+    serve the sequence model and the naming rather than the clustering.
 
     Ordering by point rather than by clock because players level at different
     speeds; the fifth point is the fifth decision whenever it was taken.
@@ -237,6 +241,52 @@ def point_order_features(
         for slot in range(1, N_SIGNATURE_SLOTS + 1):
             out[f"pt_{slot}_l{level}"] = scaled[slot].fillna(1.0).clip(0.0, 1.0)
     return out
+
+
+def residual_point_order_features(
+    df: pd.DataFrame,
+    *,
+    form: str = "mean",
+    levels: tuple[int, ...] = (2, 3, 4),
+) -> pd.DataFrame:
+    """`point_order_features`, measured against the player's own hero.
+
+    Raw order is largely hero-constant: a hero front-loads the same ability for
+    almost everyone who plays it, so the raw columns mostly re-encode hero
+    identity -- which the fit already conditions on, since `fit_hero` runs one
+    hero at a time. What is left after the hero's own average is removed is
+    where *this* player diverged from what everyone on that hero does, which is
+    the only part a per-hero clustering can use.
+
+    Two residual forms, because the right one is a measurement rather than a
+    preference:
+
+        mean    the column minus that hero's mean of the column. Keeps the
+                units of the raw feature (a fraction of the player's points),
+                so a 0.2 residual means the same thing in every column.
+        rank    the column's within-hero percentile, centred on 0. Immune to
+                the heavy tie mass at 1.0 ("never reached"), which drags the
+                mean toward the players who skipped a level entirely.
+
+    Centring inside the hero makes each column mean ~0 per hero, so
+    `scale_block` divides by a mean row L1 that is now a spread rather than a
+    level. That is the intended footing: the block's mass becomes how far
+    players sit from their hero's habit, not how big the habit is.
+    """
+    if form not in {"mean", "rank"}:
+        raise ValueError(f"unknown residual form {form!r}; want 'mean' or 'rank'")
+    raw = point_order_features(df, levels=levels)
+    keys = ["match_id", "player_slot"]
+    heroes = (
+        df[keys + ["hero_id"]]
+        .drop_duplicates(subset=keys)
+        .set_index(keys)["hero_id"]
+        .reindex(raw.index)
+    )
+    grouped = raw.groupby(heroes)
+    if form == "mean":
+        return raw - grouped.transform("mean")
+    return grouped.rank(pct=True) - 0.5
 
 
 def first_maxed_slot(df: pd.DataFrame) -> pd.Series:

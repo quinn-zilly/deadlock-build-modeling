@@ -1,0 +1,153 @@
+hero_id,hero,fit,k,separation,item_id,item,imbueable,gap
+1,Infernus,families,2,0.647293008870802,2480592370.0,Ricochet,False,0.647293008870802
+1,Infernus,order,2,0.6276516831897393,787198704.0,Rapid Recharge,False,0.6276516831897393
+1,Infernus,order_mean,3,0.4856622665911222,84321454.0,Quicksilver Reload,True,0.4856622665911222
+1,Infernus,order_rank,2,0.5393078165450484,787198704.0,Rapid Recharge,False,0.5393078165450484
+2,Seven,families,3,0.5176833396881051,3919289022.0,Mercurial Magnum,True,0.5176833396881051
+2,Seven,order,3,0.5210272169332792,3919289022.0,Mercurial Magnum,True,0.5210272169332792
+2,Seven,order_mean,1,,,,False,
+2,Seven,order_rank,1,,,,False,
+3,Vindicta,families,1,,,,False,
+3,Vindicta,order,1,,,,False,
+3,Vindicta,order_mean,1,,,,False,
+3,Vindicta,order_rank,2,0.4928983191546837,7409189.0,Improved Spirit,False,0.4928983191546837
+4,Lady Geist,families,3,0.5738578576071207,3577481646.0,Mystic Reverb,True,0.5738578576071207
+4,Lady Geist,order,3,0.615037918502434,3577481646.0,Mystic Reverb,True,0.615037918502434
+4,Lady Geist,order_mean,2,0.6242558542482899,754480263.0,Mystic Expansion,True,0.6242558542482899
+4,Lady Geist,order_rank,2,0.83682803959615,3977876567.0,Kinetic Dash,False,0.83682803959615
+6,Abrams,families,2,0.7537907301491451,1342610602.0,Close Quarters,False,0.7537907301491451
+6,Abrams,order,3,0.4583707303976567,1371725689.0,Phantom Strike,False,0.4583707303976567
+6,Abrams,order_mean,2,0.6483435397867858,465043967.0,Spirit Strike,False,0.6483435397867858
+6,Abrams,order_rank,3,0.5786639489715368,465043967.0,Spirit Strike,False,0.5786639489715368
+7,Wraith,families,1,,,,False,
+7,Wraith,order,2,0.4517626824362169,2226497419.0,Spiritual Overflow,False,0.4517626824362169
+7,Wraith,order_mean,1,,,,False,
+7,Wraith,order_rank,1,,,,False,
+8,McGinnis,families,2,0.78507681465821,2081037738.0,Mystic Vulnerability,False,0.78507681465821
+8,McGinnis,order,2,0.7859013376902746,2081037738.0,Mystic Vulnerability,False,0.7859013376902746
+8,McGinnis,order_mean,3,0.49516346202599393,1150006784.0,Arcane Surge,False,0.49516346202599393
+8,McGinnis,order_rank,3,0.4684675879491055,1150006784.0,Arcane Surge,False,0.4684675879491055
+10,Paradox,families,3,0.6647679564479602,343572757.0,Spirit Burn,False,0.6647679564479602
+10,Paradox,order,3,0.6541768137944268,343572757.0,Spirit Burn,False,0.6541768137944268
+10,Paradox,order_mean,1,,,,False,
+10,Paradox,order_rank,2,0.819012190420738,2152872419.0,Sharpshooter,False,0.819012190420738
+11,Dynamo,families,2,0.6749814330395562,677738769.0,Refresher,False,0.6749814330395562
+11,Dynamo,order,2,0.6839800621034353,677738769.0,Refresher,False,0.6839800621034353
+11,Dynamo,order_mean,3,0.4826178084465155,3776945997.0,Extra Charge,False,0.4826178084465155
+11,Dynamo,order_rank,2,0.480701723695566,2951612397.0,Duration Extender,True,0.480701723695566
+12,Kelvin,families,2,0.4546088727504657,3005970438.0,Escalating Exposure,False,0.4546088727504657
+12,Kelvin,order,2,0.5013987413147077,3005970438.0,Escalating Exposure,False,0.5013987413147077
+12,Kelvin,order_mean,2,0.5758838488161796,3005970438.0,Escalating Exposure,False,0.5758838488161796
+12,Kelvin,order_rank,1,,,,False,
+13,Haze,families,3,0.4601699246199055,3357231760.0,Unstoppable,False,0.4601699246199055
+13,Haze,order,1,,,,False,
+13,Haze,order_mean,2,0.6128996494686731,499683006.0,Bullet Lifesteal,False,0.6128996494686731
+13,Haze,order_rank,2,0.6156102901155658,499683006.0,Bullet Lifesteal,False,0.6156102901155658
+14,Holliday,families,3,0.748544376305681,2152872419.0,Sharpshooter,False,0.748544376305681
+14,Holliday,order,3,0.7447868619311193,2152872419.0,Sharpshooter,False,0.7447868619311193
+14,Holliday,order_mean,2,0.7382416502351897,2152872419.0,Sharpshooter,False,0.7382416502351897
+14,Holliday,order_rank,2,0.7113138819859114,2121044373.0,Tankbuster,False,0.7113138819859114
+15,Bebop,families,2,0.6564642871254089,2010028405.0,Headshot Booster,False,0.6564642871254089
+15,Bebop,order,2,0.6639690941445944,2010028405.0,Headshot Booster,False,0.6639690941445944
+15,Bebop,order_mean,2,0.7041891074106752,2010028405.0,Headshot Booster,False,0.7041891074106752
+15,Bebop,order_rank,2,0.7139139762631602,2010028405.0,Headshot Booster,False,0.7139139762631602
+16,Calico,families,1,,,,False,
+16,Calico,order,1,,,,False,
+16,Calico,order_mean,1,,,,False,
+16,Calico,order_rank,1,,,,False,
+17,Grey Talon,families,3,0.5187383940127174,2152872419.0,Sharpshooter,False,0.5187383940127174
+17,Grey Talon,order,3,0.5082372013651877,2152872419.0,Sharpshooter,False,0.5082372013651877
+17,Grey Talon,order_mean,3,0.4806886463267686,3331811235.0,Long Range,False,0.4806886463267686
+17,Grey Talon,order_rank,3,0.48769516322742656,3331811235.0,Long Range,False,0.48769516322742656
+18,Mo & Krill,families,1,,,,False,
+18,Mo & Krill,order,1,,,,False,
+18,Mo & Krill,order_mean,1,,,,False,
+18,Mo & Krill,order_rank,1,,,,False,
+19,Shiv,families,2,0.9307668047321157,4104549924.0,Swift Striker,False,0.9307668047321157
+19,Shiv,order,2,0.9331178439204679,4104549924.0,Swift Striker,False,0.9331178439204679
+19,Shiv,order_mean,3,0.49932558004349026,3776945997.0,Extra Charge,False,0.49932558004349026
+19,Shiv,order_rank,2,0.9418716132862285,4104549924.0,Swift Striker,False,0.9418716132862285
+20,Ivy,families,3,0.531411092826834,381961617.0,Active Reload,False,0.531411092826834
+20,Ivy,order,3,0.5309429078184171,381961617.0,Active Reload,False,0.5309429078184171
+20,Ivy,order_mean,3,0.5343062916157086,381961617.0,Active Reload,False,0.5343062916157086
+20,Ivy,order_rank,3,0.591252895630936,3776945997.0,Extra Charge,False,0.591252895630936
+25,Warden,families,2,0.4837820830806012,2519598785.0,Boundless Spirit,False,0.4837820830806012
+25,Warden,order,2,0.48316601299920126,2519598785.0,Boundless Spirit,False,0.48316601299920126
+25,Warden,order_mean,2,0.5383392983610914,865958998.0,Veil Walker,False,0.5383392983610914
+25,Warden,order_rank,2,0.4908370563469927,865958998.0,Veil Walker,False,0.4908370563469927
+27,Yamato,families,2,0.5186571490802778,3577481646.0,Mystic Reverb,True,0.5186571490802778
+27,Yamato,order,2,0.6597659630972348,7409189.0,Improved Spirit,False,0.6597659630972348
+27,Yamato,order_mean,2,0.5507945657345433,98582110.0,Stalker,False,0.5507945657345433
+27,Yamato,order_rank,1,,,,False,
+31,Lash,families,3,0.4661547318593643,3357231760.0,Unstoppable,False,0.4661547318593643
+31,Lash,order,3,0.4560020633588465,3357231760.0,Unstoppable,False,0.4560020633588465
+31,Lash,order_mean,2,0.877529526029526,2971868509.0,Bullet Resist Shredder,False,0.877529526029526
+31,Lash,order_rank,2,0.8944971943658625,2971868509.0,Bullet Resist Shredder,False,0.8944971943658625
+35,Viscous,families,2,0.8068925501352944,26002154.0,Melee Charge,False,0.8068925501352944
+35,Viscous,order,2,0.8627093111838358,26002154.0,Melee Charge,False,0.8627093111838358
+35,Viscous,order_mean,3,0.5791079036022178,3776945997.0,Extra Charge,False,0.5791079036022178
+35,Viscous,order_rank,2,0.8712298258945426,1437614329.0,Melee Lifesteal,False,0.8712298258945426
+50,Pocket,families,1,,,,False,
+50,Pocket,order,1,,,,False,
+50,Pocket,order_mean,2,0.4753923411795741,968099481.0,Extra Spirit,False,0.4753923411795741
+50,Pocket,order_rank,1,,,,False,
+52,Mirage,families,2,0.6094508083017826,3005970438.0,Escalating Exposure,False,0.6094508083017826
+52,Mirage,order,3,0.4508217446270544,2480592370.0,Ricochet,False,0.4508217446270544
+52,Mirage,order_mean,1,,,,False,
+52,Mirage,order_rank,1,,,,False,
+58,Vyper,families,2,0.6230543806561695,3357231760.0,Unstoppable,False,0.6230543806561695
+58,Vyper,order,2,0.625813428568411,3357231760.0,Unstoppable,False,0.625813428568411
+58,Vyper,order_mean,1,,,,False,
+58,Vyper,order_rank,1,,,,False,
+60,Sinclair,families,2,0.49314344522339326,787198704.0,Rapid Recharge,False,0.49314344522339326
+60,Sinclair,order,2,0.8644378376852816,787198704.0,Rapid Recharge,False,0.8644378376852816
+60,Sinclair,order_mean,3,0.5271444982534292,2064029594.0,Opening Rounds,False,0.5271444982534292
+60,Sinclair,order_rank,2,0.8819495161142299,787198704.0,Rapid Recharge,False,0.8819495161142299
+63,Mina,families,3,0.48290454789260706,3919289022.0,Mercurial Magnum,True,0.48290454789260706
+63,Mina,order,3,0.48602605633055584,3919289022.0,Mercurial Magnum,True,0.48602605633055584
+63,Mina,order_mean,1,,,,False,
+63,Mina,order_rank,1,,,,False,
+64,Drifter,families,3,0.4589142466078615,3977876567.0,Kinetic Dash,False,0.4589142466078615
+64,Drifter,order,3,0.4615678959200268,3977876567.0,Kinetic Dash,False,0.4615678959200268
+64,Drifter,order_mean,2,0.626202781516856,2121044373.0,Tankbuster,False,0.626202781516856
+64,Drifter,order_rank,3,0.4805052937878456,2603935618.0,Healbane,False,0.4805052937878456
+65,Venator,families,2,0.4854475933148633,787198704.0,Rapid Recharge,False,0.4854475933148633
+65,Venator,order,1,,,,False,
+65,Venator,order_mean,1,,,,False,
+65,Venator,order_rank,1,,,,False,
+66,Victor,families,2,0.905531988914969,3919289022.0,Mercurial Magnum,True,0.905531988914969
+66,Victor,order,2,0.9082784853726292,3919289022.0,Mercurial Magnum,True,0.9082784853726292
+66,Victor,order_mean,2,0.5718215238830097,2356412290.0,Titanic Magazine,False,0.5718215238830097
+66,Victor,order_rank,2,0.9132166002735003,3919289022.0,Mercurial Magnum,True,0.9132166002735003
+67,Paige,families,2,0.5341320775611582,787198704.0,Rapid Recharge,False,0.5341320775611582
+67,Paige,order,2,0.5781568475553408,787198704.0,Rapid Recharge,False,0.5781568475553408
+67,Paige,order_mean,2,0.5091263847083642,787198704.0,Rapid Recharge,False,0.5091263847083642
+67,Paige,order_rank,2,0.501267600194209,787198704.0,Rapid Recharge,False,0.501267600194209
+69,The Doorman,families,1,,,,False,
+69,The Doorman,order,1,,,,False,
+69,The Doorman,order_mean,1,,,,False,
+69,The Doorman,order_rank,1,,,,False,
+72,Billy,families,2,0.5937010308246096,787198704.0,Rapid Recharge,False,0.5937010308246096
+72,Billy,order,1,,,,False,
+72,Billy,order_mean,1,,,,False,
+72,Billy,order_rank,1,,,,False,
+76,Graves,families,3,0.6391890501183493,811521119.0,Tesla Bullets,False,0.6391890501183493
+76,Graves,order,3,0.6380160949960653,811521119.0,Tesla Bullets,False,0.6380160949960653
+76,Graves,order_mean,1,,,,False,
+76,Graves,order_rank,2,0.6552100741819987,811521119.0,Tesla Bullets,False,0.6552100741819987
+77,Apollo,families,1,,,,False,
+77,Apollo,order,1,,,,False,
+77,Apollo,order_mean,1,,,,False,
+77,Apollo,order_rank,3,0.6016166110493141,3190916303.0,Spirit Snatch,False,0.6016166110493141
+79,Rem,families,2,0.5254073169464879,3261353684.0,Superior Cooldown,False,0.5254073169464879
+79,Rem,order,1,,,,False,
+79,Rem,order_mean,3,0.4517884390543567,2717651715.0,Superior Duration,False,0.4517884390543567
+79,Rem,order_rank,2,0.6559281789819527,1998374645.0,Mystic Burst,False,0.6559281789819527
+80,Silver,families,2,0.6175717703349282,3357231760.0,Unstoppable,False,0.6175717703349282
+80,Silver,order,2,0.6190325599818561,3357231760.0,Unstoppable,False,0.6190325599818561
+80,Silver,order_mean,1,,,,False,
+80,Silver,order_rank,1,,,,False,
+81,Celeste,families,2,0.5949793314792641,2221211450.0,Spellslinger,False,0.5949793314792641
+81,Celeste,order,2,0.5955360577301883,2221211450.0,Spellslinger,False,0.5955360577301883
+81,Celeste,order_mean,3,0.4627008669430647,1925087134.0,Suppressor,False,0.4627008669430647
+81,Celeste,order_rank,2,0.6668621487379536,1998374645.0,Mystic Burst,False,0.6668621487379536
