@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PROTOTYPE -- where the imbue target sits (#25)</title>
+<!--
+  PROTOTYPE, throwaway. Issue #25.
+
+  Three placements of the imbue target on the #23 item row, switchable via
+  ?variant=. Real builds from prepare_data.py, switchable via ?build=.
+
+    A -- on the row: the target takes the subline, always visible.
+    B -- inside the <details> disclosure, beside the item facts.
+    C -- both: the ability's icon badged on the item icon (costs no subline
+         width), full phrasing in the disclosure.
+
+  Everything else is #23's row, held constant: 51px closed, role=button +
+  aria-expanded, "builds into X" in the subline, and the one ranked stat in
+  the subline only where there is no "builds into".
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#12100E; --surface:#191612; --raised:#221D18;
+  --edge:#342D25; --edge-soft:#2A241E;
+  --text:#EDE6D9; --muted:#A79B8A; --faint:#7C7264;
+  --brass:#C9973F; --brass-bright:#E0B15C;
+  --oxblood:#6E2A26; --oxblood-bright:#9A3B35;
+  --spirit:#B48AD6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--text);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 120px}
+
+header.top{border-bottom:1px solid var(--edge);margin-bottom:10px}
+.masthead{display:flex;align-items:center;gap:18px;padding:24px 0 18px}
+.portrait{width:60px;height:60px;border-radius:2px;object-fit:cover;
+  border:1px solid var(--edge);background:var(--raised);flex:none}
+h1{font-family:Cinzel,Georgia,serif;font-weight:700;font-size:clamp(24px,4vw,34px);margin:0;line-height:1.06}
+h1 .sub{display:block;font-family:"IBM Plex Sans",sans-serif;font-weight:500;font-size:11px;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--brass);margin-bottom:6px}
+.prov{color:var(--faint);font-size:12.5px;margin:6px 0 0}
+
+.phase{margin-top:22px}
+.phase > h3{font-family:Cinzel,Georgia,serif;font-size:12px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 6px;font-weight:500;
+  padding-bottom:5px;border-bottom:1px solid var(--edge-soft)}
+
+/* ---- #23 row, held constant ---- */
+details.item{border-bottom:1px solid var(--edge-soft)}
+details.item > summary{display:flex;align-items:center;gap:11px;height:51px;padding:0 4px;
+  cursor:pointer;list-style:none}
+details.item > summary::-webkit-details-marker{display:none}
+details.item > summary:hover{background:var(--surface)}
+details.item > summary:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+.ix{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--faint);width:18px;
+  flex:none;font-variant-numeric:tabular-nums}
+.ico{position:relative;width:32px;height:32px;flex:none}
+.ico > img.it{width:32px;height:32px;border-radius:2px;background:var(--raised);display:block}
+.itxt{flex:1;min-width:0}
+.itxt .nm{display:block;font-size:14.5px;line-height:1.25;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.itxt .sub{display:block;font-size:11.5px;color:var(--faint);line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cost{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);flex:none;
+  font-variant-numeric:tabular-nums}
+.chev{color:var(--faint);flex:none;font-size:11px;transition:transform .12s}
+details.item[open] .chev{transform:rotate(90deg)}
+.detail{padding:2px 4px 14px 65px;font-size:13px;color:var(--muted)}
+.detail p{margin:0 0 6px}
+.detail .num{font-family:"IBM Plex Mono",monospace;color:var(--text);font-variant-numeric:tabular-nums}
+
+/* ---- the thing under test ---- */
+/* A: the imbue owns the subline's lead position. */
+.sub .imb{color:var(--spirit);font-weight:500}
+/* C: the ability badged on the item's corner, the way the game marks an
+   imbued item in the inventory. Zero subline width. */
+.badge{position:absolute;right:-6px;bottom:-5px;width:19px;height:19px;border-radius:50%;
+  border:1.5px solid var(--spirit);background:#000;overflow:hidden}
+.badge img{width:100%;height:100%;display:block}
+/* B and C: the instruction inside the disclosure, set apart from item facts. */
+.imbuebox{display:flex;gap:10px;align-items:flex-start;border-left:2px solid var(--spirit);
+  padding:7px 10px;margin:4px 0 10px;background:rgba(180,138,214,.07)}
+.imbuebox img{width:28px;height:28px;border-radius:50%;flex:none;background:#000}
+.imbuebox b{color:var(--text);font-weight:600}
+.imbuebox .why{display:block;font-size:12px;color:var(--faint);margin-top:2px}
+
+/* ---- switcher: deliberately not part of the design ---- */
+#sw{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99;
+  display:flex;align-items:center;gap:2px;background:#fff;color:#111;border-radius:999px;
+  box-shadow:0 6px 28px rgba(0,0,0,.55);font:600 13px/1 "IBM Plex Sans",sans-serif;padding:4px;
+  max-width:calc(100vw - 16px)}
+#sw button{appearance:none;border:0;background:transparent;color:#111;font:inherit;
+  font-size:16px;width:32px;height:32px;border-radius:999px;cursor:pointer;flex:none}
+#sw button:hover{background:#eee}
+#sw .lbl{padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sw .tag{background:#111;color:#fff;border-radius:999px;padding:4px 9px;font-size:10px;letter-spacing:.1em;flex:none}
+#sw select{font:inherit;font-size:12px;border:1px solid #ccc;border-radius:999px;padding:5px 6px;flex:none;max-width:120px}
+</style>
+
+<div class="wrap">
+  <header class="top"><div id="masthead" class="masthead"></div></header>
+  <main id="main"></main>
+</div>
+
+<nav id="sw" aria-label="Prototype variant switcher">
+  <span class="tag">PROTOTYPE</span>
+  <button type="button" id="prev" aria-label="Previous variant">&#8592;</button>
+  <span class="lbl" id="swlbl"></span>
+  <button type="button" id="next" aria-label="Next variant">&#8594;</button>
+  <select id="buildsel" aria-label="Build"></select>
+</nav>
+
+<script src="data.js"></script>
+<script>
+const VARIANTS = {
+  A: "On the row",
+  B: "In the disclosure",
+  C: "Icon badge + disclosure",
+};
+const ASSETS = "../../data/assets";
+const params = new URLSearchParams(location.search);
+let variant = (params.get("variant") || "A").toUpperCase();
+if (!VARIANTS[variant]) variant = "A";
+let buildIx = Math.min(+(params.get("build") || 0), DATA.builds.length - 1);
+
+const pct = v => Math.round(v * 100) + "%";
+const commas = n => n.toLocaleString("en-US");
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+function img(src, cls, alt) {
+  const i = document.createElement("img");
+  i.src = src; i.alt = alt || ""; if (cls) i.className = cls;
+  return i;
+}
+const abilityIcon = id => ASSETS + "/abilities/" + id + ".png";
+
+// Short form for the row (A). A split target is a preference, not a rule, and
+// the row has to say so in fewer characters than the disclosure does.
+function shortImbue(t) {
+  return (t.split ? "Imbue: usually " : "Imbue ") + t.ability;
+}
+
+// Full phrasing (B, C). The two facts the row cannot carry: the evidence, and
+// that the choice is permanent (docs/game-mechanics.md, "Imbue").
+function imbueBox(it) {
+  const t = it.imbue;
+  const box = el("div", "imbuebox");
+  if (t.ability_id) box.append(img(abilityIcon(t.ability_id)));
+  const txt = el("div");
+  txt.append(document.createTextNode("Imbue into "));
+  txt.append(el("b", null, t.ability));
+  txt.append(document.createTextNode(t.split
+    ? " — the most common choice, but not most players' (" + pct(t.share) + " of " + commas(t.n) + ")."
+    : " — " + pct(t.share) + " of " + commas(t.n) + " imbues."));
+  txt.append(el("span", "why", "Chosen at the counter and fixed after — changing it means selling the item."));
+  // Found while building this: 67 of the roster's 79 absorbed imbue rows build
+  // into a composite with no imbue field, whose bonus applies to every ability.
+  if (it.builds_into && !it.into_keeps_imbue)
+    txt.append(el("span", "why", "Ends when it builds into " + it.builds_into + ", which boosts every ability."));
+  if (it.builds_into && it.into_keeps_imbue)
+    txt.append(el("span", "why", it.builds_into + " keeps the same target."));
+  box.append(txt);
+  return box;
+}
+
+function subline(it) {
+  // #23: "builds into" when there is one, else the one ranked stat.
+  const s = el("span", "sub");
+  if (variant === "A" && it.imbue) {
+    const m = el("span", "imb", shortImbue(it.imbue));
+    s.append(m);
+    if (it.builds_into) s.append(document.createTextNode(" · builds into " + it.builds_into));
+    return s;
+  }
+  s.textContent = it.builds_into ? "builds into " + it.builds_into : it.stat;
+  return s;
+}
+
+function itemRow(it, i) {
+  const d = el("details", "item");
+  d.dataset.imbue = it.imbue ? "1" : "0";
+  d.dataset.into = it.builds_into ? "1" : "0";
+  const sm = document.createElement("summary");
+  sm.setAttribute("role", "button");
+  sm.setAttribute("aria-expanded", "false");
+  d.addEventListener("toggle", () => sm.setAttribute("aria-expanded", String(d.open)));
+  sm.append(el("span", "ix", (i + 1) + "."));
+  const ico = el("span", "ico");
+  ico.append(img(ASSETS + "/items/" + it.id + ".png", "it"));
+  if (variant === "C" && it.imbue && it.imbue.ability_id) {
+    const b = el("span", "badge");
+    // The badge is the row's only imbue signal in C, so it needs a name.
+    b.append(img(abilityIcon(it.imbue.ability_id), null, "imbued into " + it.imbue.ability));
+    ico.append(b);
+  }
+  sm.append(ico);
+  const t = el("div", "itxt");
+  t.append(el("span", "nm", it.name));
+  t.append(subline(it));
+  sm.append(t);
+  sm.append(el("span", "cost", commas(it.cost)));
+  sm.append(el("span", "chev", "›"));
+  d.append(sm);
+
+  const det = el("div", "detail");
+  if ((variant === "B" || variant === "C") && it.imbue) det.append(imbueBox(it));
+  const facts = el("p");
+  facts.textContent = it.stat;
+  det.append(facts);
+  if (it.builds_into) det.append(el("p", null, "Builds into " + it.builds_into + "."));
+  const ev = el("p");
+  ev.append(document.createTextNode("Bought by "));
+  ev.append(el("span", "num", pct(it.p)));
+  ev.append(document.createTextNode(" of players at this point (n = " + commas(it.n) + ")."));
+  det.append(ev);
+  d.append(det);
+  return d;
+}
+
+function render() {
+  const row = DATA.builds[buildIx];
+  const m = document.getElementById("masthead");
+  m.replaceChildren();
+  m.append(img(ASSETS + "/heroes/" + row.hero_id + ".png", "portrait"));
+  const box = el("div");
+  const h1 = el("h1");
+  h1.append(el("span", "sub", "Deadlock build order"));
+  h1.append(document.createTextNode(row.archetype));
+  box.append(h1);
+  box.append(el("p", "prov", "Weighted toward Oracle and above. Patch window: current."));
+  m.append(box);
+
+  const main = document.getElementById("main");
+  main.replaceChildren();
+  const byPhase = new Map();
+  row.items.forEach((it, i) => {
+    if (!byPhase.has(it.phase)) byPhase.set(it.phase, []);
+    byPhase.get(it.phase).push([it, i]);
+  });
+  [...byPhase.keys()].sort((a, b) => a - b).forEach(p => {
+    const sec = el("div", "phase");
+    sec.append(el("h3", null, DATA.phases[p]));
+    byPhase.get(p).forEach(([it, i]) => sec.append(itemRow(it, i)));
+    main.append(sec);
+  });
+
+  document.getElementById("swlbl").textContent = variant + " — " + VARIANTS[variant];
+  const sel = document.getElementById("buildsel");
+  if (!sel.options.length) DATA.builds.forEach((b, i) => sel.append(new Option(b.archetype, i)));
+  sel.value = String(buildIx);
+}
+
+function sync() {
+  const p = new URLSearchParams();
+  p.set("variant", variant);
+  p.set("build", String(buildIx));
+  history.replaceState(null, "", "?" + p.toString());
+  render();
+}
+function cycle(step) {
+  const keys = Object.keys(VARIANTS);
+  variant = keys[(keys.indexOf(variant) + step + keys.length) % keys.length];
+  sync();
+}
+document.getElementById("prev").onclick = () => cycle(-1);
+document.getElementById("next").onclick = () => cycle(1);
+document.getElementById("buildsel").onchange = e => { buildIx = +e.target.value; sync(); };
+document.addEventListener("keydown", e => {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+render();
+</script>
+</html>
