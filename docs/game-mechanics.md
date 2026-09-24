@@ -735,6 +735,26 @@ a million player-rows in the full population. The recent-week sparsity is an
 analysis backlog, so the usable window trails the present by a few weeks rather
 than being absent.
 
+**On settled data, coverage is strictly all-or-nothing and settles near 14%**
+(**VERIFIED**, upstream `match_player` via the MCP SQL server, measured
+2026-09-15). One July week: **282,798** matches with no build id, **47,042**
+with all 12, and ~290 in between -- matches caught mid-processing. Monthly
+player-row rates: 2026-03 7.97%, 2026-05 14.72%, 2026-06 13.15%, 2026-07
+14.64%, 2026-08 6.98%, 2026-09 1.62%; the field does not exist before March
+2026 (0 of 32M rows in January and February). Daily: Aug 1 14.1%, Sep 1 3.2%,
+Sep 11 1.4%, Sep 15 0.12%. **The backlog is four to six weeks, and a window is
+settled once its rate reaches ~14% -- check that before pulling.** The column
+stores **0 for "none"**, so filter `hero_build_id != 0`; a NULL check alone
+overcounts. Against the current patch start (2026-08-22), this means almost the
+whole patch is still unsettled: any window thick enough to use is mostly the
+previous patch.
+
+**Processed matches skew a full tier high** (**VERIFIED**, same July week).
+Median `average_badge` is **72** for processed matches against **63** for
+unprocessed, and unprocessed matches hold 40,750 null badges against 96. A
+statistic drawn from intended builds is measured on a different population from
+everything the shipped builds are fitted on, and is not comparable with them.
+
 **The denominator is not what it looks like.** A published build is a *menu*,
 not a shopping list: the example above lists 38 shopable items across categories
 explicitly named `Optional`, against a 12-slot cap. "Followed 13 of 38" is

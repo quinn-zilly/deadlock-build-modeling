@@ -400,20 +400,18 @@ The community [[build]] a player had selected when the match started, recorded
 as `hero_build_id`. It states what a player *planned* to buy, which the
 purchase sequence alone never shows.
 
-Only demo-analyzed matches carry one, and coverage is per **match**: a match is
-either analyzed or it is not, and an analyzed match usually carries a build id
-for 8-12 of its 12 players. Null means "unknown", never "no build selected".
+Only demo-analyzed matches carry one, and coverage is all-or-nothing per
+**match**: once analysis has caught up, a match carries a build id for all 12
+players or for none. Null means "unknown", never "no build selected".
 
-How many matches are analyzed depends entirely on how far back you look,
-because analysis lags the present. Three measurements, each on its own sample
-and not to be blended: **10.2% of 4,745 matches** over a six-week window,
-**1 of 100 matches** sampled from the newest window on 2026-09-14, and **87 of
-24,999 matches (0.35%)** in the current training set.
+About **14% of matches** are analyzed once a window has caught up, and it takes
+**four to six weeks** to get there. So a window is usable only once its rate has
+reached ~14%, and that is the check to run before pulling. The newest weeks,
+the current patch among them, are almost empty.
 
-The training set is the thinnest because it is the newest: the ingest windows
-to the current patch and pages newest-first. So it holds 623 analyzed
-player-matches across 371 builds — too few to model. Work that needs the
-intended build pulls its own older window.
+**Analyzed matches are not a random sample: they skew about a full tier high.**
+A population drawn from intended builds is a different population from the one
+the rest of the model is measured on, and it does not compare with it.
 
 A published build is a menu rather than a shopping list: one sampled build
 listed 38 shopable items against a 12-slot cap, with categories named
