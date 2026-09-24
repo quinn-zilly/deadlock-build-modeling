@@ -10,9 +10,9 @@ tier 5 and nothing buys tier 5 -- and all 9 carry a target on **100%** of
 purchases, because the game makes the player choose at the counter. So a hero
 with a low imbue rate is not a hero with missing data:
 
-    Silver  buys an imbueable item 21.0%   imbue rate 21%
-    Billy                          22.1%              22%
-    Wraith                          99.9%             100%
+    Silver  buys an imbueable item 20.2%   imbue rate 20.2%
+    Billy                          24.8%              24.8%
+    Wraith                          99.8%              99.8%
 
 Those are the same number. Whether a build buys imbueable items is already in
 the item features; what is new here is only the **conditional target** -- given

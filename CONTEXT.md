@@ -196,9 +196,9 @@ Singularity is not the same purchase as Mystic Reverb aimed at Kinetic Pulse,
 so an item recommendation without a target is half an instruction.
 
 **An imbue is never missing.** The game makes the choice at the counter, so all
-452,103 imbues carry a target. A hero with a low imbue rate is a hero that
+462,517 imbues carry a target. A hero with a low imbue rate is a hero that
 rarely buys imbueable items, not a hero with missing data: Silver buys one on
-21.0% of matches and imbues on 21%, Wraith on 99.9% and 100%. Those are the
+20.2% of matches and imbues on 20.2%, Wraith on 99.8% and 99.8%. Those are the
 same number, and imputing anything for a player who imbued nothing would invent
 a statement they never made.
 

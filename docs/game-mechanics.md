@@ -542,7 +542,7 @@ and buyable, 2 shopable at tier 5 (never bought), 2 disabled. All are spirit-tab
 except **Ballistic Enchantment, which is weapon-tab** — the one place a gun
 build makes an imbue choice.
 
-**An imbue is never missing.** **VERIFIED**: 0 of 452,103 imbue rows have a
+**An imbue is never missing.** **VERIFIED**: 0 of 462,517 imbue rows have a
 zero target. A hero with a low imbue rate buys imbueable items rarely; it does
 not have missing data.
 

@@ -135,3 +135,43 @@ come from this run and neither is comparable to a figure recorded elsewhere.
   cap now stops exactly at the cap rather than at the end of the player who
   crossed it, so top-1 figures from that script recorded before this change are
   not comparable with figures recorded after it.
+
+## Re-measured 2026-09-23
+
+#41 found that `imbues.parquet` held 2,589 abandon and draw players that
+`purchases.parquet` dropped, and #40 re-opens this decision on the strength of
+per-hero imbue rates. So both experiments were rerun, each in one run, on the
+corrected table.
+
+**#41 never reached these numbers.** `imbue.imbue_features` reindexes onto the
+purchase table's players, so the extra rows were dropped before either fit saw
+them. The figures below differ from the ones above because the match data
+changed (a later pull of 25,000 matches), not because of the population fix.
+They do not compare with the 2026-09-07 figures. They compare with each other.
+
+| | families | first form | conditional |
+|---|---|---|---|
+| heroes that split | 31 | 33 | 28 |
+| separating item is imbueable | 5 (16%) | 27 (82%) | 22 (79%) |
+
+- **Eight heroes lose a split** they had under build families alone: Billy,
+  Drifter, Haze, Holliday, Paradox, Venator, Vyper, Warden.
+- **The concentration did not drop.** 79% against the first form's 82%, where
+  the rule asks for at most half.
+- The control rose from 7% to 16%, and the block still concentrates the
+  separating item five times as often as families alone.
+
+Held-out accuracy (`scripts/score_archetype_fits.py`, 20,000 matches, the same
+20,000 decisions for both fits):
+
+| fit | top-1 | top-3 | cells in the sample |
+|---|---|---|---|
+| build families | 0.3732 | 0.5790 | 79 |
+| conditional imbue | 0.3712 | 0.5808 | 80 |
+
+Still a wash, within one standard error either way, and both fits sit well
+above the bigram's 0.2647 on the same split.
+
+**The decision stands.** The conditional form fails both halves of the rule
+again. `docs/IMBUE-FIT-COMPARISON.md` and its `.csv` are regenerated from this
+run.
