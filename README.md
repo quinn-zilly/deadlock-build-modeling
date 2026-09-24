@@ -198,6 +198,12 @@ python scripts/refit.py --badge all --hero Ivy
 It exits non-zero if any hero-and-archetype build misses a staple, so a refit
 that produced unusable builds fails rather than reporting success.
 
+It also deletes the models the `deadlock` CLI caches beside the tables
+(`sequence_model*`, `ability_model*`, and `counter_lifts.parquet` when the
+purchase table is rebuilt). The CLI reuses a cache for as long as it exists, so
+without this it would keep answering from the models fitted before the refit.
+The first CLI command after a refit refits them, about a minute each.
+
 Measured on 2026-09-15, over 125 cached pages / 24,999 matches, so `--from` has
 something to weigh:
 

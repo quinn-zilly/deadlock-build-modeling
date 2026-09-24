@@ -20,6 +20,10 @@ Step 5 exits non-zero if any hero-and-archetype build misses a staple, and that
 exit code is this script's own: a refit that produces builds which fail the
 gate has not succeeded, whatever it wrote to disk.
 
+Before its first step it deletes the models the CLI caches beside the tables, because
+the CLI reuses a cache for as long as it exists and would otherwise answer from
+the models fitted before this refit.
+
     python scripts/refit.py [--from STEP] [--badge N|all] [--hero NAME]
 """
 
@@ -44,6 +48,34 @@ STEPS: tuple[tuple[str, str, bool, bool], ...] = (
 )
 NAMES = [name for name, _, _, _ in STEPS]
 
+PROCESSED = ROOT / "data" / "processed"
+
+# What the CLI caches beside the tables, and the step that makes each stale.
+# It reuses a cached file for as long as it exists, so a refit that rebuilt the
+# tables and left these behind had the CLI answering from the old models. Every
+# badge bracket gets its own file, hence a prefix rather than a name.
+CACHES: tuple[tuple[str, str], ...] = (
+    ("sequence_model*", "archetypes"),   # purchases + archetype labels
+    ("ability_model*", "archetypes"),    # abilities + archetype labels
+    ("counter_lifts.parquet", "purchases"),
+)
+
+
+def clear_caches(processed: Path, start: str) -> list[Path]:
+    """Delete every CLI cache that a refit starting at `start` makes stale.
+
+    Deleted rather than rebuilt: the CLI refits each one on first use, and only
+    it knows which brackets a person asks for.
+    """
+    removed = []
+    for pattern, stale_after in CACHES:
+        if NAMES.index(start) > NAMES.index(stale_after):
+            continue
+        for path in sorted(Path(processed).glob(pattern)):
+            path.unlink()
+            removed.append(path)
+    return removed
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -66,6 +98,9 @@ def main() -> int:
     parser.add_argument("--hero", default=None, help="one hero, for a quick check")
     args = parser.parse_args()
 
+    for path in clear_caches(PROCESSED, args.start):
+        print(f"== cleared stale CLI cache {path.name}", flush=True)
+
     start = NAMES.index(args.start)
     for name, script, takes_hero, takes_badge in STEPS[start:]:
         command = [sys.executable, str(ROOT / "scripts" / script)]
@@ -87,6 +122,7 @@ def main() -> int:
         print(f"== {name} done in {elapsed:.0f}s", flush=True)
 
     print("refit complete; every build passed the prevalence gate")
+    print("the CLI refits its cached models on first use (about a minute each)")
     return 0
 
 
