@@ -8,17 +8,14 @@ effect is large and it replicates:
     Slowing Hex  vs Apollo      21.1% facing vs 14.6% not   +6.5pp  n=30,690
     Healbane     vs Victor      29.6% facing vs 24.1% not   +5.5pp  n=49,220
 
-This stays *outside* the backoff key. Enemy roster is a 12-dimensional
-condition and the median cell holds 3,232 player-matches; keying on it would
-fragment the tables past usefulness, which is the whole reason covariates enter
-as row weights elsewhere. A counter-pick also is not an archetype -- it varies
-by matchup, not by playstyle, so a model that folded it into the archetype
-would manufacture playstyles out of who you happened to face.
+The enemy team is not part of the backoff key. The median cell holds about
+3,200 player-matches, and splitting it by six enemy heroes would leave almost
+nothing in each. A counter-pick is also not an archetype: it depends on the
+matchup, not the playstyle.
 
-So counters annotate a ranking rather than reorder it. The lift, both base
-rates, and the sample size are all reported, because "+7.5pp against Lash" is
-a claim a player can check against their own experience and a reordered list
-is not.
+So counters are shown next to a ranking and never change its order. The
+output gives the lift, both pick rates, and the sample size, so a player can
+check "+7.5pp against Lash" against their own games.
 """
 
 from __future__ import annotations
@@ -30,16 +27,17 @@ import pandas as pd
 
 from .state import Recommendation
 
-# Below this many player-matches facing the hero, a lift is noise.
+# Ignore enemy heroes faced in fewer player-matches than this.
 MIN_FACING = 500
 
-# Report a counter only when facing the hero raises the pick rate this much.
+# Report a counter only when facing the hero raises the pick rate by at least
+# this much (3 percentage points).
 MIN_LIFT = 0.03
 
 
 @dataclass(frozen=True)
 class Counter:
-    """One measured matchup effect, with everything needed to judge it."""
+    """How much facing one enemy hero raises one item's pick rate."""
 
     item_id: int
     enemy_hero_id: int
@@ -59,11 +57,7 @@ class Counter:
 
 
 def enemy_rosters(purchases: pd.DataFrame) -> pd.DataFrame:
-    """Which heroes each player faced, one row per (player, enemy hero).
-
-    Teams are named, not numbered, so "the other team" is whichever label is
-    not the player's own.
-    """
+    """The heroes each player faced, one row per (player, enemy hero)."""
     roster = purchases[
         ["match_id", "player_slot", "hero_id", "team"]
     ].drop_duplicates()
@@ -80,9 +74,10 @@ def counter_lifts(
     min_facing: int = MIN_FACING,
     min_lift: float = MIN_LIFT,
 ) -> pd.DataFrame:
-    """How much facing each hero moves each item's pick rate.
+    """For each (enemy hero, item), the pick rate when facing that hero vs overall.
 
-    Measured over players, not purchase rows, since no item is bought twice.
+    Rates are per player, not per purchase row. Keeps only pairs that pass
+    `min_facing` and `min_lift`, sorted by lift.
     """
     players = purchases[["match_id", "player_slot"]].drop_duplicates()
     bought = (
@@ -94,9 +89,8 @@ def counter_lifts(
 
     baseline = bought.groupby("item_id").size() / len(players)
 
-    # Every (player, enemy) pair crossed with whether that player bought each
-    # item. Done as a merge on the item so the frame stays proportional to
-    # purchases rather than players x items.
+    # Join each (player, enemy) pair to the items that player bought. Joining
+    # on purchases keeps the frame far smaller than players x items.
     matched = facing.merge(bought, on=["match_id", "player_slot"], how="inner")
     facing_counts = matched.groupby(["enemy_hero_id", "item_id"]).size()
     facing_players = facing.groupby("enemy_hero_id").size()
@@ -108,8 +102,7 @@ def counter_lifts(
             continue
         facing_rate = n_bought / n_facing
         base = float(baseline.get(item_id, 0.0))
-        # Positive only: an item bought *less* against a hero is not a
-        # counter-pick, and surfacing it as one is noise dressed as advice.
+        # An item bought less against a hero is not a counter-pick.
         if facing_rate - base < min_lift:
             continue
         rows.append(
@@ -129,7 +122,7 @@ def counter_lifts(
 def counters_for(
     lifts: pd.DataFrame, enemy_hero_ids: list[int] | tuple[int, ...]
 ) -> dict[int, Counter]:
-    """The strongest counter per item, given who is on the enemy team."""
+    """For each item, its strongest counter against the given enemy heroes."""
     if not len(lifts) or not enemy_hero_ids:
         return {}
     relevant = lifts[lifts["enemy_hero_id"].isin(list(enemy_hero_ids))]
@@ -153,20 +146,15 @@ def for_build(
     *,
     limit: int = 8,
 ) -> list[Counter]:
-    """The matchups the items in a build are picks against, strongest first.
+    """For the items in a build, the enemy heroes they counter, strongest first.
 
-    The mirror of `counters_for`: that one starts from an enemy team and asks
-    which items answer it, which is the in-match question. A build exists
-    before there is an enemy team, so the question there is which heroes make
-    the items it already buys a matchup pick.
+    `counters_for` starts from a known enemy team, which only exists during a
+    match. A build is made before the match, so this starts from the build's
+    items instead.
 
-    One row per item, its strongest matchup, the same shape `counters_for`
-    returns: an item that answers four heroes would otherwise fill the panel
-    by itself and push the rest of the build's matchups out of view.
-
-    Same two bars as everywhere else -- a lift under `MIN_LIFT` is not a
-    matchup and a matchup seen under `MIN_FACING` times is not measured -- so
-    nothing appears here that the CLI would not also report.
+    Returns at most one counter per item, its strongest, so one item that
+    counters four heroes doesn't crowd out the rest. Applies the same
+    `MIN_LIFT` and `MIN_FACING` thresholds as the CLI.
     """
     if not len(lifts) or not len(item_ids):
         return []
@@ -192,11 +180,10 @@ def annotate(
     enemy_hero_ids: list[int] | tuple[int, ...],
     lifts: pd.DataFrame,
 ) -> list[tuple[Recommendation, Counter | None]]:
-    """Pair each recommendation with its counter evidence, if any.
+    """Pair each recommendation with its counter, or None.
 
-    Deliberately returns pairs rather than reordering: the probability stays
-    the model's, and the matchup effect stays a separate, checkable claim
-    beside it.
+    Keeps the model's order. The counter is shown beside the probability, not
+    folded into it.
     """
     best = counters_for(lifts, enemy_hero_ids)
     return [(rec, best.get(rec.item_id)) for rec in recommendations]
@@ -205,11 +192,10 @@ def annotate(
 def replicates(
     train: pd.DataFrame, test: pd.DataFrame, *, min_facing: int = MIN_FACING
 ) -> float:
-    """Correlation of measured lifts across two splits.
+    """Correlation of the lifts measured on two disjoint splits.
 
-    A counter table that does not replicate is a table of coincidences. The
-    old counter/synergy work measured r=0.05 for exactly this and was
-    discarded; anything similar here should be too.
+    Low correlation means the lifts are noise. An earlier counter table scored
+    r=0.05 on this check and was dropped.
     """
     a = counter_lifts(train, min_facing=min_facing, min_lift=-1.0)
     b = counter_lifts(test, min_facing=min_facing, min_lift=-1.0)

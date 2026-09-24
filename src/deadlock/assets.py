@@ -1,18 +1,11 @@
-"""Static game assets: items, heroes, and abilities.
+"""Game data from the assets API: items, heroes, and abilities.
 
-The critical export is UPGRADE_IDS. The per-player `items` array returned by
-the match metadata endpoint interleaves ability-point spends with actual item
-purchases — measured at ~46% ability entries — and the only way to tell them
-apart is to join against the asset list on type == "upgrade".
+A player's `items` list mixes item purchases with ability-point spends (about
+46% are ability points). `upgrade_ids` tells them apart: an entry is a
+purchase if its id is an asset of type "upgrade".
 
-Those ability entries are not noise. They carry the complete ability-leveling
-timeline, which is what distinguishes how a hero is being played, so
-`load_abilities` and `signature_slots` exist to read them rather than discard
-them.
-
-Two asset fields the endpoint returns and the old code never touched:
-`item_slot_type` (weapon/vitality/spirit, the archetype signal) and
-`component_items` (65 items have prerequisites, referenced by class_name).
+The ability-point entries give the full ability-leveling timeline, which
+`load_abilities` and `signature_slots` read.
 """
 
 from __future__ import annotations
@@ -35,10 +28,9 @@ class Item:
     slot_type: str | None   # weapon | vitality | spirit
     tier: int | None        # 1..5
     cost: int
-    # None for all but 11 shopable items. "imbue_active" empowers or copies the
-    # ability, "imbue_modifier_value" buffs its numbers, and
-    # "imbue_active_non_ult" cannot target the ultimate at all -- so choosing
-    # Echo Shard over Mystic Reverb says the build is not about the ult.
+    # None except on the few items that imbue an ability. "imbue_active"
+    # empowers or copies the ability, "imbue_modifier_value" raises its
+    # numbers, and "imbue_active_non_ult" can't target the ultimate.
     imbue: str | None = None
 
     @property
@@ -64,7 +56,11 @@ class Ability:
 
 @lru_cache(maxsize=1)
 def load_items(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Item]:
-    """All purchasable upgrades, keyed by item id (251 as of 2026-09-03)."""
+    """Every upgrade asset, keyed by item id (251 on 2026-09-03).
+
+    Includes upgrades that aren't in the shop. Use `shopable_items` for
+    anything a player can buy.
+    """
     raw: list[dict[str, Any]] = api.get("/v1/assets/items", cache_dir=cache_dir)
     items: dict[int, Item] = {}
     for entry in raw:
@@ -98,23 +94,23 @@ def load_heroes(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Hero]:
 
 @lru_cache(maxsize=1)
 def upgrade_ids(cache_dir: Path = DEFAULT_CACHE) -> frozenset[int]:
-    """Item ids that represent real purchases, for filtering ability spends."""
+    """Every upgrade id. Used to separate purchases from ability-point spends."""
     return frozenset(load_items(cache_dir))
 
 
 @lru_cache(maxsize=1)
 def playable_heroes(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Hero]:
-    """Heroes actually available in matches (38 of 57 listed as of 2026-09-03)."""
+    """Heroes that aren't disabled (38 of 57 on 2026-09-03)."""
     return {h.id: h for h in load_heroes(cache_dir).values() if not h.disabled}
 
 
 @lru_cache(maxsize=1)
 def load_abilities(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Ability]:
-    """Hero abilities, keyed by id (389 as of 2026-09-04).
+    """Hero abilities, keyed by id (389 on 2026-09-04).
 
-    These share the /v1/assets/items response with purchasable upgrades and are
-    distinguished by type == "ability". They appear in a player's `items` array
-    as level-up records, which is how the leveling timeline is recovered.
+    /v1/assets/items returns abilities alongside upgrades, with type
+    "ability". Each ability point a player spends appears in their `items`
+    list under the ability's id.
     """
     raw: list[dict[str, Any]] = api.get("/v1/assets/items", cache_dir=cache_dir)
     return {
@@ -131,16 +127,10 @@ def load_abilities(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Ability]:
 
 @lru_cache(maxsize=1)
 def hero_signatures(cache_dir: Path = DEFAULT_CACHE) -> dict[int, dict[int, Ability]]:
-    """Map hero id -> {signature slot 1..4 -> the ability in it}.
+    """Map hero id to {signature slot 1-4: ability}.
 
-    `signature_slots` answers "which slot is this ability", which is all the
-    feature path needs. Naming an ability point for a player needs the other
-    direction: slot 3 of Holliday is Crackshot, and "put your next point in
-    slot 3" is not advice anyone can follow.
-
-    A hero missing a signature simply has no entry for that slot, the same way
-    `signature_slots` leaves Silver's reworked abilities unmapped rather than
-    guessing at them.
+    The reverse of `signature_slots`. Output uses it to name abilities
+    ("Crackshot", not "slot 3"). A slot with no matching ability is left out.
     """
     heroes: list[dict[str, Any]] = api.get("/v1/assets/heroes", cache_dir=cache_dir)
     abilities = load_abilities(cache_dir)
@@ -160,16 +150,14 @@ def hero_signatures(cache_dir: Path = DEFAULT_CACHE) -> dict[int, dict[int, Abil
 
 
 def signature_slots(cache_dir: Path = DEFAULT_CACHE) -> dict[int, int]:
-    """Map ability id -> signature slot (1..4).
+    """Map ability id to signature slot (1-4).
 
-    Each hero's asset entry names its four abilities under `items.signature1`
-    through `signature4`, by class_name. Joining those to ability ids gives the
-    slot an in-match level-up refers to.
+    Each hero's asset entry names its four abilities by class_name under
+    `items.signature1` to `signature4`. This joins those names to ability ids.
 
-    99.99% of observed ability entries resolve. The exception is hero 80
-    (Silver), whose three `ability_werewolf_*` abilities are absent from its
-    signature map — a renamed or reworked hero in the asset dump. Callers see
-    those as unmapped rather than silently mis-slotted.
+    99.99% of ability points in match data map to a slot. The rest are Silver's
+    (hero 80) three `ability_werewolf_*` abilities, which the hero's signature
+    list doesn't include. They are left unmapped.
     """
     heroes: list[dict[str, Any]] = api.get("/v1/assets/heroes", cache_dir=cache_dir)
     by_class = {a.class_name: a.id for a in load_abilities(cache_dir).values()}
@@ -187,12 +175,11 @@ def signature_slots(cache_dir: Path = DEFAULT_CACHE) -> dict[int, int]:
 
 @lru_cache(maxsize=1)
 def shopable_items(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Item]:
-    """Items that can actually be bought (173 of 251).
+    """Items a player can buy (173 of 251 upgrades).
 
-    `load_items` deliberately keeps the rest, because filtering ability spends
-    needs every upgrade id. Anything ranked as a recommendation should come
-    from here instead: the remainder are innate or disabled entries that no
-    player can purchase.
+    Recommendations must come from here. The other upgrades are innate or
+    disabled. `load_items` keeps them because separating purchases from
+    ability points needs every upgrade id.
     """
     raw: list[dict[str, Any]] = api.get("/v1/assets/items", cache_dir=cache_dir)
     shopable = {
@@ -207,17 +194,15 @@ def shopable_items(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Item]:
 
 @lru_cache(maxsize=1)
 def component_map(cache_dir: Path = DEFAULT_CACHE) -> dict[int, tuple[int, ...]]:
-    """Map item id -> the component items it is built from.
+    """Map item id to the component items it is built from.
 
-    65 of 251 upgrades have components, referenced by class_name in the raw
-    asset and resolved to ids here. Depth reaches 3; two items take two
-    components.
+    65 of 251 upgrades have components. Chains go up to 3 deep, and two items
+    have two components.
 
-    This is a soft ordering prior, NOT a hard constraint. Only ~79% of players
-    who buy a composite ever bought its component separately, so forbidding the
-    parent before the component would make roughly a fifth of real builds
-    unreachable. Use it to prefer an ordering and to check generated builds --
-    never to filter training data.
+    Don't use this to forbid buying a composite before its component. Only
+    about 79% of players who buy a composite bought its component first, so
+    that rule would block about a fifth of real builds. Use it to prefer an
+    order and to check generated builds, never to filter training data.
     """
     raw: list[dict[str, Any]] = api.get("/v1/assets/items", cache_dir=cache_dir)
     by_class = {
@@ -238,10 +223,11 @@ def component_map(cache_dir: Path = DEFAULT_CACHE) -> dict[int, tuple[int, ...]]
 
 
 def _resolve(query: str, options: dict[int, str], kind: str) -> int:
-    """Match a name the way a person would type it.
+    """Find the id for a typed name.
 
-    Exact, then case-insensitive, then unique prefix, then unique substring.
-    Nobody types 4008176313, and "did you mean" beats a stack trace.
+    Tries an exact match, then case-insensitive, then a unique prefix, then a
+    unique substring. Raises KeyError listing the ambiguous matches or some
+    close names.
     """
     query = query.strip()
     lowered = query.lower()
@@ -271,14 +257,14 @@ def _resolve(query: str, options: dict[int, str], kind: str) -> int:
 
 
 def resolve_hero(query: str, cache_dir: Path = DEFAULT_CACHE) -> int:
-    """Hero id from a name a player typed."""
+    """Hero id for a typed hero name."""
     return _resolve(
         query, {i: h.name for i, h in playable_heroes(cache_dir).items()}, "hero"
     )
 
 
 def resolve_item(query: str, cache_dir: Path = DEFAULT_CACHE) -> int:
-    """Item id from a name a player typed."""
+    """Item id for a typed item name."""
     return _resolve(
         query, {i: it.name for i, it in shopable_items(cache_dir).items()}, "item"
     )

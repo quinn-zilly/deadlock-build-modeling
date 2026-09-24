@@ -1,23 +1,19 @@
 """HTTP client for api.deadlock-api.com.
 
-Encodes three access constraints measured against the live API:
+Three things about the API, each found against the live service:
 
-1. The default urllib/requests User-Agent is rejected by Cloudflare with a
-   403 (error 1010). A browser-like UA is required.
-2. Rate limits are per-endpoint, and each endpoint carries three of them: a
-   per-IP limit, a higher per-key limit, and a global limit shared with every
-   other caller. We pace against the per-IP limit, because it is the only one
-   we control. A 429 from the global pool can still arrive at any rate, so the
-   pacing does not replace 429 handling.
-3. Responses are large (a 200-match page is ~92 MB, measured 2026-09-15), so
-   every response is cached on disk. Re-runs of a completed pull cost zero
-   requests. Bytes, not requests, are what bound a full pull; ingest.py
-   carries that measurement.
+1. Cloudflare rejects the default urllib/requests User-Agent with a 403
+   (error 1010), so we send a browser User-Agent.
+2. Each endpoint has three rate limits: per IP, per API key (higher), and a
+   global one shared with every other caller. We pace to the per-IP or
+   per-key limit. The global limit can still return 429 at any rate, so we
+   also handle 429s.
+3. Responses are large (a 200-match page is about 92 MB, measured
+   2026-09-15), so every response is cached on disk. Rerunning a finished
+   pull makes no requests.
 
-An API key lifts every documented limit, some of them several-fold. Set
-``DEADLOCK_API_KEY`` and the key is sent and the higher pacing applied; leave
-it unset and the client behaves exactly as it did before. Nothing here
-requires a key.
+An API key is optional. Set DEADLOCK_API_KEY to send it and use the higher
+limits.
 """
 
 from __future__ import annotations
@@ -44,9 +40,8 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 )
 
-# The header the API authenticates with. Read from the environment on every
-# call rather than at import, so a key set after this module loads still
-# takes effect. Never logged.
+# The key is read from the environment on every call, so a key set after
+# import still works. Never log it.
 API_KEY_ENV = "DEADLOCK_API_KEY"
 API_KEY_HEADER = "X-API-KEY"
 
@@ -56,23 +51,19 @@ def api_key() -> str | None:
     return os.environ.get(API_KEY_ENV) or None
 
 
-# Requests per minute, keyed by path prefix, as (anonymous, with a key).
+# Requests per minute by path prefix, as (without key, with key).
 #
-# Only /v1/matches is measured. On 2026-09-15 the anonymous limit was probed
-# directly: ten requests succeed and the eleventh returns
+# Only /v1/matches was measured. On 2026-09-15, ten anonymous requests
+# succeeded and the eleventh returned
 #   {"type":"IP","quota":{"limit":10,"period":60},"next_request_in":56}
-# so the documented 10/min is exactly what the server enforces. An earlier
-# note here claimed a ~6/min ceiling; that was never reproduced, and stray
-# 429s are better explained by the global pool, which is shared with every
-# other caller and can reject a request at any rate.
+# which matches the documented 10/min.
 #
-# Measured rows sit ~10% under the ceiling, which is headroom for clock drift
-# against the server's window, not a guess about the ceiling. Unmeasured rows
-# stay well under it, because guessing high costs a 429 and guessing low costs
-# only time.
+# The measured limit is set 10% below the real one, to allow for clock drift
+# against the server. Unmeasured limits are set well below the documented
+# ones, because too high costs a 429 and too low only costs time.
 RATE_LIMITS: dict[str, tuple[float, float]] = {
-    # Anonymous is also capped at 20/hr, which nothing here enforces, so the
-    # unauthenticated path stays exploration-only. A key lifts the hourly cap.
+    # Without a key, /v1/sql is also limited to 20 an hour. We don't enforce
+    # that, so only use it for small exploratory queries.
     "/v1/sql": (2.0, 5.0),            # unmeasured; documented 2/min, 10/min keyed
     "/v1/matches": (9.0, 50.0),       # measured 10/min; documented 10req/10s keyed
     "/v1/analytics": (100.0, 200.0),  # unmeasured; documented 200/400, shared pool
@@ -82,7 +73,7 @@ DEFAULT_RATE_LIMIT = (10.0, 10.0)
 
 
 class RateLimiter:
-    """Token bucket enforcing a minimum interval between calls, per key."""
+    """Enforces a minimum interval between calls to each bucket."""
 
     def __init__(self) -> None:
         self._last: dict[str, float] = {}
@@ -114,7 +105,7 @@ def _rate_key(path: str, *, keyed: bool) -> tuple[str, float]:
 
 
 def _cache_path(cache_dir: Path, path: str, params: dict[str, Any]) -> Path:
-    """Stable cache filename from the path plus a hash of sorted params."""
+    """Cache filename for a request: the path plus a hash of the sorted params."""
     canonical = json.dumps(params, sort_keys=True, default=str)
     digest = hashlib.sha256(f"{path}?{canonical}".encode()).hexdigest()[:16]
     slug = path.strip("/").replace("/", "_")
@@ -129,9 +120,9 @@ def get(
     max_retries: int = 5,
     timeout: float = 180.0,
 ) -> Any:
-    """GET a JSON endpoint, honoring rate limits and the on-disk cache.
+    """GET a JSON endpoint, with rate limiting, retries, and an optional disk cache.
 
-    A cache hit performs no network call and consumes no rate-limit budget.
+    A cache hit makes no request.
     """
     params = params or {}
     cached_at = None
@@ -164,10 +155,9 @@ def get(
             continue
 
         if resp.status_code == 429:
-            # Server knows better than our pacing; prefer its hint. Log which
-            # pool rejected us: "IP" means our own pacing is too fast and this
-            # table should be lowered, anything else (notably the global pool)
-            # is congestion we cannot pace around.
+            # Wait as long as the server says. Log which limit rejected us:
+            # "IP" means RATE_LIMITS is too high and should be lowered. The
+            # global limit is other callers' traffic, which we can't avoid.
             wait = _retry_after(resp, attempt)
             log.warning(
                 "429 on %s (%s pool), sleeping %.1fs", path, _quota_type(resp), wait
@@ -194,7 +184,7 @@ def get(
             tmp = cached_at.with_suffix(".tmp")
             with tmp.open("w", encoding="utf-8") as fh:
                 json.dump(data, fh)
-            tmp.replace(cached_at)  # atomic; never leave a half-written cache
+            tmp.replace(cached_at)  # atomic, so a crash can't leave a partial file
         return data
 
     raise RuntimeError(
@@ -211,7 +201,7 @@ def _quota_type(resp: requests.Response) -> str:
 
 
 def _retry_after(resp: requests.Response, attempt: int) -> float:
-    """Seconds to wait after a 429, preferring the server's own hint."""
+    """Seconds to wait after a 429: the server's hint if it gave one, else exponential backoff."""
     header = resp.headers.get("Retry-After")
     if header:
         try:

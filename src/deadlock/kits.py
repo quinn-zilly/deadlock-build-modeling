@@ -1,29 +1,18 @@
-"""What a hero's abilities do, read from what the game says they do.
+"""Tags for what each hero's abilities do, read from the ability descriptions.
 
-Items and abilities hide their descriptions in different fields. Items use
-`tooltip_sections`; abilities use `description`, and looking for the item field
-on an ability returns nothing. That mistake produced the claim that abilities
-carry no descriptive text, and everything downstream of it was scored from stat
-keys alone -- which does not work:
+Abilities keep their text in `description`. Items keep theirs in
+`tooltip_sections`, and reading that field on an ability returns nothing.
 
-- Viscous' The Cube "encases the target in a cube of restorative goo that
-  protects from damage and increases health regen". A player calls it the best
-  support ability in the game. Its stat block says none of that, so a
-  stat-based tagger saw only Puddle Punch's Air Control buff and concluded
-  Viscous was not a support hero.
-- Vindicta's Stake "tethers enemies to the location where the stake lands", and
-  Dynamo's Singularity applies "stun, and pulling in nearby enemies". Both are
-  crowd control; neither has a stat key that says so.
-- Shiv's Serrated Knives "bleeds an enemy... causing the bleed to increase per
-  stack" -- damage over time, invisible to a stat scan.
+The tags come from the description text because the stat block misses what
+players care about. Viscous' The Cube "encases the target in a cube of
+restorative goo that protects from damage", but nothing in its stats says
+support. Vindicta's Stake "tethers enemies" and Shiv's Serrated Knives
+"bleeds an enemy", and neither has a stat key for crowd control or damage over
+time. 149 of the 152 signature abilities on playable heroes have usable text.
 
-149 of the 152 signature abilities on playable heroes carry usable text. So the
-tags here come from the prose, and the stat block is only a fallback.
-
-The tags are the vocabulary a player uses to describe a kit, which is not the
-same vocabulary as item build families: an ability is `burst` or `dot` or `cc`,
-where an item is `gun` or `spirit`. A hero's kit says which builds are
-plausible on them, not which build a given player is running.
+Ability tags (`burst`, `dot`, `cc`, ...) are a different vocabulary from item
+build families (`gun`, `spirit`). A hero's kit says which builds make sense on
+them, not which build a given player is running.
 """
 
 from __future__ import annotations
@@ -51,20 +40,17 @@ TAGS = (
 _SVG_RE = re.compile(r"<svg.*?</svg>", re.S)
 _TAG_RE = re.compile(r"<[^>]+>")
 
-# An ally word, required before healing counts as support. "Target" alone is
-# not one: Vindicta's Crow Familiar and Venator's Ira Domini both target
-# something, and neither is a support ability.
+# Healing only counts as support near one of these words. "Target" isn't
+# enough: Vindicta's Crow Familiar and Venator's Ira Domini both have a target
+# and neither is support.
 _ALLY = r"all(?:y|ies|ied)|teammate|team-?mate"
 
-# Each pattern is a claim about what a phrase means. The examples in the
-# comments are the abilities a player named when correcting an earlier,
-# stat-based version of this.
+# The abilities named in these comments are the examples a player gave when
+# correcting an earlier, stat-based version.
 TAG_PATTERNS: dict[str, re.Pattern[str]] = {
-    # A large hit of spirit damage delivered at once -- Lash's Ground Strike,
-    # Dynamo's Kinetic Pulse. "Deals damage" is NOT enough: 33 of 38 heroes
-    # match that, which makes the tag meaningless. What distinguishes burst is
-    # damage arriving in one moment -- an explosion, an impact, a slam -- so
-    # the pattern requires that wording.
+    # Damage that lands all at once, like Lash's Ground Strike or Dynamo's
+    # Kinetic Pulse. "Deals damage" alone matches 33 of 38 heroes, so the
+    # pattern needs an explosion, impact, slam, or similar word.
     "burst": re.compile(
         r"(explod\w+|detonat\w+|impact\s+damage|on\s+impact|\bslam\w*|"
         r"\bstomp\w*|\bblast\w*|\bpulse\b|\bburst\b|\bshockwave\b|"
@@ -73,16 +59,14 @@ TAG_PATTERNS: dict[str, re.Pattern[str]] = {
         r"(?:a|an|the)\s+(?:area|radius|circle|cone))",
         re.I,
     ),
-    # Damage applied over a duration -- Shiv's bleed, Holliday's burn,
-    # Infernus' Afterburn.
+    # Damage over time, like Shiv's bleed or Infernus' Afterburn.
     "dot": re.compile(
         r"(damage\s+over\s+time|\bbleed\w*|\bburn\w*|\bignit\w*|\bpoison\w*|"
         r"\bdecay\b|per\s+second|damage\s+each\s+second|over\s+its\s+duration)",
         re.I,
     ),
-    # Taking control away from the enemy. Slow alone is deliberately excluded:
-    # 35 of 152 abilities slow something, which makes it too common to
-    # discriminate. Hard control is what players mean by CC.
+    # Hard crowd control: stuns, roots, silences, pulls. Slows don't count,
+    # because 35 of 152 abilities slow something.
     "cc": re.compile(
         r"(\bstun\w*|\bknock\s?up\w*|\bknocks?\s+enemies\s+in\s+the\s+air|"
         r"\bimmobiliz\w*|\btether\w*|\broot\w*|\bsilenc\w*|\bsleep\w*|"
@@ -90,7 +74,7 @@ TAG_PATTERNS: dict[str, re.Pattern[str]] = {
         r"cannot\s+take\s+action|unable\s+to\s+take\s+any\s+new\s+actions)",
         re.I,
     ),
-    # Helping someone else -- healing, shielding, or protecting an ally.
+    # Healing, shielding, or protecting an ally.
     "support": re.compile(
         rf"((?:heal\w*|restor\w*|barrier|shield\w*|protect\w*|regen\w*|"
         rf"cleanse\w*|revive\w*)[^.]{{0,80}}?(?:{_ALLY})|"
@@ -111,13 +95,13 @@ TAG_PATTERNS: dict[str, re.Pattern[str]] = {
         r"\bmantle\b|air\s+control|\bglide\w*|traverse)",
         re.I,
     ),
-    # Healing yourself, which is a bruiser pattern and not support.
+    # Healing yourself. This is not support.
     "sustain": re.compile(
         r"(heal(?:ing)?\s+(?:for|yourself|you\b)|drain\w*\s+health|"
         r"lifesteal|heal\s+based\s+on\s+the\s+damage|restore\s+health\s+to\s+you)",
         re.I,
     ),
-    # Something that fights for you -- Graves, McGinnis, Sinclair.
+    # Something that fights for you, like Graves' or McGinnis' summons.
     "summon": re.compile(
         r"(\bsummon\w*|deploy\w*|\bturret\w*|familiar|\bspirit\s+that\b|"
         r"helpers?\b|minion|\bpet\b|controlled\s+by)",
@@ -133,11 +117,9 @@ def _raw_abilities(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[int, dict[str
 
 
 def ability_text(entry: dict[str, Any]) -> str:
-    """An ability's description, stripped of markup.
+    """An ability's description as plain text, or "" if it has none.
 
-    Abilities keep this in `description`, NOT the `tooltip_sections` items use.
-    Falls back through the sub-keys because coverage varies: `desc` covers most,
-    with `active`/`passive` filling in the rest.
+    Reads `description.desc`, falling back to `active` and then `passive`.
     """
     description = entry.get("description") or {}
     for key in ("desc", "active", "passive"):
@@ -149,11 +131,11 @@ def ability_text(entry: dict[str, Any]) -> str:
 
 
 def ability_tags(entry: dict[str, Any]) -> set[str]:
-    """What one ability does, from its description.
+    """The tags that match one ability's description.
 
-    `burst` is suppressed when the same ability reads as damage over time, so
-    Shiv's Serrated Knives is a dot rather than both -- the two describe how
-    damage arrives, and an ability delivers it one way or the other.
+    An ability tagged both `dot` and `burst` loses `burst` unless its text
+    mentions an explosion or impact. That makes Shiv's Serrated Knives a dot
+    and not both.
     """
     text = ability_text(entry)
     if not text:
@@ -168,11 +150,10 @@ def ability_tags(entry: dict[str, Any]) -> set[str]:
 
 @functools.lru_cache(maxsize=1)
 def hero_kits(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[int, dict[str, int]]:
-    """Map each playable hero to its kit tags and how many abilities carry each.
+    """For each playable hero, how many of their abilities carry each tag.
 
-    Only signature abilities count -- the four a player levels. Scoped to
-    playable heroes: 152 of the 221 mapped signature abilities belong to the 38
-    heroes actually in matches, the rest to disabled or in-development ones.
+    Counts only the four signature abilities a player levels. The assets list
+    221 signature abilities, but only 152 belong to the 38 playable heroes.
     """
     abilities = _raw_abilities(cache_dir)
     slots = assets.signature_slots(cache_dir)
@@ -190,10 +171,9 @@ def hero_kits(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[int, dict[str, int
 
 @functools.lru_cache(maxsize=1)
 def tag_idf(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[str, float]:
-    """How rare each tag is across heroes, so common ones weigh less.
+    """Inverse document frequency of each tag across heroes.
 
-    Every hero deals damage and nearly every hero has some slow, so those tags
-    carry little information about what makes a kit distinctive.
+    A tag most heroes have gets a weight near 0.
     """
     import math
 
@@ -209,7 +189,7 @@ def tag_idf(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[str, float]:
 
 
 def heroes_by_tag(tag: str, cache_dir: Path = assets.DEFAULT_CACHE) -> list[tuple[str, int]]:
-    """Heroes carrying a tag, most abilities first. The reviewable readout."""
+    """(hero name, ability count) for every hero with this tag, highest count first."""
     names = {h: v.name for h, v in assets.load_heroes(cache_dir).items()}
     scored = [
         (names.get(hero, str(hero)), tags[tag])
