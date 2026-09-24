@@ -1,43 +1,30 @@
 #!/usr/bin/env python
-"""Does ability point ORDER belong in the archetype clustering?
+"""Test whether ability point order belongs in the archetype clustering (ADR 0003).
 
-ADR 0001 rejected imbue from the clustering, and separately records that
-ability *state* was tried and degraded every hero. It is explicit that ability
-**order** -- how far into a player's spending each ability reached each level
--- was never tested there. This is that measurement, not a re-litigation.
+Fits every hero four ways, from the same purchase table in one run:
 
-Four fits over every hero, from the same purchase table in the same run:
-
-    families      build-family shares alone -- the baseline the rule protects
+    families      build family shares alone (the control)
     order         `point_order_features`, raw
-    order_mean    the same twelve columns minus the hero's own mean
-    order_rank    the same twelve columns as a within-hero percentile
+    order_mean    the same twelve columns minus the hero's mean
+    order_rank    the same twelve columns as a percentile within the hero
 
-The residual forms are the proposal. Raw order is largely hero-constant, so a
-raw block mostly re-encodes hero identity, which `fit_hero` already conditions
-on by running one hero at a time. `order` is carried anyway, because "the
-residual is the load-bearing part" is a claim, and a claim with no control is
-an assertion.
+The two relative forms were the proposal, because raw order is mostly the
+same for everyone on a hero. Raw `order` is included to check that.
 
-**The rule is pre-committed and applied as written**, copying ADR 0001's
-discipline: written down before the numbers, and not renegotiated after.
+The rule was written down before the results and applied as written:
 
-    R1  No hero loses a split it had under build families alone.
-    R2  The block gains something: at least one hero gains a split. A block
-        that changes no k is complexity with no result, and stays out.
-    R3  Separating items do not concentrate. Unlike imbue, this block is not
-        derived from any item, so the structural version of the test is
-        vacuous -- report it anyway as a guard against a degenerate split:
-        no single item may carry the separating role for more than
-        `MAX_TOP_ITEM_SHARE` of split heroes, and the top-three share may not
-        exceed `MAX_CONCENTRATION_RATIO` times the families control measured
-        in this same run.
+    R1  No hero loses a split it had with build families alone.
+    R2  At least one hero gains a split. A block that changes no k adds
+        complexity for nothing.
+    R3  The separating items don't concentrate. No single item may separate
+        more than MAX_TOP_ITEM_SHARE of split heroes, and the top three
+        items' share may not exceed MAX_CONCENTRATION_RATIO times the
+        families control from the same run.
 
-Held-out next-item accuracy is the fourth leg and it is *not* here:
-`scripts/score_archetype_fits.py --block` measures it, in its own single run,
-because that comparison needs a train/test split this script has no use for.
+Next-item accuracy is the other test, run separately by
+`score_archetype_fits.py --blocks`, because it needs a train/test split.
 
-    python scripts/compare_order_fits.py [--out docs/ORDER-FIT-COMPARISON.md]
+    python scripts/compare_order_fits.py [--out docs/ORDER-FIT-COMPARISON.md] [--from-csv]
 """
 
 from __future__ import annotations
@@ -52,20 +39,17 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-# The families control is the same code path as the imbue comparison's, not a
-# reimplementation of it -- that is what makes the two sheets comparable.
+# Reuse the imbue comparison's code so the two sheets are comparable.
 from compare_imbue_fits import COLUMNS, PURCHASES, hero_rows  # noqa: E402
 
 from deadlock import abilities, archetype  # noqa: E402
 
 ABILITIES = Path("data/processed/abilities.parquet")
 
-# Full mass, the weight the shipped fit would use. Sweeping weights is a
-# different question; this one is whether the block belongs at the weight it
-# would ship at.
+# The weight the block would ship at: as much total weight as the families.
 ORDER_WEIGHT = 1.0
 
-# Fixed before the numbers.
+# R3 thresholds, set before the results.
 MAX_TOP_ITEM_SHARE = 0.25
 MAX_CONCENTRATION_RATIO = 2.0
 
@@ -74,7 +58,7 @@ CANDIDATES = ("order", "order_mean", "order_rank")
 
 
 def item_concentration(table: pd.DataFrame, fit: str) -> dict:
-    """How far the separating role concentrates in a few items, for one fit."""
+    """For one fit: split heroes, the most common separating item, and its share and the top three's."""
     split = table[(table["fit"] == fit) & (table["k"] > 1)]
     n = len(split)
     if not n:
@@ -89,7 +73,7 @@ def item_concentration(table: pd.DataFrame, fit: str) -> dict:
 
 
 def verdict_lines(table: pd.DataFrame) -> tuple[list[str], dict[str, bool]]:
-    """Apply the pre-committed rule to a finished table."""
+    """Apply R1-R3 to the results. Returns the verdict lines and which fits pass."""
     ks = table.pivot(index="hero", columns="fit", values="k")
     base = item_concentration(table, "families")
     lines = [
@@ -135,6 +119,7 @@ def verdict_lines(table: pd.DataFrame) -> tuple[list[str], dict[str, bool]]:
 
 
 def sheet(table: pd.DataFrame, verdict: list[str]) -> str:
+    """The comparison sheet as markdown."""
     wide = table.pivot(index="hero", columns="fit", values="k")
     items = table.pivot(index="hero", columns="fit", values="item")
     seps = table.pivot(index="hero", columns="fit", values="separation")
@@ -186,6 +171,7 @@ def sheet(table: pd.DataFrame, verdict: list[str]) -> str:
 
 
 def report(table: pd.DataFrame, out: Path) -> None:
+    """Write the sheet to `out` and print the verdict."""
     verdict, kept = verdict_lines(table)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(sheet(table, verdict), encoding="utf-8")

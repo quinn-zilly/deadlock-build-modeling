@@ -1,21 +1,14 @@
 #!/usr/bin/env python
-"""What the imbue-augmented fit actually found, for a person to judge.
+"""Write a review sheet of the archetypes found with the imbue block added.
 
-**The fit this reviews was rejected** --
-`docs/adr/0001-imbue-out-of-the-clustering.md` holds the decision and the
-numbers. This script stays because it is how a candidate block gets judged by a
-player rather than by a score, and any future block should be read the same way.
+That fit was rejected (ADR 0001). The script is kept as the way to have a
+player review a new feature block: a split can pass every check and still not
+be a build anyone plays.
 
-The numbers cannot answer the question that matters here. Every new cluster
-clears every acceptance criterion, but `docs/DIAGNOSIS.md` records a model that
-passed five aggregate gates and still produced unusable builds, and `CONTEXT.md`
-warns that a dimension varying for a reason other than playstyle manufactures
-archetypes out of nothing -- which is exactly how counter-picks fail.
-
-So this prints the readout a player can check: each cluster's **discriminative
-items** with in-cluster against elsewhere pick rates, plus what the cluster
-imbues and which ability it maxes first. If a cluster does not read as a build
-someone plays, it is not an archetype however good its silhouette is.
+For each cluster it prints the most distinctive items (pick rate here vs in
+the other clusters), how many players imbue and what, and which ability they
+max first. By default it covers only heroes whose archetype count the block
+changes.
 
     python scripts/review_new_archetypes.py [--heroes changed|all|A,B] [--out FILE]
 """
@@ -36,21 +29,17 @@ PURCHASES = Path("data/processed/purchases.parquet")
 ABILITIES = Path("data/processed/abilities.parquet")
 IMBUES = Path("data/processed/imbues.parquet")
 
-# The heroes the imbue block changed when it was measured. Kept as a record of
-# that run, not as the list to read: `--heroes changed` recomputes which heroes
-# a candidate block actually moves, so a block that moves different heroes is
-# not reviewed against the last block's list.
+# The heroes the imbue block changed when it was measured. A record only;
+# `--heroes changed` recomputes the list for the current block.
 CHANGED = ("Dynamo", "Bebop", "Wraith", "The Doorman", "Rem")
 
 
-# Below this many observations a percentage is not a finding. The sheet once
-# printed "96%" from 24 rows next to a "96%" from 5,110 and made them look like
-# the same claim, so every share here carries its count and is marked when the
-# count is too small to state plainly.
+# Percentages from fewer rows than this are marked thin.
 MIN_ROWS = 30
 
 
 def thin_note(n: int) -> str:
+    """" [thin: n rows]" when n is below MIN_ROWS, else ""."""
     return "" if n >= MIN_ROWS else f" [thin: {n} rows]"
 
 
@@ -65,6 +54,7 @@ def cluster_report(
     signatures: dict[int, object],
     has_imbue: pd.Series,
 ) -> list[str]:
+    """Markdown lines describing each of one hero's clusters."""
     lines = [f"### {hero_name}", ""]
     prevalence = archetype.cluster_prevalence(purchases, labels)
     shares = labels.value_counts(normalize=True)
@@ -89,11 +79,9 @@ def cluster_report(
             )
         lines.append("")
 
-        # How many of this cluster's players imbue at all comes FIRST. A share
-        # over 24 rows and a share over 5,000 are not the same claim, and the
-        # first draft of this sheet printed them identically -- it reported
-        # "Exploding Uppercut 96%" for a Bebop cluster of 5,110 players whose
-        # imbue rows numbered 24, which reads as a strong signal and is noise.
+        # Show how many players imbue at all before the targets. A Bebop
+        # cluster of 5,110 players had only 24 imbues, and "Exploding Uppercut
+        # 96%" alone looked like a strong signal.
         coverage = float(has_imbue.reindex(members).fillna(0.0).mean())
         mine = imbues[imbues.index.isin(members)] if len(imbues) else imbues
         lines.append(
@@ -196,9 +184,7 @@ def main() -> int:
         group = purchases[purchases["hero_id"] == hero_id]
         before = archetype.fit_hero(group, hero_id=hero_id, hero_name=name)
         after = archetype.fit_hero(group, hero_id=hero_id, hero_name=name, extra=extra)
-        # The point of the sheet is the archetypes nobody has judged yet. A
-        # hero the block leaves alone needs no second reading, and printing all
-        # 38 buries the handful that do.
+        # Skip heroes whose archetype count the block doesn't change.
         if selector == "changed" and before.k == after.k:
             continue
         reviewed += 1

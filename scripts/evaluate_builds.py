@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-"""Report the prevalence staples per hero and the next-item baselines.
+"""Print each hero's staples and the next-item baseline scores.
 
-The Stage 1 artifact. Run before any model exists, so the bar and the gate are
-both fixed in advance rather than chosen after seeing what a model produces.
+Needs no model. It was written to fix the staple gate and the baseline to beat
+before any model existed. It also checks that the gate fails the old
+planner's Wraith build, and exits 1 if it doesn't.
 
 Usage:
     python scripts/evaluate_builds.py [--hero NAME] [--matches N]
@@ -22,9 +23,8 @@ from deadlock import assets, evaluate, splits
 PURCHASES = Path("data/processed/purchases.parquet")
 COLUMNS = ["match_id", "player_slot", "account_id", "hero_id", "item_id", "buy_index"]
 
-# What the old planner chose for Wraith, per docs/DIAGNOSIS.md. Kept here as a
-# calibration point: the gate must fail this build, or it cannot catch the
-# failure that motivated the pivot.
+# The old planner's Wraith build (see docs/DIAGNOSIS.md). A person rejected it,
+# so the gate must fail it.
 OLD_PLANNER_WRAITH = [
     "Golden Goose Egg",
     "Split Shot",
@@ -48,7 +48,7 @@ def report_staples(df: pd.DataFrame, names: dict[int, str], hero_names: dict[int
 
 
 def report_old_planner(df: pd.DataFrame, names: dict[int, str], hero_names: dict[int, str]) -> bool:
-    """The gate proving itself against the known-bad build."""
+    """Check that the gate fails the old planner's Wraith build. Returns False if it passes."""
     by_name = {v: k for k, v in names.items()}
     wraith_id = next((h for h, n in hero_names.items() if n == "Wraith"), None)
     if wraith_id is None:

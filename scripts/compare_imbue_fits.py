@@ -1,27 +1,24 @@
 #!/usr/bin/env python
-"""Does the imbue block belong in the archetype clustering?
+"""Test whether the imbue block belongs in the archetype clustering (ADR 0001).
 
-Three fits over every hero, from the same purchase table in the same run:
+Fits every hero three ways, from the same purchase table in one run:
 
-    families      build-family shares alone -- the baseline the rule protects
-    imbue         the first attempt: shares, depth and `has_imbue`
-    conditional   direction only, non-imbuers placed at their hero's mean
+    families      build family shares alone (the control)
+    imbue         the first attempt: target shares, depth, and `has_imbue`
+    conditional   target shares only, with non-imbuers at their hero's mean
 
-The first attempt was rejected because it split heroes on *whether* a build
-bought an imbueable item rather than on which ability it aimed at: nine
-imbueable items out of 173 shopable supplied the separating item for 27 of 33
-split heroes, and four heroes lost a genuine split when a sharp 6-11% niche
-displaced their broad playstyle split. So this reports, per hero, the k each
-fit reached and the item carrying its weakest pair -- the claim behind the
-score, which is what shows whether a split is a playstyle or an ownership flag.
+The first attempt split heroes on whether players bought an imbueable item,
+not on what they aimed it at. The 9 imbueable items were the separating item
+for 27 of 33 split heroes, and four heroes lost a real split to a 6-11% niche.
+So for each hero and fit this reports k and the separating item.
 
-**The rule is pre-committed and applied as written.** The conditional block
-stays in the clustering only if no hero loses a split it had under build
-families alone, and the concentration of imbueable items among the separating
-items drops materially. Otherwise imbue leaves the clustering and serves naming
-and advice only.
+The rule was written down before the results and applied as written. The
+conditional block stays only if no hero loses a split it had with build
+families alone, and the share of split heroes separated by an imbueable item
+falls by at least MATERIAL_DROP. Otherwise imbue is used only for naming and
+advice.
 
-    python scripts/compare_imbue_fits.py [--out docs/IMBUE-FIT-COMPARISON.md]
+    python scripts/compare_imbue_fits.py [--out docs/IMBUE-FIT-COMPARISON.md] [--from-csv]
 """
 
 from __future__ import annotations
@@ -41,19 +38,18 @@ PURCHASES = Path("data/processed/purchases.parquet")
 IMBUES = Path("data/processed/imbues.parquet")
 COLUMNS = ["match_id", "player_slot", "hero_id", "item_id"]
 
-# Full mass, the weight the shipped fit uses. Sweeping weights is a different
-# question; this one is whether the block belongs at the weight it ships at.
+# The weight the block would ship at: as much total weight as the families.
 IMBUE_WEIGHT = 1.0
 
-# "Materially" fixed before the numbers, so it cannot be renegotiated after.
-# The first attempt concentrated 27 of 33, or 82%; half of that is the bar.
+# The conditional block's imbueable-item share must be at most this fraction
+# of the first attempt's (27 of 33, 82%). Set before the results.
 MATERIAL_DROP = 0.5
 
 
 def hero_rows(
     purchases: pd.DataFrame, blocks: dict[str, pd.DataFrame | None]
 ) -> list[dict]:
-    """One row per hero per fit: k, separation, and the item carrying it."""
+    """One row per hero per fit: k, separation, and the separating item."""
     hero_names = {h: v.name for h, v in assets.load_heroes().items()}
     item_names = {i: it.name for i, it in assets.load_items().items()}
     imbueable = set(imbue.imbueable_items())
@@ -95,12 +91,13 @@ def hero_rows(
 
 
 def concentration(table: pd.DataFrame, fit: str) -> tuple[int, int]:
-    """Split heroes whose separating item is imbueable, out of split heroes."""
+    """(split heroes whose separating item is imbueable, split heroes) for one fit."""
     split = table[(table["fit"] == fit) & (table["k"] > 1)]
     return int(split["imbueable"].sum()), len(split)
 
 
 def sheet(table: pd.DataFrame, verdict: list[str]) -> str:
+    """The comparison sheet as markdown."""
     wide = table.pivot(index="hero", columns="fit", values="k")
     items = table.pivot(index="hero", columns="fit", values="item")
     flags = table.pivot(index="hero", columns="fit", values="imbueable")
@@ -125,8 +122,8 @@ def sheet(table: pd.DataFrame, verdict: list[str]) -> str:
 
     def cell(hero: str, fit: str) -> str:
         item = items.loc[hero, fit]
-        # A hero that did not split under this fit has no separating item, and
-        # a csv round trip turns that empty cell into NaN rather than "".
+        # No split means no separating item. After a csv round trip that is
+        # NaN, not "".
         if pd.isna(item) or not str(item):
             return "--"
         return f"{item} \\*" if flags.loc[hero, fit] else str(item)
@@ -150,7 +147,7 @@ def sheet(table: pd.DataFrame, verdict: list[str]) -> str:
 
 
 def report(table: pd.DataFrame, out: Path) -> None:
-    """Apply the pre-committed rule to a finished table and write the sheet."""
+    """Apply the rule to the results, write the sheet to `out`, and print the verdict."""
     ks = table.pivot(index="hero", columns="fit", values="k")
     lost = sorted(ks.index[(ks["conditional"] < ks["families"])])
     gained = sorted(ks.index[(ks["conditional"] > ks["families"])])
@@ -218,9 +215,8 @@ def main() -> int:
     )
     out = Path(args.out)
     if args.from_csv:
-        # The fit is seeded and the csv is its full output, so re-rendering the
-        # prose around the same numbers does not need 38 heroes refitted three
-        # ways again.
+        # The fit is seeded, so the csv from the last run has the same numbers.
+        # This skips refitting 38 heroes three ways.
         table = pd.read_csv(out.with_suffix(".csv"))
         report(table, out)
         return 0

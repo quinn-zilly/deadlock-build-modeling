@@ -1,13 +1,14 @@
 #!/usr/bin/env python
-"""Convert cached match pages into the ability-leveling Parquet table.
+"""Convert cached match pages into the ability-point table (abilities.parquet).
 
-A separate pass from `build_features.py` rather than a dual-output rewrite of
-it. The purchase table is a known-good 189MB artifact that the regression tests
-are calibrated against, and regenerating it to add a second output would put
-that at risk for no gain. This pass only touches `player["items"]`, skipping
-the net-worth interpolation that makes the purchase build slow.
+A separate pass from `build_features.py`, so adding this table didn't mean
+regenerating purchases.parquet, which the tests are calibrated against. It
+reads only `player["items"]` and skips the slow net-worth work.
 
-Usage:  python scripts/build_abilities.py [out_path] [--reconcile N]
+Before the full run, --reconcile checks on N matches that purchases plus
+ability points equal the raw entry count, and stops if not.
+
+Usage:  python scripts/build_abilities.py [out_path] [--reconcile N] [--limit N]
 """
 
 from __future__ import annotations
@@ -33,10 +34,7 @@ COLUMNS = [
 
 
 def build(pages: list[Path], limit: int | None = None) -> tuple[pd.DataFrame, dict]:
-    """Parse ability level-ups from cached pages.
-
-    Returns the table plus counts for the reconciliation check.
-    """
+    """Read ability points from cached pages. Returns the table and counts for `reconcile`."""
     upgrade_ids = assets.upgrade_ids()
     slots = assets.signature_slots()
 
@@ -49,8 +47,7 @@ def build(pages: list[Path], limit: int | None = None) -> tuple[pd.DataFrame, di
         tally["matches"] += 1
         match_id = match.get("match_id")
         for player in match.get("players") or []:
-            # The purchase table's players, so every per-player table
-            # holds the same set; see features.in_scope.
+            # Same players as the purchase table (see features.in_scope).
             if not features.in_scope(player, match, upgrade_ids):
                 continue
             tally["players"] += 1

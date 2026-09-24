@@ -1,25 +1,18 @@
 #!/usr/bin/env python
-"""Held-out next-item accuracy under the candidate archetype fits, one run.
+"""Next-item accuracy of the model under each candidate archetype fit, in one run.
 
-The decision in #10 is whether the imbue block belongs in the clustering, and
-part of the evidence is what each fit does to the model that conditions on it.
-That comparison is only meaningful within a single run: `separation` falls
-whenever k rises, top-1 moves with the match sample and the decision cap, and a
-figure recorded under one configuration says nothing about a figure recorded
-under another. So every fit is built here, from the same purchases, split the
-same way, and scored on the same capped set of held-out decisions.
-
-#39 puts ability point **order** through the same test, so the candidate list
-is a flag rather than a fixed pair. `families` is always scored, because it is
-the control every other fit is read against and a control from another run is
-not a control.
+For each feature block, fits archetypes with it, fits the item model on those
+labels, and scores next-item accuracy. Every fit uses the same purchases,
+split, and decision limit, because top-1 changes with the sample and limit
+and can't be compared across runs. `families` (no extra block) is always
+scored as the control. Used for #10 (imbue) and #39 (ability order).
 
     python scripts/score_archetype_fits.py [--matches N] [--limit N]
         [--blocks families,order_mean,...]
 
-Block names: `families`, `conditional imbue`, `order` (raw point order),
-`order_mean` (point order minus the hero's own mean) and `order_rank` (point
-order as a within-hero percentile).
+Blocks: `families`, `conditional imbue`, `order` (raw point order),
+`order_mean` (point order minus the hero's mean), and `order_rank` (point
+order as a percentile within the hero).
 """
 
 from __future__ import annotations
@@ -70,12 +63,11 @@ def candidate_blocks(
     players: pd.MultiIndex,
     heroes: pd.Series,
 ) -> dict[str, pd.DataFrame | None]:
-    """Build the requested feature blocks, already scaled.
+    """The requested feature blocks, scaled, by name.
 
-    `families` is the control and carries no block at all, so it is always
-    present whatever the caller asked for. A block whose source table is
-    missing is skipped with a warning rather than faked: an empty block scores
-    as the control and would quietly report a tie.
+    Always includes `families` with no block. A block whose table is missing
+    is skipped with a warning, because an empty block would score the same as
+    the control and look like a tie.
     """
     out: dict[str, pd.DataFrame | None] = {"families": None}
     wants_order = any(name.startswith("order") for name in names)
@@ -122,7 +114,7 @@ def label_frame(
     hero_names: dict[int, str],
     extra: pd.DataFrame | None,
 ) -> pd.DataFrame:
-    """Fit every hero and return the labels alone, skipping the naming pass."""
+    """Fit every hero and return only the labels, without naming."""
     frames = []
     for hero_id, group in purchases.groupby("hero_id"):
         fit = archetype.fit_hero(

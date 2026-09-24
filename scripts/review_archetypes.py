@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-"""Fit archetypes for every hero and emit a review sheet.
+"""Fit archetypes for every hero, save the labels, and write the review sheet.
 
-The Stage 3 artifact, and a hard stop. Everything downstream conditions on
-these clusters, so a person who plays the game reads this before the sequence
-model is built. If Ivy's two groups do not read as the gun and spirit builds a
-player would recognize, the design is wrong and it is cheap to find out here.
+Everything after this step depends on the archetypes, so someone who plays
+the game should read the sheet. For example, Ivy's clusters should look like
+the gun and spirit builds players know.
 
-Names are proposed, not decided. Edit `data/archetype_names.json` to overrule
-them; the file is checked in and survives a refit.
+The names are proposals. Override them in `data/archetype_names.json`, which
+is checked in and survives a refit.
 
 Usage:
     python scripts/review_archetypes.py [--out docs/ARCHETYPES.md] [--no-save]
@@ -30,15 +29,13 @@ ABILITIES = Path("data/processed/abilities.parquet")
 PURCHASES = Path("data/processed/purchases.parquet")
 COLUMNS = ["match_id", "player_slot", "hero_id", "item_id", "won"]
 
-# Below this many players a percentage is not a finding. A share over 24 rows
-# and a share over 5,000 read identically once they are both rounded to "96%",
-# and this sheet is the hard stop a person reads before everything downstream
-# conditions on it -- so a count too small to state plainly is marked rather
-# than printed as a fact.
+# Percentages from fewer players than this are marked thin. Otherwise "96%" of
+# 24 players looks the same as "96%" of 5,000.
 MIN_ROWS = 30
 
 
 def thin_note(n: int) -> str:
+    """" [thin: n players]" when n is below MIN_ROWS, else ""."""
     return "" if n >= MIN_ROWS else f" [thin: {n} players]"
 
 
@@ -93,11 +90,9 @@ def sheet(meta: dict, purchases: pd.DataFrame) -> str:
             shares = "  ".join(
                 f"{k.replace('share_', '')} {v:.0%}" for k, v in centroid.items()
             )
-            # The margin scores the FAMILY half of the name only. A cluster can
-            # decline a family and still be named by its ability focus --
-            # "Ult Dynamo" is what players call that build -- so reporting a
-            # named cluster as unnamed because its families tied is a
-            # contradiction the reader can see on the same line.
+            # The margin only covers the family part of the name. A cluster
+            # with no family name can still be named by its ability focus
+            # ("Ult Dynamo"), so don't call it unnamed.
             margin = cluster.get("naming_margin", 0.0)
             named_by_focus = cluster["name"] != cluster.get("family_name", "")
             if margin >= 1.3:
@@ -150,15 +145,11 @@ def main() -> int:
     purchases = pd.read_parquet(PURCHASES, columns=COLUMNS)
     logging.info("fitting %s heroes...", purchases["hero_id"].nunique())
 
-    # **Imbue is not in the fit**, in either of the two forms that were tried.
-    # The rule was fixed before the numbers and the numbers are recorded in
-    # docs/adr/0001-imbue-out-of-the-clustering.md, next to the sheet the
-    # experiment wrote. It still earns its place below, in naming and in the
-    # advice: which ability a cluster points its items at is what names
-    # Dynamo's two builds, and the items cannot.
-
-    # Naming inputs. Imbue says what a build is aimed at; the ability levelled
-    # first says the same thing for builds that buy no imbueable item.
+    # Imbue is not a clustering input (ADR 0001), but it is used for naming:
+    # it's what tells Dynamo's two builds apart.
+    #
+    # Naming inputs: imbue targets, and the ability maxed first for builds
+    # that buy no imbueable item.
     imbue_rows = pd.read_parquet(IMBUES) if IMBUES.exists() else None
     imbue_indexed = (
         imbue_rows.set_index(["match_id", "player_slot"]) if imbue_rows is not None else None
@@ -173,8 +164,8 @@ def main() -> int:
         purchases, extra=None, imbues=imbue_indexed, first_maxed=first_maxed
     )
 
-    # Win rate per archetype: descriptive only. It says who plays a build, not
-    # whether the build is better, so it informs the reader and nothing else.
+    # Win rate per archetype, for display only. It reflects who plays a build,
+    # not whether the build is better, and nothing uses it.
     outcomes = (
         purchases[["match_id", "player_slot", "won"]]
         .drop_duplicates()

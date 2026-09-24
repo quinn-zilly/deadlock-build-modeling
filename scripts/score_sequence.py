@@ -1,18 +1,17 @@
-"""Score the backoff model against the baselines it has to beat.
+"""Score the item model against the baselines on held-out purchases.
 
-The bar is measured, not assumed: on the same held-out decisions, with owned
-items excluded, the bigram reaches 0.277 top-1. A model that cannot clear that
-is not worth its extra machinery.
+The bar is the bigram baseline, scored in the same run on the same decisions
+with owned items excluded.
 
-Reports every metric under all three splits. The match-vs-account gap is the
-memorisation signal -- an imitation model can score well by learning that one
-account always buys Leech -- and the time gap is patch drift. Both are
-reported rather than quietly averaged away.
+Scores under all three splits. If the model does much better by match than
+by account, it is memorizing players. If it does worse by time, the patch has
+moved.
 
-Under `--badge` the weighted and unweighted models are both scored on the
-held-out decisions of that bracket. That pairing is the point: a badge-weighted
-model is worse on the general population on purpose, so only the same-bracket
-comparison says whether the weighting bought anything.
+With a badge, also scores the weighted and unweighted models on that badge's
+decisions only. The weighted model is meant to do worse on all players, so
+this is the comparison that shows whether weighting helps.
+
+--ablate adds a kappa sweep and a run without the most specific levels.
 
     python scripts/score_sequence.py [--matches N] [--hero NAME] [--ablate]
                                      [--badge N|all]
@@ -47,6 +46,7 @@ COLUMNS = [
 
 
 def load(matches: int | None, hero_id: int | None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The purchases (first `matches` matches, optionally one hero) and archetype labels."""
     df = pd.read_parquet(PURCHASES, columns=COLUMNS)
     if hero_id is not None:
         df = df[df["hero_id"] == hero_id]
@@ -88,9 +88,7 @@ def main() -> int:
     ):
         train, test = split(df)
         started = time.time()
-        # Fitted on the training split alone, so the badge kernel never sees a
-        # held-out row -- a weight derived from the test set leaks the answer
-        # into the tables, and the leak is invisible in the score it produces.
+        # Fit on the training split only, so badge weights never see test rows.
         model = sequence.fit(train, archetypes, target_badge=target_badge)
         result = evaluate.next_item_accuracy(model, test, archetypes, limit=args.limit)
         baselines = evaluate.score_baselines(train, test)
@@ -102,11 +100,8 @@ def main() -> int:
             f"n={result['n_decisions']:,}  ({time.time()-started:.0f}s)"
         )
         if target_badge is not None:
-            # The figure the weighting is judged on. General-population
-            # accuracy gets worse by design here, and win rate is an outcome
-            # downstream of every decision the build makes, so neither is the
-            # bar. The unweighted model is scored on the same decisions, which
-            # is the only comparison that means anything.
+            # Judge the weighting here: both models on the same high-badge
+            # decisions. Accuracy on all players drops on purpose.
             plain = sequence.fit(train, archetypes)
             for label, scored in (("weighted", model), ("unweighted", plain)):
                 high = evaluate.next_item_accuracy(
