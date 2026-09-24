@@ -178,16 +178,22 @@ def report(table: pd.DataFrame, out: Path) -> None:
         print(line)
     print(f"\nwrote {out}")
     survivors = ", ".join(fit for fit, ok in kept.items() if ok) or "none"
-    print(f"candidates surviving the clustering rule: {survivors}")
+    print(f"fits that pass the clustering rule: {survivors}")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", default="docs/ORDER-FIT-COMPARISON.md")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--out",
+        default="docs/ORDER-FIT-COMPARISON.md",
+        help="where to write the sheet; the csv goes beside it (default: %(default)s)",
+    )
     parser.add_argument(
         "--from-csv",
         action="store_true",
-        help="re-render the sheet from the last run's csv instead of refitting",
+        help="rewrite the sheet from the last run's csv instead of refitting",
     )
     args = parser.parse_args()
 
@@ -200,7 +206,7 @@ def main() -> int:
         return 0
 
     if not PURCHASES.exists() or not ABILITIES.exists():
-        logging.error("need %s and %s", PURCHASES, ABILITIES)
+        logging.error("needs %s and %s; run scripts/refit.py first", PURCHASES, ABILITIES)
         return 1
 
     purchases = pd.read_parquet(PURCHASES, columns=COLUMNS)

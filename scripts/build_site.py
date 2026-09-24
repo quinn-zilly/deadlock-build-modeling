@@ -113,7 +113,7 @@ def collect(
             )
             if not gate.passed:
                 print(
-                    f"  WARNING {generated.label} fails the gate",
+                    f"  warning: {generated.label} fails the staple check",
                     file=sys.stderr,
                 )
 
@@ -203,7 +203,10 @@ def render(builds: list[dict]) -> str:
     payload = "const BUILDS = " + json.dumps(builds, separators=(",", ":")) + ";\n"
     marker = "<script>\nconst clock"
     if marker not in template:
-        raise SystemExit(f"{TEMPLATE} no longer has the expected script opening")
+        raise SystemExit(
+            f"can't find where to insert the build data: {TEMPLATE} has no "
+            f"{marker!r}"
+        )
     return template.replace(marker, "<script>\n" + payload + "const clock", 1)
 
 
@@ -307,13 +310,23 @@ def run_node(node: str, script: str, *flags: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
-    parser.add_argument("--hero", type=str, default=None, help="just one hero")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=DEFAULT_OUT,
+        help="where to write the page (default: %(default)s)",
+    )
+    parser.add_argument("--hero", type=str, default=None, help="render only this hero")
     parser.add_argument(
         "--badge",
-        default=str(sequence.DEFAULT_TARGET_BADGE),
-        help="badge to weight the builds toward, or 'all' for the whole population",
+        default=f"{sequence.DEFAULT_TARGET_BADGE:g}",
+        help=(
+            "badge to weight the builds toward, or 'all' for every player "
+            "(default: %(default)s)"
+        ),
     )
     args = parser.parse_args()
 
@@ -321,7 +334,7 @@ def main() -> int:
     print(f"rendering builds weighted toward {sequence.describe_badge(badge)}")
     builds = collect(args.hero, badge=badge)
     if not builds:
-        raise SystemExit("no builds generated")
+        raise SystemExit("no builds were generated")
 
     html = render(builds)
     check_script(html)
@@ -330,7 +343,7 @@ def main() -> int:
     args.out.write_text(html, encoding="utf-8")
     purchases = sum(len(b["items"]) for b in builds)
     print(
-        f"{len(builds)} builds, {purchases} purchases -> {args.out} "
+        f"wrote {len(builds)} builds and {purchases} purchases to {args.out} "
         f"({args.out.stat().st_size:,} bytes)"
     )
     return 0

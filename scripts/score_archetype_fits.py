@@ -75,14 +75,14 @@ def candidate_blocks(
         pd.read_parquet(ABILITIES) if wants_order and ABILITIES.exists() else None
     )
     if wants_order and ability_rows is None:
-        logging.warning("no abilities table; skipping every order block")
+        logging.warning("%s not found; skipping every order block", ABILITIES)
 
     for name in names:
         if name == "families":
             continue
         if name == "conditional imbue":
             if not IMBUES.exists():
-                logging.warning("no imbue table; skipping %s", name)
+                logging.warning("%s not found; skipping %s", IMBUES, name)
                 continue
             block = imbue.conditional_features(
                 pd.read_parquet(IMBUES), players, heroes
@@ -130,13 +130,28 @@ def label_frame(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--matches", type=int, default=20000)
-    parser.add_argument("--limit", type=int, default=20000, help="decisions to score")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--matches",
+        type=int,
+        default=20000,
+        help="use the first N matches, 0 for all (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=20000,
+        help="stop after scoring this many purchases per fit (default: %(default)s)",
+    )
     parser.add_argument(
         "--blocks",
         default=",".join(DEFAULT_BLOCKS),
-        help="comma-separated block names to score against the families control",
+        help=(
+            "block names separated by commas; families is always scored too "
+            "(default: %(default)s)"
+        ),
     )
     args = parser.parse_args()
     wanted = tuple(name.strip() for name in args.blocks.split(",") if name.strip())

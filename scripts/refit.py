@@ -71,27 +71,31 @@ def clear_caches(processed: Path, start: str) -> list[Path]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
         "--from",
         dest="start",
         default=NAMES[0],
         choices=NAMES,
-        help="start at this step, keeping what earlier steps already wrote",
+        help="start at this step and keep what the earlier steps wrote",
     )
     parser.add_argument(
         "--badge",
         default=None,
         help=(
-            "badge to weight the builds and the website toward, or 'all'. "
-            "Both steps get the same value."
+            "badge to weight the builds and the website toward, or 'all'; "
+            "both steps get the same value"
         ),
     )
-    parser.add_argument("--hero", default=None, help="one hero, for a quick check")
+    parser.add_argument(
+        "--hero", default=None, help="build only this hero, for a quick check"
+    )
     args = parser.parse_args()
 
     for path in clear_caches(PROCESSED, args.start):
-        print(f"== cleared stale CLI cache {path.name}", flush=True)
+        print(f"== deleted the CLI's stale cached {path.name}", flush=True)
 
     start = NAMES.index(args.start)
     for name, script, takes_hero, takes_badge in STEPS[start:]:
@@ -113,8 +117,8 @@ def main() -> int:
             return result.returncode
         print(f"== {name} done in {elapsed:.0f}s", flush=True)
 
-    print("refit complete; every build passed the prevalence gate")
-    print("the CLI refits its cached models on first use (about a minute each)")
+    print("refit done; no build failed the staple check")
+    print("the CLI refits its cached models on first use, about a minute each")
     return 0
 
 

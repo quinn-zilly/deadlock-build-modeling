@@ -34,7 +34,7 @@ OLD_PLANNER_WRAITH = [
 
 
 def report_staples(df: pd.DataFrame, names: dict[int, str], hero_names: dict[int, str]) -> None:
-    print("\n=== Prevalence staples per hero (>=70% of players) ===\n")
+    print("\n=== Items at least 70% of each hero's players buy, all archetypes together ===\n")
     print(f"{'hero':16s} {'n':>7s}  staples")
     for hero_id, group in df.groupby("hero_id"):
         result = evaluate.prevalence_gate([], group, hero_id=int(hero_id))
@@ -52,19 +52,19 @@ def report_old_planner(df: pd.DataFrame, names: dict[int, str], hero_names: dict
     by_name = {v: k for k, v in names.items()}
     wraith_id = next((h for h, n in hero_names.items() if n == "Wraith"), None)
     if wraith_id is None:
-        print("\n(Wraith not found; skipping calibration)")
+        print("\n(no hero named Wraith; skipping the old planner check)")
         return True
 
     build = [by_name[n] for n in OLD_PLANNER_WRAITH if n in by_name]
     result = evaluate.prevalence_gate(build, df[df.hero_id == wraith_id], hero_id=wraith_id)
 
-    print("\n=== Calibration: the old planner's Wraith build ===\n")
-    print(f"It chose: {', '.join(OLD_PLANNER_WRAITH)}")
+    print("\n=== Check: does the staple gate reject the old planner's Wraith build? ===\n")
+    print(f"The old planner chose: {', '.join(OLD_PLANNER_WRAITH)}")
     print(result.describe(names))
     if result.passed:
-        print("\n!! The gate PASSED a build a human rejected. The gate is wrong.")
+        print("\nThe gate passed a build a person rejected, so the gate is wrong.")
         return False
-    print("\nThe gate reproduces the human judgement. Proceed.")
+    print("\nYes. The gate rejects this build, as a person did.")
     return True
 
 
@@ -83,16 +83,21 @@ def report_baselines(df: pd.DataFrame) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--hero", help="restrict the baseline run to one hero")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--hero", help="score the baselines on this hero only")
     parser.add_argument(
-        "--matches", type=int, default=6000, help="matches to sample for baselines"
+        "--matches",
+        type=int,
+        default=6000,
+        help="matches to sample for the baselines (default: %(default)s)",
     )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if not PURCHASES.exists():
-        logging.error("no %s; run scripts/build_features.py first", PURCHASES)
+        logging.error("%s not found; run scripts/build_features.py first", PURCHASES)
         return 1
 
     items = assets.load_items()
@@ -100,7 +105,7 @@ def main() -> int:
     hero_names = {k: v.name for k, v in assets.load_heroes().items()}
 
     df = pd.read_parquet(PURCHASES, columns=COLUMNS)
-    logging.info("%s rows, %s player-matches", f"{len(df):,}",
+    logging.info("%s purchases from %s players", f"{len(df):,}",
                  f"{len(df[['match_id', 'player_slot']].drop_duplicates()):,}")
 
     report_staples(df, names, hero_names)
@@ -109,7 +114,7 @@ def main() -> int:
     if args.hero:
         hero_id = next((h for h, n in hero_names.items() if n == args.hero), None)
         if hero_id is None:
-            logging.error("unknown hero %r", args.hero)
+            logging.error("no hero named %r", args.hero)
             return 1
         subset = df[df.hero_id == hero_id]
     else:

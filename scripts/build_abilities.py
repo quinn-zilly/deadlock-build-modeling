@@ -76,14 +76,24 @@ def build(pages: list[Path], limit: int | None = None) -> tuple[pd.DataFrame, di
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("out", nargs="?", default="data/processed/abilities.parquet")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "out",
+        nargs="?",
+        default="data/processed/abilities.parquet",
+        help="where to write the table (default: %(default)s)",
+    )
     parser.add_argument(
         "--reconcile",
         type=int,
         default=2000,
         metavar="N",
-        help="matches to check purchases+abilities == raw entries (0 to skip)",
+        help=(
+            "first check N matches: purchases plus ability points must equal "
+            "the raw entry count (default: %(default)s; 0 skips the check)"
+        ),
     )
     parser.add_argument("--limit", type=int, help="stop after N matches")
     args = parser.parse_args()
@@ -94,22 +104,24 @@ def main() -> int:
 
     pages = ingest.cached_pages()
     if not pages:
-        logging.error("no cached pages found; run scripts/pull_data.py first")
+        logging.error("no cached match pages; run scripts/pull_data.py first")
         return 1
 
     if args.reconcile:
-        logging.info("reconciling over %s matches...", f"{args.reconcile:,}")
+        logging.info("checking entry counts over %s matches", f"{args.reconcile:,}")
         _, tally = build(pages, limit=args.reconcile)
         n_abilities = tally["raw_entries"] - tally["purchases"]
         ok, message = abilities.reconcile(
             tally["purchases"], n_abilities, tally["raw_entries"]
         )
-        logging.info("reconciliation: %s", message)
+        logging.info("entry counts: %s", message)
         if not ok:
-            logging.error("the two paths do not partition the items array; stopping")
+            logging.error(
+                "purchases plus ability points do not equal the raw entries; stopping"
+            )
             return 1
 
-    logging.info("parsing %s pages...", len(pages))
+    logging.info("reading %s pages", len(pages))
     df, tally = build(pages, limit=args.limit)
 
     out = Path(args.out)
@@ -119,11 +131,11 @@ def main() -> int:
     unmapped = int((df["signature_slot"] == abilities.UNMAPPED_SLOT).sum())
     bad_level = int((df["level"] == 0).sum())
     logging.info(
-        "%s rows over %s matches / %s players -> %s",
+        "wrote %s rows from %s matches and %s players to %s",
         f"{len(df):,}", f"{tally['matches']:,}", f"{tally['players']:,}", out,
     )
     logging.info(
-        "unmapped slots: %s (%.3f%%) | unrecognized levels: %s (%.3f%%)",
+        "rows with no ability slot: %s (%.3f%%); with an unknown level: %s (%.3f%%)",
         f"{unmapped:,}", 100 * unmapped / max(len(df), 1),
         f"{bad_level:,}", 100 * bad_level / max(len(df), 1),
     )

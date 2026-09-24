@@ -79,8 +79,15 @@ def build(pages: list[Path], limit: int | None = None) -> tuple[pd.DataFrame, di
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("out", nargs="?", default="data/processed/imbues.parquet")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "out",
+        nargs="?",
+        default="data/processed/imbues.parquet",
+        help="where to write the table (default: %(default)s)",
+    )
     parser.add_argument("--limit", type=int, help="stop after N matches")
     args = parser.parse_args()
 
@@ -90,10 +97,10 @@ def main() -> int:
 
     pages = ingest.cached_pages()
     if not pages:
-        logging.error("no cached pages found; run scripts/pull_data.py first")
+        logging.error("no cached match pages; run scripts/pull_data.py first")
         return 1
 
-    logging.info("parsing %s pages for imbues...", len(pages))
+    logging.info("reading %s pages for imbues", len(pages))
     df, tally = build(pages, limit=args.limit)
 
     out = Path(args.out)
@@ -105,17 +112,17 @@ def main() -> int:
     covered = 100 * len(df) / max(tally["imbueable_bought"], 1)
     unmapped = int((df["signature_slot"] < 1).sum())
     logging.info(
-        "%s imbues over %s matches / %s players -> %s",
+        "wrote %s imbues from %s matches and %s players to %s",
         f"{len(df):,}", f"{tally['matches']:,}", f"{tally['players']:,}", out,
     )
     logging.info(
-        "imbueable purchases carrying a target: %.2f%% | unmapped targets: %s",
+        "imbueable purchases with a target: %.2f%%; targets with no ability slot: %s",
         covered, f"{unmapped:,}",
     )
     if covered < 99.0:
         logging.warning(
-            "targets are no longer near-universal; the imbue features assume "
-            "a target is never missing"
+            "fewer than 99% of imbueable purchases have a target, but the "
+            "imbue code assumes every one does"
         )
     return 0
 

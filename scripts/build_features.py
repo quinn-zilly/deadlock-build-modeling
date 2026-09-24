@@ -6,22 +6,34 @@ Usage:  python scripts/build_features.py [out_path]
 
 from __future__ import annotations
 
+import argparse
 import logging
-import sys
 from pathlib import Path
 
 from deadlock import dataset, ingest
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "out",
+        nargs="?",
+        type=Path,
+        default=Path("data/processed/purchases.parquet"),
+        help="where to write the table (default: %(default)s)",
+    )
+    args = parser.parse_args()
+    out = args.out
+
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S"
     )
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("data/processed/purchases.parquet")
 
     pages = ingest.cached_pages()
     if not pages:
-        logging.error("no cached pages found; run scripts/pull_data.py first")
+        logging.error("no cached match pages; run scripts/pull_data.py first")
         return 1
 
     logging.info("converting %d cached pages", len(pages))

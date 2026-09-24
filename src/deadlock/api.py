@@ -150,7 +150,7 @@ def get(
         except requests.RequestException as exc:  # network flake
             last_error = exc
             backoff = min(60.0, 2.0**attempt) + random.uniform(0, 1)
-            log.warning("request failed (%s), retrying in %.1fs", exc, backoff)
+            log.warning("request failed (%s); retrying in %.1fs", exc, backoff)
             time.sleep(backoff)
             continue
 
@@ -160,7 +160,8 @@ def get(
             # global limit is other callers' traffic, which we can't avoid.
             wait = _retry_after(resp, attempt)
             log.warning(
-                "429 on %s (%s pool), sleeping %.1fs", path, _quota_type(resp), wait
+                "rate limited on %s by the %s limit; waiting %.1fs",
+                path, _quota_type(resp), wait,
             )
             time.sleep(wait)
             continue
@@ -168,13 +169,13 @@ def get(
         if resp.status_code in (401, 403):
             if token is not None:
                 raise RuntimeError(
-                    f"{resp.status_code} on {path} — either the User-Agent was "
-                    f"blocked by Cloudflare or ${API_KEY_ENV} is rejected. "
-                    f"Unset {API_KEY_ENV} to tell the two apart."
+                    f"{resp.status_code} on {path}. Either Cloudflare blocked the "
+                    f"User-Agent or the API rejected ${API_KEY_ENV}. Unset "
+                    f"{API_KEY_ENV} and retry to tell which."
                 )
             raise RuntimeError(
-                f"{resp.status_code} on {path} — Cloudflare block. "
-                "Check the User-Agent header."
+                f"{resp.status_code} on {path}. Cloudflare blocked the request; "
+                "check the User-Agent header."
             )
 
         resp.raise_for_status()

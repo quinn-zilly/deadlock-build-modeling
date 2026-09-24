@@ -246,9 +246,9 @@ def generate_order(
         )
     if not timings:
         raise ValueError(
-            f"no ability-point timings for hero {hero_id} archetype {archetype_id}; "
-            "the time bucket is part of every deep context, so an order "
-            "generated without one is conditioned on the first five minutes"
+            f"no ability-point timings for hero {hero_id} archetype {archetype_id}. "
+            "Without them every point would be predicted as if it were bought "
+            "in the first five minutes"
         )
     levels = {slot: 0 for slot in range(1, N_SLOTS + 1)}
     state = GameState(

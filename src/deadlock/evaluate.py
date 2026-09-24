@@ -80,7 +80,7 @@ class GateResult:
         )
         return (
             f"FAIL hero={self.hero_id} archetype={self.archetype_id}: "
-            f"missing {len(self.missing)} of {len(self.staples)} staples -- {missing}"
+            f"missing {len(self.missing)} of {len(self.staples)} staples: {missing}"
         )
 
 

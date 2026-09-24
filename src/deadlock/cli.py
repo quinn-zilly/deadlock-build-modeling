@@ -110,7 +110,10 @@ def load_model(
         # before models recorded their badge.
         if cached.target_badge == badge:
             return cached
-    print("fitting the model (about a minute; cached afterwards)...", file=sys.stderr)
+    print(
+        "fitting the item model; this takes about a minute and is cached afterwards",
+        file=sys.stderr,
+    )
     purchases = pd.read_parquet(PURCHASES, columns=COLUMNS)
     labels, _ = archetype.load()
     model = sequence.fit(purchases, labels, target_badge=badge)
@@ -149,7 +152,7 @@ def load_ability_model(
         cached = sequence.SequenceModel.load(path)
         if cached.target_badge == badge:
             return cached, frame
-    print("fitting the ability-order model...", file=sys.stderr)
+    print("fitting the ability-order model", file=sys.stderr)
     model = abilityorder.fit(raw, labels, target_badge=badge)
     model.save(path)
     return model, frame
@@ -335,7 +338,7 @@ def cmd_build(args: argparse.Namespace) -> int:
                 "components absorbed into later items."
             ),
         )
-        print(f"\nexported -> {path}")
+        print(f"\nexported to {path}")
     return 0
 
 
@@ -364,7 +367,7 @@ def _print_recommendations(
         state, top=top, affordable_only=bool(state.souls_available < 10**9)
     )
     if not recommendations:
-        print("  (no data for this state)")
+        print("  (no recommendations: the model has no data for this situation)")
         return
     annotated = counters.annotate(recommendations, state.enemy_hero_ids, lifts)
     for rec, counter in annotated:
@@ -385,7 +388,7 @@ def _print_ability_points(hero_id: int, archetype_id: int, args) -> None:
         return
     model, frame = load_ability_model(refit=args.refit, badge=target_badge(args))
     if model is None:
-        print("\n  (no ability table built)")
+        print(f"\n  (no ability advice: {ABILITIES_PATH} not found)")
         return
 
     signatures = assets.hero_signatures().get(hero_id, {})
@@ -413,7 +416,7 @@ def _print_ability_points(hero_id: int, archetype_id: int, args) -> None:
     ranked = abilityorder.recommend(model, state, levels=levels)
     print(f"\nnext ability point ({len(slots)} spent):")
     if not ranked:
-        print("  (nothing legal left -- every ability is maxed)")
+        print("  (none left: every ability is maxed)")
     for point in ranked:
         print("  " + str(point))
 
@@ -432,8 +435,8 @@ def cmd_next(args: argparse.Namespace) -> int:
     if args.archetype:
         archetype_id, name = resolve_archetype(hero_id, args.archetype, meta)
         posterior = {archetype_id: 1.0}
-        print(f"\n{name or assets.playable_heroes()[hero_id].name} "
-              f"-- {len(owned)} items, {args.time}\n")
+        print(f"\n{name or assets.playable_heroes()[hero_id].name}: "
+              f"{len(owned)} items owned at {args.time}\n")
         state = _state_from_args(args, hero_id, posterior)
         _print_recommendations(
             model, state, lifts, top=args.top, item_names=item_names, hero_names=hero_names
@@ -448,8 +451,8 @@ def cmd_next(args: argparse.Namespace) -> int:
     names = {int(e["archetype_id"]): e.get("name", "") for e in entries}
     ordered = sorted(posterior.items(), key=lambda kv: -kv[1])
     summary = " / ".join(f"{share:.0%} {names.get(a, a)}" for a, share in ordered)
-    print(f"\n{assets.playable_heroes()[hero_id].name} -- {len(owned)} items, {args.time}")
-    print(f"archetype not declared; inferred {summary}\n")
+    print(f"\n{assets.playable_heroes()[hero_id].name}: {len(owned)} items owned at {args.time}")
+    print(f"no --archetype given; guessed from your items: {summary}\n")
 
     plausible = [(a, share) for a, share in ordered if share >= args.min_share]
     if len(plausible) <= 1:
@@ -509,9 +512,10 @@ def cmd_watch(args: argparse.Namespace) -> int:
     enemies = tuple(assets.resolve_hero(n) for n in _split(args.enemies))
     clock = parse_time(args.time) if args.time else 0.0
 
-    print(f"{hero_name}{' -- ' + archetype_name if archetype_name else ''}")
-    print("  '+ Item' to add, '- Item' to remove, 't 12:30' to set the clock,")
-    print("  'why Item' to trace, Enter to re-rank, Ctrl-C or 'q' to quit.\n")
+    print(f"{hero_name}{': ' + archetype_name if archetype_name else ''}")
+    print("  '+ Item' adds an item, '- Item' removes one, 't 12:30' sets the clock,")
+    print("  'why Item' shows the table rows behind an item, Enter shows the")
+    print("  recommendations again, and 'q' or Ctrl-C quits.\n")
 
     while True:
         try:
@@ -578,67 +582,114 @@ def cmd_watch(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="deadlock", description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="deadlock",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
+    def command(name: str, summary: str) -> argparse.ArgumentParser:
+        """A subcommand whose `deadlock NAME --help` opens with its summary."""
+        return sub.add_parser(name, help=summary, description=summary.capitalize() + ".")
+
     def common(p):
-        p.add_argument("--refit", action="store_true", help="rebuild the cached model")
+        p.add_argument(
+            "--refit", action="store_true", help="fit the models again, ignoring the cache"
+        )
         p.add_argument(
             "--badge",
             type=badge_argument,
             default=sequence.DEFAULT_TARGET_BADGE,
             help=(
-                "badge to weight the advice toward "
-                f"(default {sequence.DEFAULT_TARGET_BADGE:.0f}; 'all' for the "
-                "whole population)"
+                "badge to weight the advice toward, or 'all' for every player "
+                f"(default: {sequence.DEFAULT_TARGET_BADGE:g}, Oracle)"
             ),
         )
         return p
 
-    heroes = sub.add_parser("heroes", help="list heroes and their archetypes")
-    heroes.add_argument("--archetypes", action="store_true")
+    def hero_arguments(p):
+        p.add_argument("--hero", required=True, help="hero name; a unique prefix works")
+        p.add_argument(
+            "--archetype",
+            default=None,
+            help="archetype name or part of one; see `deadlock heroes --archetypes`",
+        )
+
+    time_help = "game time, as 8:30 or in seconds (default: %(default)s)"
+    owned_help = "items you own, separated by commas"
+    enemies_help = "enemy heroes, separated by commas; items that counter them are marked"
+    top_help = "how many recommendations to show (default: %(default)s)"
+    souls_help = "souls you can spend; only affordable items are shown (default: no limit)"
+
+    heroes = command("heroes", "list heroes and their archetypes")
+    heroes.add_argument(
+        "--archetypes",
+        action="store_true",
+        help="list each archetype and its share of players, for heroes with more than one",
+    )
     heroes.set_defaults(func=cmd_heroes)
 
-    make = common(sub.add_parser("build", help="a full build for a hero"))
-    make.add_argument("--hero", required=True)
-    make.add_argument("--archetype", default=None)
-    make.add_argument("--export", type=Path, default=None)
-    make.add_argument("--explain", action="store_true")
+    make = common(command("build", "a full build for a hero, in purchase order"))
+    hero_arguments(make)
+    make.add_argument(
+        "--export",
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help="also write the build as a file the in-game build browser can import",
+    )
+    make.add_argument(
+        "--explain", action="store_true", help="print the table rows behind each pick"
+    )
     make.set_defaults(func=cmd_build)
 
-    nxt = common(sub.add_parser("next", help="what to buy now"))
-    nxt.add_argument("--hero", required=True)
-    nxt.add_argument("--archetype", default=None)
-    nxt.add_argument("--owned", default="")
-    nxt.add_argument("--time", default="0:00")
-    nxt.add_argument("--souls", type=int, default=0)
-    nxt.add_argument("--enemies", default="")
-    nxt.add_argument("--top", type=int, default=5)
+    nxt = common(command("next", "what to buy now, given what you own"))
+    hero_arguments(nxt)
+    nxt.add_argument("--owned", default="", help=owned_help)
+    nxt.add_argument("--time", default="0:00", help=time_help)
+    nxt.add_argument("--souls", type=int, default=0, help=souls_help)
+    nxt.add_argument("--enemies", default="", help=enemies_help)
+    nxt.add_argument("--top", type=int, default=5, help=top_help)
     nxt.add_argument(
         "--points",
         default="",
-        help="ability points already spent, in order, comma separated",
+        help=(
+            "ability points already spent, in order, separated by commas; "
+            "adds advice on the next point"
+        ),
     )
-    nxt.add_argument("--min-share", type=float, default=0.25)
+    nxt.add_argument(
+        "--min-share",
+        type=float,
+        default=0.25,
+        help=(
+            "without --archetype, show advice for each archetype at least this "
+            "likely (default: %(default)s)"
+        ),
+    )
     nxt.set_defaults(func=cmd_next)
 
-    watch = common(sub.add_parser("watch", help="an interactive session"))
-    watch.add_argument("--hero", required=True)
-    watch.add_argument("--archetype", default=None)
-    watch.add_argument("--enemies", default="")
-    watch.add_argument("--time", default=None)
-    watch.add_argument("--top", type=int, default=5)
+    watch = common(
+        command("watch", "an interactive session: add items as you buy them")
+    )
+    hero_arguments(watch)
+    watch.add_argument("--enemies", default="", help=enemies_help)
+    watch.add_argument(
+        "--time", default=None, help="starting game time, as 8:30 or in seconds"
+    )
+    watch.add_argument("--top", type=int, default=5, help=top_help)
     watch.set_defaults(func=cmd_watch)
 
-    why = common(sub.add_parser("why", help="the table row behind a pick"))
-    why.add_argument("--hero", required=True)
-    why.add_argument("--item", required=True)
-    why.add_argument("--archetype", default=None)
-    why.add_argument("--owned", default="")
-    why.add_argument("--time", default="0:00")
-    why.add_argument("--souls", type=int, default=0)
+    why = common(command("why", "the table rows behind one recommendation"))
+    hero_arguments(why)
+    why.add_argument("--item", required=True, help="the item to explain")
+    why.add_argument("--owned", default="", help=owned_help)
+    why.add_argument("--time", default="0:00", help=time_help)
+    why.add_argument(
+        "--souls", type=int, default=0, help="souls you can spend (default: no limit)"
+    )
     why.set_defaults(func=cmd_why)
-
 
     return parser
 

@@ -56,15 +56,38 @@ COLUMNS = [
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--hero", type=str, default=None)
-    parser.add_argument("--export", type=Path, default=Path("data/builds"))
-    parser.add_argument("--samples", type=int, default=0, help="calibration samples")
-    parser.add_argument("--no-staples", action="store_true", help="greedy only (2a)")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--hero", type=str, default=None, help="build only this hero")
+    parser.add_argument(
+        "--export",
+        type=Path,
+        default=Path("data/builds"),
+        help="folder to write one build file per cell to (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--samples",
+        type=int,
+        default=0,
+        metavar="N",
+        help=(
+            "sample N builds per cell and report staples that often drop out; "
+            "does nothing with --no-staples"
+        ),
+    )
+    parser.add_argument(
+        "--no-staples",
+        action="store_true",
+        help="don't force staples into the builds; the check still runs",
+    )
     parser.add_argument(
         "--badge",
-        default=str(sequence.DEFAULT_TARGET_BADGE),
-        help="badge to weight toward, or 'all' for the whole population",
+        default=f"{sequence.DEFAULT_TARGET_BADGE:g}",
+        help=(
+            "badge to weight the builds toward, or 'all' for every player "
+            "(default: %(default)s)"
+        ),
     )
     args = parser.parse_args()
 
@@ -98,7 +121,7 @@ def main() -> int:
             how="left",
         )
     else:
-        print("no ability table; builds will export without an ability order")
+        print(f"{ABILITIES} not found; builds will export without an ability order")
 
     # Imbue targets, so exported builds say which ability to imbue.
     imbues = pd.read_parquet(IMBUES) if IMBUES.exists() else pd.DataFrame()
@@ -214,7 +237,7 @@ def main() -> int:
                 ) if len(imbues) else None,
                 description=(
                     "Purchase order. Only held items are exported: the build "
-                    "schema cannot express a sale, and roughly a third of these "
+                    "schema cannot express a sale, and about a third of these "
                     "purchases are components absorbed into later items."
                 ),
             )
@@ -230,17 +253,18 @@ def main() -> int:
     print(f"\n{passed} passed, {failed} failed, {inconclusive} inconclusive")
     if len(reliable):
         print(
-            f"order vs population: median tau {reliable['kendall_tau'].median():+.3f} "
-            f"({len(reliable)} of {len(orders)} reliable)"
+            f"order against each cell's median order: median tau "
+            f"{reliable['kendall_tau'].median():+.3f} "
+            f"(over the {len(reliable)} of {len(orders)} cells with enough shared items)"
         )
     scored = orders.dropna(subset=["ratio"])
     if len(scored):
         print(
-            f"membership vs real players: mean J@12 "
-            f"{scored['jaccard_12'].mean():.3f} against a player-vs-player "
-            f"ceiling of {scored['ceiling_12'].mean():.3f} "
+            f"items against real players: mean J@12 "
+            f"{scored['jaccard_12'].mean():.3f}; two real players score "
+            f"{scored['ceiling_12'].mean():.3f} against each other "
             f"({int((scored['ratio'] >= 1.0).sum())} of {len(scored)} cells "
-            f"at or above the ceiling)"
+            f"match or beat that)"
         )
     for line in failures:
         print(f"  {line}")
@@ -265,8 +289,8 @@ def _report_calibration(
         share = appeared / len(samples)
         if share < 0.9:
             print(
-                f"     calibration: {item_names.get(item_id, item_id)} "
-                f"in {share:.0%} of samples (prevalence {prevalence:.0%})"
+                f"     sampled: {item_names.get(item_id, item_id)} "
+                f"in {share:.0%} of samples, bought by {prevalence:.0%} of players"
             )
 
 

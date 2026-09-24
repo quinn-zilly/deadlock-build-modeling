@@ -23,9 +23,9 @@ six-week window. If you need build ids, pass `max_match_id` to
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import logging
-import sys
 from pathlib import Path
 
 from deadlock import ingest
@@ -35,18 +35,29 @@ PATCH_START = dt.datetime(2026, 8, 22, tzinfo=dt.timezone.utc)
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "n_matches",
+        nargs="?",
+        type=int,
+        default=25_000,
+        help="how many matches to download (default: %(default)s)",
+    )
+    args = parser.parse_args()
+
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S"
     )
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 25_000
 
     pages = ingest.pull_matches(
-        n,
+        args.n_matches,
         min_unix_timestamp=int(PATCH_START.timestamp()),
         cache_dir=Path("data/raw/matches"),
     )
     matches = sum(1 for _ in ingest.iter_matches(pages))
-    logging.info("done: %d pages, %d unique matches", len(pages), matches)
+    logging.info("done: %d pages holding %d distinct matches", len(pages), matches)
     return 0
 
 

@@ -131,18 +131,28 @@ def sheet(meta: dict, purchases: pd.DataFrame) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default="docs/ARCHETYPES.md")
-    parser.add_argument("--no-save", action="store_true", help="skip writing parquet/json")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--out",
+        default="docs/ARCHETYPES.md",
+        help="where to write the review sheet (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help="write only the review sheet, not the archetype labels the CLI reads",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
     if not PURCHASES.exists():
-        logging.error("no %s; run scripts/build_features.py first", PURCHASES)
+        logging.error("%s not found; run scripts/build_features.py first", PURCHASES)
         return 1
 
     purchases = pd.read_parquet(PURCHASES, columns=COLUMNS)
-    logging.info("fitting %s heroes...", purchases["hero_id"].nunique())
+    logging.info("fitting %s heroes", purchases["hero_id"].nunique())
 
     # Imbue is not a clustering input (ADR 0001), but it is used for naming:
     # it's what tells Dynamo's two builds apart.
@@ -186,7 +196,10 @@ def main() -> int:
     out.write_text(sheet(meta, purchases), encoding="utf-8")
 
     n_split = sum(1 for m in meta["heroes"].values() if m["k"] > 1)
-    logging.info("%s of %s heroes split -> %s", n_split, len(meta["heroes"]), out)
+    logging.info(
+        "%s of %s heroes have more than one archetype; wrote %s",
+        n_split, len(meta["heroes"]), out,
+    )
     for fit in sorted(fits, key=lambda f: -(f.separation if f.separation == f.separation else 0)):
         if fit.split:
             logging.info("  %-14s k=%d  separation %.3f", fit.hero_name, fit.k, fit.separation)

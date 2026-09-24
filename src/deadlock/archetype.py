@@ -754,7 +754,7 @@ def make_unique(
         )
         raise ValueError(
             f"{hero_name}: two accepted names in data/archetype_names.json are "
-            f"the same, so neither selects a build -- {detail}"
+            f"the same, so neither selects a build: {detail}"
         )
 
     proposed = {c: fixed.get(c, n) for c, n in proposed.items()}

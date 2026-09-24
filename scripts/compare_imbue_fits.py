@@ -204,12 +204,18 @@ def report(table: pd.DataFrame, out: Path) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", default="docs/IMBUE-FIT-COMPARISON.md")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--out",
+        default="docs/IMBUE-FIT-COMPARISON.md",
+        help="where to write the sheet; the csv goes beside it (default: %(default)s)",
+    )
     parser.add_argument(
         "--from-csv",
         action="store_true",
-        help="re-render the sheet from the last run's csv instead of refitting",
+        help="rewrite the sheet from the last run's csv instead of refitting",
     )
     args = parser.parse_args()
 
@@ -225,7 +231,7 @@ def main() -> int:
         return 0
 
     if not PURCHASES.exists() or not IMBUES.exists():
-        logging.error("need %s and %s", PURCHASES, IMBUES)
+        logging.error("needs %s and %s; run scripts/refit.py first", PURCHASES, IMBUES)
         return 1
 
     purchases = pd.read_parquet(PURCHASES, columns=COLUMNS)

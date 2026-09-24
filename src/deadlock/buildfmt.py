@@ -83,7 +83,7 @@ class Build:
     def __str__(self) -> str:
         held = len(self.held_items())
         lines = [
-            f"{self.label} -- {len(self.items)} purchases, "
+            f"{self.label}: {len(self.items)} purchases, "
             f"{held} held, {self.total_cost:,} souls"
         ]
         lines.extend(f"  {item}" for item in self.items)
@@ -176,7 +176,7 @@ def to_deadlock_json(
             or (
                 f"Generated from {build.hero_name} purchase sequences over 25k "
                 "matches. Items are ordered by when players actually buy them. "
-                "Timings are population medians -- buy when you can afford it, "
+                "Timings are medians. Buy each item when you can afford it, "
                 "not by the clock."
             ),
             "language": 0,

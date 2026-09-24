@@ -63,7 +63,7 @@ def cluster_report(
     for cluster in sorted(labels.unique()):
         members = labels[labels == cluster].index
         lines.append(
-            f"**cluster {cluster}** -- {shares[cluster]:.0%} of players "
+            f"**cluster {cluster}**: {shares[cluster]:.0%} of players "
             f"({len(members):,})" + thin_note(len(members))
         )
         lines.append("")
@@ -115,16 +115,23 @@ def cluster_report(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
         "--heroes",
         default="changed",
         help=(
-            "'changed' for every hero whose archetype count the block moves, "
-            "'all' for all of them, or a comma-separated list of names"
+            "'changed' for the heroes whose archetype count the block changes, "
+            "'all' for every hero, or hero names separated by commas "
+            "(default: %(default)s)"
         ),
     )
-    parser.add_argument("--out", default="docs/NEW-ARCHETYPES.md")
+    parser.add_argument(
+        "--out",
+        default="docs/NEW-ARCHETYPES.md",
+        help="where to write the review sheet (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     purchases = pd.read_parquet(
@@ -154,10 +161,10 @@ def main() -> int:
     lines = [
         "# Archetypes the imbue features found",
         "",
-        "Every cluster below clears every acceptance criterion. That is not the",
-        "question. The question is whether each reads as a build someone plays,",
-        "which only a player can answer -- so the readout is discriminative",
-        "items, what the cluster imbues, and which ability it maxes first.",
+        "Every cluster below passes every acceptance check. What a check can't",
+        "tell is whether each reads as a build someone plays. Only a player can",
+        "judge that, so each cluster shows its discriminative items, what it",
+        "imbues, and which ability it maxes first.",
         "",
         "Reject any that do not, and the fit drops back to build families alone",
         "for that hero.",
@@ -214,7 +221,7 @@ def main() -> int:
         lines.append("No hero's archetype count changes under this block.")
         lines.append("")
     out.write_text("\n".join(lines), encoding="utf-8")
-    print(f"wrote {out} ({reviewed} hero(es) to judge)")
+    print(f"wrote {out}, with {reviewed} hero(es) for a player to review")
     return 0
 
 

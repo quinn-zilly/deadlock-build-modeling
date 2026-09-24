@@ -327,10 +327,10 @@ def convert_pages(
         stale = float((~df[OBJECTIVES_PRESENT_COLUMN].astype(bool)).mean())
         if stale:
             log.warning(
-                "%.1f%% of purchase rows come from pages cached before "
-                "include_objectives; their objective columns are null meaning "
-                "'not requested', not 'never happened'. Filter on %s before "
-                "measuring anything from them.",
+                "%.1f%% of purchase rows come from pages cached before objectives "
+                "were requested. In those rows a null objective column means the "
+                "data wasn't requested, not that the objective never fell. Filter "
+                "on %s before measuring objectives.",
                 stale * 100, OBJECTIVES_PRESENT_COLUMN,
             )
     return out_path

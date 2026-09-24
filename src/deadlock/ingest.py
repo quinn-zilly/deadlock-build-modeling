@@ -102,7 +102,7 @@ def pull_matches(
             "/v1/matches/metadata", params, cache_dir=cache_dir
         )
         if not batch:
-            log.info("no more matches at cursor %s; stopping early", cursor)
+            log.info("no more matches in range; stopping early")
             break
 
         page_file = api._cache_path(cache_dir, "/v1/matches/metadata", params)
@@ -112,10 +112,13 @@ def pull_matches(
         lowest = min(m["match_id"] for m in batch)
         # max_match_id is inclusive, so start below the lowest id we have.
         cursor = lowest - 1
-        log.info("pulled %d/%d matches (next cursor %d)", seen, n_matches, cursor)
+        log.info("have %d of %d matches; next page starts at match id %d", seen, n_matches, cursor)
 
         if len(batch) < limit:
-            log.info("short page (%d < %d); reached end of range", len(batch), limit)
+            log.info(
+                "page held %d of %d matches, so there are no older ones; stopping",
+                len(batch), limit,
+            )
             break
 
     return pages

@@ -56,10 +56,20 @@ def blocks(hero_players: pd.MultiIndex) -> dict[str, pd.DataFrame]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--heroes", type=str, default=",".join(DEFAULT_HEROES))
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
-        "--block", choices=("order", "imbue", "both", "joint"), default="both"
+        "--heroes",
+        type=str,
+        default=",".join(DEFAULT_HEROES),
+        help="hero names separated by commas (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--block",
+        choices=("order", "imbue", "both", "joint"),
+        default="both",
+        help="which block to sweep; see the list above (default: %(default)s)",
     )
     args = parser.parse_args()
 
@@ -75,7 +85,7 @@ def main() -> int:
     )
     available = blocks(players)
     if not available:
-        print("no ability or imbue table built; nothing to sweep")
+        print(f"neither {ABILITIES} nor {IMBUES} exists; nothing to sweep")
         return 1
 
     if args.block == "joint":
@@ -98,7 +108,7 @@ def main() -> int:
     for name in names:
         hero_id = heroes.get(name.lower())
         if hero_id is None:
-            print(f"  (no hero {name!r})")
+            print(f"  (no hero named {name!r}; skipped)")
             continue
         group = purchases[purchases["hero_id"] == hero_id]
         for block_name in wanted:
@@ -132,7 +142,7 @@ def main() -> int:
         ks = block.pivot_table(index="hero", columns="weight", values="k")
         print(f"\nk by {block_name} weight")
         print(ks.astype(int).to_string())
-        print("\nverdict per hero (vs weight 0):")
+        print("\neach hero's best weight, compared with weight 0:")
         for hero in table.index:
             row = table.loc[hero]
             base_k = int(ks.loc[hero, 0.0])
@@ -147,7 +157,7 @@ def main() -> int:
             if base_k == 1 and best_k > 1 and row.max() >= archetype.MIN_SEPARATION:
                 print(
                     f"  {hero:12s} best w={best_weight:<5} "
-                    f"k {base_k}->{best_k} sep={row.max():.3f}  NEW SPLIT"
+                    f"k {base_k}->{best_k} sep={row.max():.3f}  new split"
                 )
                 continue
             delta = row.max() - row[0.0]

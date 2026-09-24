@@ -156,10 +156,22 @@ def score(model, test: pd.DataFrame, labels: pd.Series, baselines: dict, limit: 
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--matches", type=int, default=20000)
-    parser.add_argument("--hero", type=str, default=None)
-    parser.add_argument("--limit", type=int, default=20000, help="decisions to score")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--matches",
+        type=int,
+        default=20000,
+        help="use the first N matches, 0 for all (default: %(default)s)",
+    )
+    parser.add_argument("--hero", type=str, default=None, help="score only this hero")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=20000,
+        help="stop after scoring this many points per split (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     hero_id = None
@@ -192,7 +204,7 @@ def main() -> int:
             f"\n  chance     {scores['chance']:.3f}"
         )
         if split_name == "match":
-            print(f"  levels carrying a hit: {result['levels']}")
+            print(f"  model hits by backoff level: {result['levels']}")
     return 0
 
 

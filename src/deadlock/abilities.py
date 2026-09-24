@@ -285,7 +285,7 @@ def reconcile(
     total = n_purchases + n_abilities
     ok = total == n_raw
     return ok, (
-        f"purchases {n_purchases:,} + abilities {n_abilities:,} "
-        f"= {total:,} vs raw {n_raw:,} "
-        f"({'exact' if ok else f'MISMATCH {total - n_raw:+,}'})"
+        f"{n_purchases:,} purchases plus {n_abilities:,} ability points make "
+        f"{total:,}, against {n_raw:,} raw entries "
+        f"({'exact' if ok else f'off by {total - n_raw:+,}'})"
     )

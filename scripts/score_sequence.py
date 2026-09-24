@@ -58,15 +58,34 @@ def load(matches: int | None, hero_id: int | None) -> tuple[pd.DataFrame, pd.Dat
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--matches", type=int, default=20000)
-    parser.add_argument("--hero", type=str, default=None)
-    parser.add_argument("--limit", type=int, default=20000, help="decisions to score")
-    parser.add_argument("--ablate", action="store_true", help="kappa and level sweep")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--matches",
+        type=int,
+        default=20000,
+        help="use the first N matches, 0 for all (default: %(default)s)",
+    )
+    parser.add_argument("--hero", type=str, default=None, help="score only this hero")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=20000,
+        help="stop after scoring this many purchases per split (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--ablate",
+        action="store_true",
+        help="also sweep kappa, and score runs without the most specific backoff levels",
+    )
     parser.add_argument(
         "--badge",
-        default=str(sequence.DEFAULT_TARGET_BADGE),
-        help="badge to weight the tables toward, or 'all' for none",
+        default=f"{sequence.DEFAULT_TARGET_BADGE:g}",
+        help=(
+            "badge to weight the tables toward, or 'all' for no weighting "
+            "(default: %(default)s)"
+        ),
     )
     args = parser.parse_args()
 
@@ -119,7 +138,7 @@ def main() -> int:
                 k: f"{v/total:.1%}"
                 for k, v in sorted(result["levels"].items())
             }
-            print(f"  level carrying correct top-1: {share}")
+            print(f"  correct top-1 picks by backoff level: {share}")
 
     if args.ablate:
         train, test = splits.split_by_match(df)

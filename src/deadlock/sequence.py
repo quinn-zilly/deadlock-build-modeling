@@ -612,7 +612,7 @@ def fit(
     for depth in wanted:
         level = _build_level(df, LEVEL_NAMES[depth], LEVEL_KEYS[depth], weights)
         log.info(
-            "built %s: %d rows, %d contexts",
+            "built level %s: %d rows over %d contexts",
             level.name,
             len(level.item_ids),
             len(level.offsets),
