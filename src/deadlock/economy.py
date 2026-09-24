@@ -1,21 +1,15 @@
-"""Economic features: what buy position was actually standing in for.
+"""Per-player spending features: cost, tier climb, and saving up.
 
-Encoding items by purchase position measurably hurts the model (AUC -0.0055
-against a plain unordered item set). The reason is that position is largely a
-price proxy -- `corr(buy_index, cost) = 0.435`, with median item cost rising
-800 -> 1600 across the first eight buys -- so splitting an item across position
-columns fragments its samples along a variable that mostly restates the item's
-own price.
+Written for the discarded win-rate model. Nothing outside tests imports it.
 
-This module states the economics directly instead. Two things are worth
-capturing, neither of which needs the corrupt `net_worth_at_buy` field:
+Two patterns it measures, neither of which needs the corrupt
+`net_worth_at_buy` field:
 
-1. The **tier ladder**. Buy #1 is 97% tier 1; by buy #10 it is 39% tier 3 and
-   11% tier 4. How fast a player climbs that ladder is a real signal.
-2. **Saving behaviour**. The gap before a purchase scales monotonically with
-   the size of the tier jump -- median 86s for a tier drop, 104s for a
-   same-tier buy, 183s for +2, 288s for +3. Players visibly bank souls, and the
-   waiting is observable even though the souls are not.
+1. Tier climb. The first purchase is tier 1 97% of the time. By the tenth,
+   39% are tier 3 and 11% are tier 4.
+2. Saving up. The wait before a purchase grows with the tier jump: median 86s
+   before a cheaper tier, 104s for the same tier, 183s for +2, 288s for +3.
+   The data doesn't show souls held, but it does show the wait.
 """
 
 from __future__ import annotations
@@ -39,10 +33,10 @@ ECONOMIC_COLUMNS = [
     "saved_up_fraction",
 ]
 
-# Spending is not independent of wealth: a player who spent more souls had more
-# souls. Measured against reconstructed net worth on 8,000 matches:
+# A player who spent more had more. Correlation with rebuilt net worth over
+# 8,000 matches:
 #
-#   total_spend      0.78   <- effectively a restatement of net worth
+#   total_spend      0.78   <- nearly the same as net worth
 #   tier_mean        0.43
 #   n_tier_jumps     0.40
 #   mean_item_cost   0.36
@@ -51,20 +45,15 @@ ECONOMIC_COLUMNS = [
 #   cost_slope      -0.25
 #   saved_up_frac    0.17
 #
-# total_spend crosses into being a wealth proxy rather than a behavioural
-# feature, and carries the same problem as nw_final: it is largely an outcome.
-# It is kept for description but excluded from BEHAVIOURAL_COLUMNS, which is
-# what belongs in a gated model.
+# total_spend measures wealth, which is mostly a result of how the match went,
+# so it is left out of BEHAVIOURAL_COLUMNS.
 WEALTH_PROXY_COLUMNS = frozenset({"total_spend"})
 
-# Features describing HOW a player spent rather than HOW MUCH they had. These
-# are the ones that can enter a model whose lift is being measured against the
-# wealth baseline.
+# Features about how a player spent, not how much they had.
 BEHAVIOURAL_COLUMNS = [c for c in ECONOMIC_COLUMNS if c not in WEALTH_PROXY_COLUMNS]
 
-# A gap this many times the player's own median marks deliberate saving. Using
-# the player's own median rather than a global constant keeps the measure
-# meaningful for fast and slow farmers alike.
+# A wait longer than this many times the player's own median wait counts as
+# saving up. Using each player's own median works for fast and slow farmers.
 SAVE_GAP_RATIO = 1.5
 
 
@@ -77,17 +66,16 @@ def annotate_costs(df: pd.DataFrame, items: dict[int, Item]) -> pd.DataFrame:
 
 
 def _gaps(times: np.ndarray) -> np.ndarray:
-    """Seconds between consecutive purchases. First buy has no predecessor."""
+    """Seconds between consecutive purchases, one fewer than the purchase count."""
     if times.size < 2:
         return np.empty(0, dtype=float)
     return np.diff(np.sort(times))
 
 
 def player_economics(group: pd.DataFrame) -> dict[str, float]:
-    """Economic summary for one player's purchase sequence.
+    """Spending features for one player's purchases.
 
-    `group` must carry buy_time_s, cost, and tier, ordered or not -- times are
-    sorted here so callers need not guarantee it.
+    `group` needs buy_time_s, cost, and tier columns, in any order.
     """
     order = np.argsort(group["buy_time_s"].to_numpy())
     times = group["buy_time_s"].to_numpy(dtype=float)[order]
@@ -97,8 +85,8 @@ def player_economics(group: pd.DataFrame) -> dict[str, float]:
     costs = np.nan_to_num(costs, nan=0.0)
     valid_tiers = tiers[~np.isnan(tiers)]
 
-    # How steeply spending ramps. A positive slope is the normal build-up; a
-    # flat one means the player never climbed past cheap items.
+    # How fast item cost rises. A flat slope means the player stayed on cheap
+    # items.
     if costs.size >= 2:
         cost_slope = float(np.polyfit(np.arange(costs.size), costs, 1)[0])
     else:
@@ -110,7 +98,7 @@ def player_economics(group: pd.DataFrame) -> dict[str, float]:
     gaps = _gaps(times)
     median_gap = float(np.median(gaps)) if gaps.size else 0.0
 
-    # Saving shows up as a gap well above this player's own typical pace.
+    # Saving up: a wait well above this player's median.
     if gaps.size and median_gap > 0:
         saved = gaps > (SAVE_GAP_RATIO * median_gap)
         n_saved_up = int(saved.sum())
@@ -133,10 +121,10 @@ def player_economics(group: pd.DataFrame) -> dict[str, float]:
 
 
 def economic_features(df: pd.DataFrame, items: dict[int, Item]) -> pd.DataFrame:
-    """Per-player economic features, indexed by (match_id, player_slot).
+    """Spending features for every player, indexed by (match_id, player_slot).
 
-    Vectorized rather than per-group: at 5M purchases a groupby-apply over
-    ~300k players is minutes of work, while the aggregations below are seconds.
+    Gives the same results as `player_economics` per player, but vectorized.
+    Over 5M purchases a per-player apply takes minutes; this takes seconds.
     """
     annotated = annotate_costs(df, items).sort_values(
         ["match_id", "player_slot", "buy_time_s"]
@@ -154,7 +142,7 @@ def economic_features(df: pd.DataFrame, items: dict[int, Item]) -> pd.DataFrame:
         tier_max=("tier", "max"),
     )
 
-    # Gaps and tier jumps need lagged values within each player.
+    # Gaps and tier jumps need each player's previous purchase.
     annotated["prev_time"] = grouped["buy_time_s"].shift()
     annotated["prev_tier"] = grouped["tier"].shift()
     annotated["gap"] = annotated["buy_time_s"] - annotated["prev_time"]
@@ -172,7 +160,7 @@ def economic_features(df: pd.DataFrame, items: dict[int, Item]) -> pd.DataFrame:
     )
     out = out.join(jumps)
 
-    # Saving: a gap above SAVE_GAP_RATIO x this player's own median.
+    # Saving up: a gap above SAVE_GAP_RATIO times this player's median.
     gaps = gaps.join(gap_stats, on=keys)
     gaps = gaps.assign(
         saved=(gaps["gap"] > SAVE_GAP_RATIO * gaps["median_gap_s"]).astype("int8")
@@ -181,8 +169,7 @@ def economic_features(df: pd.DataFrame, items: dict[int, Item]) -> pd.DataFrame:
     save_stats.columns = ["n_saved_up", "saved_up_fraction"]
     out = out.join(save_stats)
 
-    # Cost ramp: correlation of cost against position, a cheap stand-in for the
-    # per-player regression slope and far faster over 300k groups.
+    # Least-squares slope of cost against purchase position.
     annotated["pos"] = grouped.cumcount()
     slope = (
         annotated.groupby(keys, sort=False)[["pos", "cost"]]

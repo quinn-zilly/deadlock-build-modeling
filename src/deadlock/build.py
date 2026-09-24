@@ -1,29 +1,25 @@
-"""Rolling the model forward into a full build.
+"""Generate a full build by running the model forward one purchase at a time.
 
-A build is ~17 purchases but only ~12 items can be held at once. Those
-reconcile through *component absorption*: buying a composite consumes the
-components already owned, freeing their slots. That is not a detail of the
-export format -- it is the mechanism that makes a real build fit in the
-inventory, and it is measurable:
+A build is about 17 purchases, but a player can hold only 12 items. Absorption
+makes that work: buying a composite removes the components the player already
+holds and frees their slots. The data shows it:
 
     sold rate for items that are a component of something   70.6%
     sold rate for items that are not                         6.4%
     by tier: t1 86.6%, t2 40.1%, t3 7.2%, t4 1.1%
 
-So of the 37.3% of purchases eventually sold, most are not a player changing
-their mind -- they are cheap items being folded into expensive ones. Only about
-6% are genuine strategic sells.
+So most "sold" items were absorbed into a bigger item. Only about 6% of
+purchases are a real sell.
 
-The consequence that matters for correctness: **the prevalence gate must run on
-the purchase sequence, never on held items.** Hero 4's first archetype has 12
-staples, 7 of them sold more than half the time -- Mystic Burst is bought by 96%
-of its players and sold by 95%. A 12-slot inventory cannot contain them, so
-gating held items would fail that build no matter how good the model is.
+This is why the staple gate checks the purchase sequence, never held items.
+Hero 4's first archetype has 12 staples, and 7 of them are gone by match end
+more than half the time. Mystic Burst is bought by 96% of those players and
+sold by 95%. No 12-slot inventory holds all 12 staples, so a gate on held
+items would always fail.
 
-Generation is greedy, not beam search. Beam search optimises total sequence
-likelihood, which finds the single most stereotyped build and strips the
-variation that makes a build read as sensible -- and it destroys the per-step
-attribution that makes each pick explainable.
+Generation is greedy, not beam search. Beam search maximizes the likelihood of
+the whole sequence, which picks the most stereotyped build. It also loses the
+per-step evidence that `why` shows for each pick.
 """
 
 from __future__ import annotations
@@ -39,15 +35,12 @@ from .state import GameState
 
 log = logging.getLogger(__name__)
 
-# Median seconds at each buy index, measured over 5,095,598 purchases. Buy time
-# is essentially linear in the index (~110s per purchase), so timing is a
-# lookup rather than a model of its own.
+# Median game time in seconds of each purchase by position, measured over
+# 5,095,598 purchases. It is close to linear, about 110s per purchase.
 #
-# Re-measured on 2026-09-15 against the re-pulled population's 5,119,990
-# purchases and left as it is: the largest move is 18s at index 18, and every
-# index is within 1% of the value below. Buy pace is a stable game fact rather
-# than something the window decides, so refitting it would churn every shipped
-# build's clock for no gain.
+# Re-measured on 2026-09-15 over 5,119,990 purchases. Every position was
+# within 1% of these values (the largest change was 18s at position 18), so
+# they were left alone rather than shift every build's times.
 MEDIAN_BUY_TIME_S = (
     70, 191, 304, 420, 527, 629, 731, 838, 950, 1065,
     1194, 1318, 1441, 1570, 1684, 1795, 1910, 2022, 2129, 2232,
@@ -57,23 +50,25 @@ SECONDS_PER_PURCHASE = 110.0
 # The median player makes 17 purchases (p10 13, p90 22).
 DEFAULT_MAX_PURCHASES = 17
 
-# How much to discount a composite whose components are not owned. 81% of
-# composite purchases have every component bought earlier, so the preference is
-# real -- but ~19% skip it, and a hard mask would make those builds
-# unreachable. A penalty, never a filter.
+# Multiplier on a composite's score while the player doesn't hold all its
+# components. 81% of composite purchases come after every component, but 19%
+# don't, so this lowers the score instead of forbidding the purchase.
 COMPONENT_PENALTY = 0.25
 
-# Stop once no candidate is more likely than this. A build should not pad
-# itself out to a fixed length with items nobody buys.
+# Stop the build when the best candidate is less likely than this, instead of
+# filling it out with items nobody buys.
 MIN_PROBABILITY = 0.02
 
-# How many buys before the end the completion pass starts forcing missing
-# staples in outright.
+# Staples still missing get forced in once the remaining purchases are within
+# this many of the number of missing staples.
 PEAK_WINDOW = 2
 
 
 def buy_time(index: int) -> float:
-    """Median clock time at a buy index, extrapolating past the measured table."""
+    """Median game time of the purchase at this position.
+
+    Past the end of MEDIAN_BUY_TIME_S, adds SECONDS_PER_PURCHASE per position.
+    """
     if index < len(MEDIAN_BUY_TIME_S):
         return float(MEDIAN_BUY_TIME_S[index])
     over = index - len(MEDIAN_BUY_TIME_S) + 1
@@ -82,11 +77,11 @@ def buy_time(index: int) -> float:
 
 @dataclass
 class Inventory:
-    """Items held right now, with components absorbed as composites are bought.
+    """A player's items during build generation.
 
-    `purchased` is every buy in order and never shrinks; `held` is what is
-    occupying a slot. The two diverge exactly when a composite absorbs a
-    component, which is what lets a 17-purchase build respect a 12-slot cap.
+    `purchased` is every purchase in order. `held` is what occupies a slot
+    now, which drops components when a composite absorbs them. `consumed`
+    maps each absorbed component to the item that absorbed it.
     """
 
     held: set[int] = field(default_factory=set)
@@ -94,7 +89,7 @@ class Inventory:
     consumed: dict[int, int] = field(default_factory=dict)
 
     def buy(self, item_id: int, components: dict[int, tuple[int, ...]]) -> list[int]:
-        """Add an item, absorbing any owned components. Returns what it absorbed."""
+        """Buy an item, absorbing any of its components that are held. Returns them."""
         absorbed = [c for c in components.get(item_id, ()) if c in self.held]
         for component in absorbed:
             self.held.discard(component)
@@ -104,7 +99,7 @@ class Inventory:
         return absorbed
 
     def would_fit(self, item_id: int, components: dict[int, tuple[int, ...]]) -> bool:
-        """Whether buying this keeps the held count legal after absorption."""
+        """Whether this item fits within MAX_HELD_ITEMS, after absorbing its components."""
         freed = sum(1 for c in components.get(item_id, ()) if c in self.held)
         return len(self.held) - freed + 1 <= MAX_HELD_ITEMS
 
@@ -123,18 +118,15 @@ def generate_build(
     archetype_name: str = "",
     min_probability: float = MIN_PROBABILITY,
 ) -> Build:
-    """Roll the model forward from an empty inventory into a full build.
+    """Generate a build from an empty inventory, one purchase at a time.
 
-    `staples` is the completion pass: items the population buys at or above the
-    prevalence threshold get a nudge as the purchase budget runs out, so a
-    build does not end up missing an item 96% of players buy simply because it
-    was never the single most likely pick at any one step. A nudged pick is
-    labelled in its `backoff_level` so it is never mistaken for the model's own
-    preference.
+    `staples` maps each staple to its prevalence. As purchases run out,
+    missing staples get pushed in, so a build doesn't miss an item 96% of
+    players buy just because it was never the top pick at any single step.
+    A pushed pick gets "+staple" added to its `backoff_level`.
 
-    `temperature` 0 is greedy and deterministic. Above 0 it samples from
-    `P ** (1/T)` with a seeded generator, for the diagnostic that checks
-    staples appear in nearly every sampled build.
+    `temperature` 0 always takes the top item. Above 0 it samples from
+    `P ** (1/T)` with the given seed. `sample_builds` uses this.
     """
     items = assets.shopable_items()
     components = assets.component_map()
@@ -153,8 +145,7 @@ def generate_build(
         state = GameState(
             hero_id=hero_id,
             game_time_s=clock,
-            # Pre-match planning asks what to buy eventually, not what is
-            # affordable this second.
+            # A pre-match build ignores what the player can afford.
             souls_available=10**9,
             owned_item_ids=frozenset(inventory.purchased),
             purchased=tuple(inventory.purchased),
@@ -202,8 +193,7 @@ def generate_build(
                 backoff_level=(trace.level if trace else "L5") + (" +staple" if nudged else ""),
             )
         )
-        # An absorbed component leaves the inventory when its parent arrives.
-        # That is a fact about this build, not an estimate.
+        # Mark absorbed components as sold at this purchase's time.
         for component in absorbed:
             for earlier in build.items:
                 if earlier.item_id == component and earlier.sell_time_s is None:
@@ -222,7 +212,7 @@ def _apply_priors(
     staples: dict[int, float] | None,
     remaining: int,
 ) -> np.ndarray:
-    """Soft preferences over the model's distribution. Never a hard filter."""
+    """Adjust the model's scores for components and staples. Never sets a score to zero."""
     scored = probability.copy()
 
     if component_penalty < 1.0:
@@ -232,15 +222,11 @@ def _apply_priors(
 
     if staples:
         missing = [s for s in staples if s not in inventory.purchased]
-        # Reserve a slot per missing staple. Deferring them to the last few
-        # buys does not work: the inventory is full by then and a staple with
-        # no components to absorb can never be added. Melee Silver kept losing
-        # Hunter's Aura this way -- an item 71% of its players buy, and buy at
-        # index 7, which the generator was pushing to index 14 against a full
-        # inventory.
-        #
-        # Once free slots have run down to the number of staples still owed,
-        # every remaining slot belongs to a staple.
+        # Force staples in when purchases are nearly used up, or when free
+        # slots are down to the number of missing staples. Waiting for the
+        # last purchases alone fails: the inventory is full by then, and a
+        # staple that absorbs nothing can't fit. That is how Melee Silver lost
+        # Hunter's Aura, which 71% of those players buy at position 7.
         free_slots = MAX_HELD_ITEMS - len(inventory.held)
         forced = missing and (
             remaining <= len(missing) + PEAK_WINDOW or free_slots <= len(missing)
@@ -252,20 +238,15 @@ def _apply_priors(
                 if iid not in owed:
                     continue
                 value = staples[iid]
-                # A composite and its own component can both be staples -- Gun
-                # Shiv has three such pairs, and the composite is always the
-                # more prevalent of the two, because buying it implies buying
-                # the component. Forcing on raw prevalence ranks the parent
-                # first, so the component arrives too late to be absorbed and
-                # the cell's 13 staples need 13 slots against a cap of 12.
-                # Demoting the parent while both are owed puts the component
-                # first and the absorption back.
+                # When a composite and its component are both missing staples,
+                # buy the component first so the composite can absorb it. Gun
+                # Shiv has three such pairs and 13 staples. Composite first,
+                # the 13 staples need 13 slots and the cap is 12.
                 #
-                # Only while both are owed. Enduring Speed's component is
-                # Sprint Boots, which its cells do not buy often enough to be a
-                # staple; demoting on that would drop an item 85% of Gun Victor
-                # buys for a component absorption that was never going to
-                # happen.
+                # Only apply this when the component is itself a missing
+                # staple. Enduring Speed's component, Sprint Boots, isn't a
+                # staple for Gun Victor, so penalizing Enduring Speed there
+                # would drop an item 85% of those players buy.
                 if _awaits_components(iid, inventory, components, among=owed):
                     value *= component_penalty
                 scored[i] = max(scored[i], value)
@@ -280,13 +261,11 @@ def _awaits_components(
     *,
     among: set[int] | None = None,
 ) -> bool:
-    """Whether this composite is still waiting on a component it would absorb.
+    """Whether this composite has a component the player doesn't hold yet.
 
-    One reading of "not ready yet", used by both discounts in `_apply_priors`,
-    so the two cannot drift apart. `among` narrows the question to components
-    drawn from that set: the staple force asks only about components that are
-    themselves owed staples, because a component the cell does not buy often
-    enough to be a staple is never coming.
+    With `among`, only components in that set count. The staple forcing in
+    `_apply_priors` passes the missing staples, since a component that isn't a
+    staple may never be bought.
     """
     needed = components.get(item_id, ())
     if not needed:
@@ -303,18 +282,14 @@ def _ensure_staples_present(
     inventory: Inventory,
     remaining: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Put a still-missing staple back on the ballot when the budget runs out.
+    """Add missing staples to the candidates when purchases are running out.
 
-    The completion pass reweights candidates, so it can only promote an item
-    the model already offered. An item the model never surfaces in this context
-    is invisible to it -- which is how Melee Silver kept missing Hunter's Aura,
-    an item 71% of its players buy: by the closing buys its conditional
-    probability had decayed below the candidate set entirely.
+    `_apply_priors` can only raise the score of an item the model returned.
+    If the model gives a staple no probability in this context, it isn't a
+    candidate at all. Melee Silver lost Hunter's Aura this way.
 
-    Appending it at probability 0 keeps the reported number honest -- the model
-    really does not expect it here -- while `_apply_priors` supplies the
-    prevalence that justifies buying it, and the build labels the pick
-    `+staple` so it is never read as the model's own preference.
+    Added staples get probability 0, which is what the model predicts, and
+    `_apply_priors` gives them their prevalence as a score.
     """
     if not staples:
         return ids, probability
@@ -340,7 +315,10 @@ def _choose(
     temperature: float,
     rng: np.random.Generator,
 ) -> int | None:
-    """Pick a legal index: never re-buy, never exceed the held cap."""
+    """Index of the chosen item, skipping items already bought or that don't fit.
+
+    Returns None if nothing can be bought.
+    """
     legal = np.array(
         [
             int(item_id) in items
@@ -384,11 +362,10 @@ def sample_builds(
     temperature: float = 0.7,
     **kwargs,
 ) -> list[Build]:
-    """Many sampled builds, for the calibration diagnostic.
+    """Generate `n` builds by sampling, each with a different seed.
 
-    A staple appearing in only 60% of samples is a calibration problem that
-    greedy generation would have hidden, since greedy shows one build and says
-    nothing about how stable it is.
+    Checks how stable a build is. A staple that shows up in only 60% of
+    samples is a problem that a single greedy build would hide.
     """
     return [
         generate_build(

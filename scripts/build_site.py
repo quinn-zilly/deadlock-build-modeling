@@ -1,27 +1,16 @@
-"""Render every generated build into a single browsable page.
+"""Render every build into one self-contained HTML page.
 
-A read-only view of what `deadlock build` produces, for looking over all 75
-hero-and-archetype builds at once rather than one command at a time. The page
-is self-contained: the build data is inlined, so it opens from a file path with
-no server.
+Shows everything `deadlock build` shows, for every hero and archetype at
+once. The build data is inlined, so the page opens from a file without a
+server. The markup, styles, and render code are in
+`src/deadlock/templates/builds.html`. This script adds the data.
 
-The template lives in `src/deadlock/templates/builds.html` and carries the
-markup, styling and render functions. This script supplies the data and checks
-the result before writing it.
+If node is installed, the script checks the page's JavaScript before
+writing: it parses it, then renders every build against a fake DOM and checks
+that each expected section appears. An earlier version shipped with a syntax
+error, and the page looked fine but did nothing.
 
-That check is not ceremony. An earlier version of this page shipped with a
-JavaScript syntax error -- a double-quoted string containing double-quoted
-attributes -- which killed the whole script, so the page rendered static markup
-with a dead search box and an empty build panel. Nothing in the HTML looked
-wrong. So whenever node is available the script is both parsed and *run*: every
-build is rendered against a DOM stub and the result is checked for the sections
-it should contain. A page that parses can still throw on its first render, and
-on the page the two failures look identical.
-
-The page must be generated at the same bracket as the builds it is showing --
-a page rendered from the default cache while the builds came from another
-bracket would disagree with them silently, which is the one thing this project
-never ships.
+Pass the same --badge as generate_builds.py, so the page matches the builds.
 
     python scripts/build_site.py [--out PATH] [--hero NAME] [--badge N|all]
 """
@@ -65,12 +54,10 @@ def collect(
     hero_filter: str | None = None,
     badge: float | None = sequence.DEFAULT_TARGET_BADGE,
 ) -> list[dict]:
-    """Generate every build and reduce it to what the page renders.
+    """Generate every build and return the data the page shows for each.
 
-    The page shows what `deadlock build` shows: the purchase order, the ability
-    order, what to imbue, and the matchups the build's items answer. A web view
-    that showed only the items would be a different, smaller product than the
-    CLI, and the player would have no way to know what was missing.
+    Includes the same parts as `deadlock build`: purchase order, ability
+    order, imbue targets, and counter-picks.
     """
     labels, meta = archetype.load()
     model = cli.load_model(badge=badge)
@@ -211,7 +198,7 @@ def collect(
 
 
 def render(builds: list[dict]) -> str:
-    """Inline the data into the template."""
+    """The template with the build data inlined as `const BUILDS`."""
     template = TEMPLATE.read_text(encoding="utf-8")
     payload = "const BUILDS = " + json.dumps(builds, separators=(",", ":")) + ";\n"
     marker = "<script>\nconst clock"
@@ -220,9 +207,8 @@ def render(builds: list[dict]) -> str:
     return template.replace(marker, "<script>\n" + payload + "const clock", 1)
 
 
-# A DOM small enough to run the page's render functions and large enough that
-# they cannot tell the difference: the three elements the script looks up by
-# id, plus createElement.
+# A fake DOM with just enough to run the page's render code: the three
+# elements it looks up by id, and createElement.
 DOM_SHIM = """
 function el() {
   const node = {
@@ -247,7 +233,7 @@ const document = {
 """
 
 # Each build field, and the heading the page must show when that field has
-# data. A section that quietly renders to nothing is the failure this catches.
+# data.
 SECTIONS = (
     ("abilities", "Ability order"),
     ("imbue", "What to imbue"),
@@ -256,7 +242,7 @@ SECTIONS = (
 
 
 def exercise_source() -> str:
-    """The harness that renders every build and checks what came out."""
+    """JavaScript that renders every build and throws if a section is missing."""
     checks = "\n".join(
         '  if (BUILDS[i].{field}.length && !html.includes("{heading}"))'
         '\n    missing.push(BUILDS[i].archetype + ": {heading}");'.format(
@@ -282,18 +268,12 @@ def exercise_source() -> str:
 
 
 def check_script(html: str) -> None:
-    """Parse the page's JavaScript, then run it, if node is available.
+    """Check the page's JavaScript with node, if installed. Exits on failure.
 
-    Parsing alone is not enough, and this page is why the rule exists: an
-    earlier version shipped with a syntax error that killed the whole script,
-    leaving markup that looked fine and did nothing. A version that parses can
-    still throw on its first render -- a renderer reading a field the collector
-    stopped emitting -- and the symptom on the page is identical.
-
-    So the script is also run against a DOM stub, over every build rather than
-    the first, and the rendered panel is checked for the sections it should
-    contain. A build with no counter-picks and a cell with no imbues are
-    exactly the cases a renderer gets wrong.
+    First checks that it parses. Then runs it against DOM_SHIM, renders every
+    build, and checks for each section in SECTIONS. Code that parses can still
+    throw on render, for example when it reads a field `collect` no longer
+    provides.
     """
     node = shutil.which("node")
     if not node:
@@ -311,7 +291,7 @@ def check_script(html: str) -> None:
 
 
 def run_node(node: str, script: str, *flags: str) -> str:
-    """Run one script under node, failing the build on anything it reports."""
+    """Run a script with node and return its output. Exits if node reports an error."""
     with tempfile.NamedTemporaryFile(
         "w", suffix=".js", delete=False, encoding="utf-8"
     ) as handle:

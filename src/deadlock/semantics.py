@@ -1,57 +1,42 @@
-"""What an item does, as opposed to which shop tab it sits in.
+"""Build families: what each item does, used to name archetypes.
 
-`Item.slot_type` is a shop category. Measured against the items' own stat
-blocks, **84 of 170 shopable items sit in a tab that does not match what they
-do** -- so naming a build from its slot shares is close to a coin flip. Siphon
-Bullets is vitality-slotted and grants +15% weapon damage; Melee Charge is
-weapon-slotted and belongs to melee builds; Rescue Beam is vitality-slotted and
-belongs to support builds.
+The shop tab (`Item.slot_type`) often doesn't match what an item does. 84 of
+170 shop items sit in a tab that doesn't match their stats. Siphon Bullets is
+in the vitality tab and gives +15% weapon damage. Melee Charge is in the
+weapon tab and goes in melee builds.
 
-This module assigns each item to one or more **build families** -- the
-vocabulary players actually use -- by reading its stats AND its tooltip.
+So this module assigns each item to one or more build families, the words
+players use (gun, spirit, melee, support, tank), from its stats and its
+tooltip text. The tooltip matters because stats alone mislabel items:
 
-The tooltip is not decoration. Stats say which numbers an item moves; the
-tooltip says what it is FOR, and they disagree often enough that a stats-only
-reading mislabels real builds:
+- Siphon Bullets' stats are "+15% weapon damage, +10 bullet resist". Its
+  tooltip says "your bullets steal Max HP from enemies", which is why people
+  buy it, and no stat says that.
+- Mystic and Radiant Regeneration look like spirit healing, which reads as
+  support. The tooltip says dealing spirit damage heals you, which is why gun
+  builds buy them.
+- Healing Tempo looks like healing but gives the target bonus fire rate, so
+  it shows up in gun builds.
 
-- Siphon Bullets' typed block is "+15% weapon damage, +10 bullet resist". Its
-  tooltip says "your bullets steal Max HP from enemies" -- the actual reason
-  anyone buys it, present in no stat key.
-- Mystic and Radiant Regeneration type as spirit healing, so a stats-only pass
-  called them support. The tooltip says dealing spirit damage grants YOU
-  regeneration: self-sustain, which is why a gun carry stacks them.
-- Healing Tempo types as healing but grants the target bonus FIRE RATE, which
-  is why it appears in gun builds. Read as a heal, it made Venator's hybrid
-  gun/spirit build look like a support build.
+Four traps in the stat data (more in docs/ITEM-SEMANTICS.md):
 
-Four more things make this harder than it looks (see docs/ITEM-SEMANTICS.md):
+1. Stats are in two fields. `upgrades[].property_upgrades[]` holds only what
+   an upgrade adds, and `properties{}` holds the rest. Siphon Bullets' weapon
+   damage is only in `properties`. We read both.
+2. `AbilityCooldown` is the item's own cooldown, not cooldown reduction. It
+   appears on 90 items, including 48 of the 50 actives. Counting it as spirit
+   makes every active look like a spirit item. Real cooldown reduction is
+   `CooldownReduction`, on seven items. AbilityDuration, AbilityCastRange,
+   AbilityCastDelay, and AbilityChannelTime have the same problem.
+3. Healing yourself is not support. Most healing stats heal the buyer, so they
+   map to `sustain`, and only tooltip text about allies adds `support`.
+   Otherwise Siphon Bullets would count as support alongside Rescue Beam.
+4. A stat being listed doesn't mean it's set. Every item lists WeaponPower,
+   TechPower, and ChannelMoveSpeed with value "0". Only nonzero values count.
 
-1. **Stats live in two places.** `upgrades[].property_upgrades[]` holds only
-   what the tier-upgrade adds; `properties{}` holds the full block. Siphon
-   Bullets' weapon damage is in `properties` ONLY, so reading the first field
-   alone gives the flagged item no weapon signal at all. Both are unioned here.
-
-2. **`AbilityCooldown` is not cooldown reduction.** It appears on 90 items --
-   48 of the 50 actives -- and refers to the item's OWN cooldown. Counting it
-   as spirit makes every active look like a spirit item, which is what dragged
-   Rescue Beam into "spirit" in a first pass. The real global stat is
-   `CooldownReduction`, on seven items. Same trap for AbilityDuration,
-   AbilityCastRange, AbilityCastDelay, AbilityChannelTime.
-
-3. **Self-healing is not support.** Almost every heal-shaped STAT is self-regen
-   whatever triggers it, so the stat table maps them to `sustain` and lets the
-   tooltip establish the exception. Healing an ALLY is support; healing
-   yourself is a bruiser pattern. Without the split, Siphon Bullets' HP-steal
-   lands beside Rescue Beam and Kelvin's support build stops being visible.
-
-4. **Key presence is not evidence.** Every item lists WeaponPower, TechPower
-   and ChannelMoveSpeed as `value: "0"` placeholders. Counting keys makes all
-   173 items look like gun AND spirit items, collapsing every IDF to zero.
-
-A family label is only as good as the vocabulary allows: two builds of the same
-family on one hero (Venator has two gun builds, Celeste two spirit) cannot be
-told apart this way. Distinguishing those needs ability focus -- "ult" versus
-"stomp" -- which is not implemented here.
+Families can't tell apart two builds of the same family on one hero, like
+Venator's two gun builds. That would need to know which ability a build
+focuses on, which isn't implemented here.
 """
 
 from __future__ import annotations
@@ -65,7 +50,7 @@ from typing import Any
 
 from . import api, assets
 
-# Families, in the vocabulary players use. Order is the display order.
+# Build families, in display order.
 FAMILIES = (
     "gun",
     "spirit",
@@ -77,7 +62,7 @@ FAMILIES = (
     "mobility",
 )
 
-# How a family is spoken about when naming a build.
+# The word used for each family in an archetype name.
 DISPLAY = {
     "gun": "Gun",
     "spirit": "Spirit",
@@ -89,28 +74,26 @@ DISPLAY = {
     "mobility": "Mobility",
 }
 
-# Families that name a build. `sustain`, `control` and `mobility` are real
-# properties of items but nobody calls a build by them -- they are scored so
-# they can absorb evidence away from the naming families, not to win.
+# Families that can name an archetype. `sustain`, `control`, and `mobility`
+# are still scored, so items in them don't count toward a naming family, but
+# nobody names a build after them.
 NAMING_FAMILIES = ("gun", "spirit", "melee", "support", "tank")
 
-# How far ahead the winning family must be before the label is asserted.
-# Chosen from the observed margin distribution: 38 of 41 clusters clear 1.3x
-# comfortably, and the three that do not are the three that read wrong to a
-# player. Below this the cluster keeps the bare hero name.
+# The top family's score must be at least this multiple of the second's for
+# the archetype to get a family name. Otherwise it keeps the bare hero name.
+# When set, 38 of 41 clusters cleared 1.3x easily, and the three that didn't
+# were the three a player said were named wrong.
 MIN_NAMING_MARGIN = 1.3
 
-# Below this the winning family leads, but a second carries enough weight to be
-# part of the build's identity. A player calls that a hybrid -- Venator's two
-# clusters are both gun builds, and what separates them is that one runs spirit
-# and healing alongside the gun; without this they collapse to one label.
+# Below this margin the name gets a "Hybrid-" prefix. Venator's two clusters
+# are both gun builds, and one also runs spirit and healing. Without the
+# prefix they get the same name.
 #
-# Set low on purpose. The margins have a natural break at 2.0, but marking
-# everything below it labels nine of 38 clusters "Hybrid-", which drains the
-# word of meaning. At 1.7 it flags only genuinely close calls.
+# The margins have a natural break at 2.0, but using it marks 9 of 38 clusters
+# as hybrids, which is too many to mean anything. 1.7 marks only close calls.
 HYBRID_MARGIN = 1.7
 
-# Stat -> (family, weight). Weight 2 defines a family, 1 supports it.
+# Stat name to (family, weight). Weight 2 is strong evidence, 1 is weak.
 FAMILY_WEIGHTS: dict[str, tuple[str, int]] = {
     # --- gun
     "BonusFireRate": ("gun", 2),
@@ -144,7 +127,7 @@ FAMILY_WEIGHTS: dict[str, tuple[str, int]] = {
     "TechArmorDamageReduction": ("spirit", 2),
     "TechPowerReduction": ("spirit", 2),
     "AbilityLifestealPercentHero": ("spirit", 1),
-    # Ride along on many actives regardless of direction -- weak evidence.
+    # These appear on many actives of every kind, so they are weak evidence.
     "TechRangeMultiplier": ("spirit", 1),
     "TechRadiusMultiplier": ("spirit", 1),
     # --- melee
@@ -157,13 +140,12 @@ FAMILY_WEIGHTS: dict[str, tuple[str, int]] = {
     "ParrySuccessHealPercentage": ("melee", 1),
     "LifestrikeHeal": ("melee", 1),
     "LightMeleeAmmo": ("melee", 1),
-    # --- support (healing or shielding SOMEONE ELSE)
+    # --- support (healing or shielding someone else)
     #
-    # Deliberately thin. Most heal-shaped stats are self-regen whatever
-    # triggers them -- Mystic Regeneration's TotalHealthRegen fires on dealing
-    # spirit damage and heals only the buyer, which is a bruiser pattern, not
-    # a support one. Whether healing reaches an ALLY lives in the tooltip, so
-    # `_tooltip_families` supplies most of this family's evidence.
+    # Few stats here. Most healing stats heal only the buyer, like Mystic
+    # Regeneration's TotalHealthRegen, so they map to sustain. Whether an item
+    # heals allies is in the tooltip, so `_tooltip_families` provides most of
+    # the support evidence.
     "HealAmpCastPercent": ("support", 1),
     "HealAmpRegenPercent": ("sustain", 1),
     "HealPercentAmount": ("support", 2),
@@ -189,7 +171,7 @@ FAMILY_WEIGHTS: dict[str, tuple[str, int]] = {
     "DamageAbsorb": ("tank", 2),
     "SlowResistancePercent": ("tank", 1),
     "DeathImmunityDuration": ("tank", 1),
-    # --- sustain (healing YOURSELF -- deliberately not support)
+    # --- sustain (healing yourself, which is not support)
     "OutOfCombatHealthRegen": ("sustain", 2),
     "BonusHealthRegen": ("sustain", 2),
     "HealthStealPctHero": ("sustain", 2),
@@ -205,7 +187,7 @@ FAMILY_WEIGHTS: dict[str, tuple[str, int]] = {
     "SilenceDuration": ("control", 2),
     "OutgoingDamagePenaltyPercent": ("control", 2),
     "MovementSlowPercent": ("control", 2),
-    # Anti-heal debuffs. Emphatically not support.
+    # Anti-heal debuffs on enemies. Not support.
     "HealAmpReceivePenaltyPercent": ("control", 2),
     "HealAmpRegenPenaltyPercent": ("control", 2),
     # --- mobility
@@ -216,8 +198,8 @@ FAMILY_WEIGHTS: dict[str, tuple[str, int]] = {
     "GroundDashReductionPercent": ("mobility", 2),
 }
 
-# Stats describing the item's OWN behaviour, never the character's. Counting
-# these as spirit makes every active item look like a spirit item.
+# Stats about the item itself, not the hero. Ignored, because counting them as
+# spirit makes every active item look like a spirit item.
 SELF_REFERENTIAL = frozenset(
     {
         "AbilityCooldown",
@@ -238,17 +220,9 @@ SELF_REFERENTIAL = frozenset(
 
 # --- Tooltip evidence -----------------------------------------------------
 #
-# Stats do not say what an item is FOR. Siphon Bullets' typed block reads
-# "+15% weapon damage, +10 bullet resist", but its tooltip says "your bullets
-# steal Max HP from enemies" -- which is the reason anyone buys it. Mystic
-# Regeneration types as spirit and heals; only the tooltip reveals that it
-# heals YOU for dealing spirit damage, so a build stacking it is sustaining
-# itself rather than supporting a team.
-#
-# Each pattern is a claim about what a phrase means, checked against the items
-# it matches.
+# Patterns over tooltip text. Each was checked against the items it matches.
 
-# Healing or shielding SOMEONE ELSE. "The target" alone is not enough --
+# Healing or shielding someone else. "The target" isn't enough, because
 # Shrink Ray and Knockdown target enemies.
 ALLY_TOOLTIP_RE = re.compile(
     r"(nearby\s+all(?:y|ies)|allied\s+hero|(?:your\s+)?allies\b|"
@@ -257,16 +231,15 @@ ALLY_TOOLTIP_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Healing YOURSELF, however it is triggered. The line that separates a support
-# build from a bruiser one.
+# Healing yourself, however it's triggered.
 SELF_HEAL_TOOLTIP_RE = re.compile(
     r"(grants?\s+you\s+bonus\s+regen|heal\s+yourself|"
     r"steal\s+max\s+hp|lifesteal|siphon)",
     re.IGNORECASE,
 )
 
-# The item's damage rides on your gun. These read as spirit items by stats but
-# are bought to make bullets hit harder -- the hybrid gun/spirit pattern.
+# Effects that work through your bullets. Some of these items look like spirit
+# items by their stats but are bought for gun builds.
 BULLET_TOOLTIP_RE = re.compile(
     r"(your\s+bullets|bullet\s+damage|weapon\s+damage|fire\s+rate|"
     r"bullets?\s+(?:apply|deal|steal|build))",
@@ -280,11 +253,10 @@ _TAG_RE = re.compile(r"<[^>]+>")
 
 
 def tooltip_text(entry: dict[str, Any]) -> str:
-    """The item's human-readable description, stripped of markup.
+    """An item's tooltip as plain text, or "" if it has none.
 
-    Tooltips are nested JSON carrying inline SVG icons and HTML spans; 155 of
-    173 shopable items have one. This is the only place the asset data says
-    what an item is FOR rather than which numbers it moves.
+    Tooltips are nested JSON with inline SVG and HTML. 155 of 173 shop items
+    have one.
     """
     sections = entry.get("tooltip_sections")
     if not sections:
@@ -307,17 +279,17 @@ def tooltip_text(entry: dict[str, Any]) -> str:
     text = _TAG_RE.sub("", _SVG_RE.sub(" ", " ".join(parts)))
     return re.sub(r"\s+", " ", text).strip()
 
-# Items whose family the typed stats cannot express, with the source of the
-# claim. Kept short and explicit rather than widening the stat table, so an
-# override is visible as a judgement call.
+# Hand-set family scores for items the stats and tooltip patterns get wrong,
+# each with its reason. Kept here, not folded into the stat table, so every
+# manual call is easy to find.
 TOOLTIP_OVERRIDES: dict[str, dict[str, int]] = {
     # "When you perform a Light or Heavy Melee attack against a hero, deal
-    # extra spirit damage" -- typed as spirit, played as melee.
+    # extra spirit damage." Spirit stats, bought for melee.
     "upgrade_acolytes_glove": {"melee": 3},
-    # CloseRangeBonusWeaponPower types as gun; community guides list it in
-    # melee builds, and Abrams' melee cluster buys it at 93%.
+    # Its stat is gun, but community guides put it in melee builds, and 93%
+    # of Abrams' melee cluster buys it.
     "upgrade_close_range": {"melee": 2},
-    # Barrier cast on an ally; indistinguishable from Plated Armor by stats.
+    # A barrier cast on an ally. Its stats look the same as Plated Armor's.
     "upgrade_guardian_ward": {"support": 4},
     "upgrade_divine_barrier": {"support": 4},
 }
@@ -325,19 +297,17 @@ TOOLTIP_OVERRIDES: dict[str, dict[str, int]] = {
 
 @functools.lru_cache(maxsize=1)
 def _raw_items(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[int, dict[str, Any]]:
-    """Raw asset entries, since `Item` keeps only six fields."""
+    """Raw upgrade asset entries by id. `Item` doesn't keep stats or tooltips."""
     raw: list[dict[str, Any]] = api.get("/v1/assets/items", cache_dir=cache_dir)
     return {e["id"]: e for e in raw if e.get("type") == "upgrade"}
 
 
 def _stat_names(entry: dict[str, Any]) -> set[str]:
-    """Every stat an item actually carries, from both fields that hold them.
+    """Names of the item's nonzero stats, from both stat fields, minus SELF_REFERENTIAL.
 
-    A key's presence is not evidence. Every item's `properties` block lists
-    WeaponPower, TechPower and ChannelMoveSpeed as schema placeholders with
-    `value: "0"` -- read naively, all 173 shopable items look like gun items
-    AND spirit items, every family's IDF collapses to zero, and the rule can
-    never name anything. Only non-zero values count.
+    Zero values are skipped. Every item lists WeaponPower, TechPower, and
+    ChannelMoveSpeed as "0", and counting those would put all 173 items in
+    both gun and spirit.
     """
     names: set[str] = set()
     for upgrade in entry.get("upgrades") or []:
@@ -355,7 +325,7 @@ def _stat_names(entry: dict[str, Any]) -> set[str]:
 
 
 def _nonzero(value: Any) -> bool:
-    """Is this stat actually set, rather than a zero placeholder?"""
+    """Whether a stat value is set and not zero."""
     if value is None:
         return False
     try:
@@ -366,11 +336,11 @@ def _nonzero(value: Any) -> bool:
 
 @functools.lru_cache(maxsize=1)
 def item_families(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[int, dict[str, int]]:
-    """Map each shopable item to the families it feeds, and how strongly.
+    """Map each shop item to a score per family.
 
-    An item counts in EVERY family it feeds. Crushing Fists is melee, gun and
-    tank at once; forcing one label per item would throw away the fact that gun
-    and melee builds share Close Quarters.
+    An item can be in several families. Crushing Fists is melee, gun, and tank.
+    One label per item would hide that gun and melee builds share Close
+    Quarters.
     """
     entries = _raw_items(cache_dir)
     shopable = assets.shopable_items(cache_dir)
@@ -399,22 +369,11 @@ def item_families(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[int, dict[str,
 
 
 def _tooltip_families(entry: dict[str, Any]) -> dict[str, int]:
-    """What the item's description says it is for.
+    """Family scores from the item's tooltip text.
 
-    Stats and text disagree often enough that this is not a tie-breaker, it is
-    primary evidence:
-
-    - Mystic and Radiant Regeneration type as spirit healing, so a stats-only
-      reading called them support. The text says "dealing spirit damage grants
-      YOU bonus regeneration" -- self-sustain, and the reason a gun carry buys
-      them alongside Healing Booster.
-    - Healing Tempo types as healing, but grants the target BONUS FIRE RATE,
-      which is why it appears in gun builds.
-    - Siphon Bullets' whole point ("your bullets steal Max HP") appears in no
-      stat key at all.
-
-    Ally-healing is scored at 3, above any stat, because it is the single
-    clearest signal that a build is supporting a team rather than itself.
+    See the module docstring for items where the tooltip corrects the stats.
+    Healing allies scores 3, more than any single stat, because it is the
+    clearest sign of a support item.
     """
     text = tooltip_text(entry)
     if not text:
@@ -437,12 +396,10 @@ def _tooltip_families(entry: dict[str, Any]) -> dict[str, int]:
 
 @functools.lru_cache(maxsize=1)
 def family_idf(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[str, float]:
-    """Inverse document frequency per family: how rare its evidence is.
+    """Inverse document frequency of each family across shop items.
 
-    The load-bearing part of the naming rule. Without it, tank (99 items) and
-    gun (71) drown melee (9) and support (12), and the rule mislabels Abrams,
-    Sinclair and Kelvin. A tank stat is cheap evidence; a melee stat is
-    expensive evidence.
+    Without this, tank (99 items) and gun (71) outweigh melee (9) and
+    support (12), and Abrams, Sinclair, and Kelvin get the wrong names.
     """
     families = item_families(cache_dir)
     total = len(assets.shopable_items(cache_dir))
@@ -459,12 +416,12 @@ def family_idf(cache_dir: Path = assets.DEFAULT_CACHE) -> dict[str, float]:
 def score_families(
     lifts: dict[int, float], cache_dir: Path = assets.DEFAULT_CACHE
 ) -> dict[str, float]:
-    """Score each family for a cluster, from its items' lift over the others.
+    """Score each family for a cluster from its items' lifts.
 
-    `lifts` maps item id to (prevalence here - prevalence elsewhere). Lift, not
-    prevalence: raw prevalence would name every cluster after the hero's
-    staples, where lift names it after what makes this cluster different, which
-    is what a label is for. Negative lift contributes nothing.
+    `lifts` maps item id to (prevalence in this cluster - prevalence in the
+    hero's other clusters). Using lift rather than prevalence names a cluster
+    for what sets it apart, not for the staples every cluster of the hero
+    buys. Negative lifts are ignored.
     """
     families = item_families(cache_dir)
     idf = family_idf(cache_dir)
@@ -485,17 +442,14 @@ def name_cluster(
     min_margin: float = MIN_NAMING_MARGIN,
     cache_dir: Path = assets.DEFAULT_CACHE,
 ) -> tuple[str, dict[str, float], float]:
-    """Name a cluster for its dominant build family.
+    """Name a cluster after its top build family.
 
-    Returns the label, the full score vector, and the winner's margin over the
-    runner-up -- so a review sheet can show what the naming rested on.
+    Returns (name, family scores, margin of the top family over the second).
 
-    A win by less than `min_margin` is not asserted. IDF makes rare evidence
-    expensive, which is what recovers melee and support at all, but it can also
-    let two healing items outweigh four gun items: Ivy's middle cluster leads
-    on Quicksilver Reload, Tesla Bullets and Titanic Magazine by lift, yet
-    scored "Support" at a 1.2x margin. Where the rule is nearly undecided it
-    says so, rather than asserting a coin flip a player would read as wrong.
+    If the margin is below `min_margin`, returns the bare hero name. IDF gives
+    rare families a lot of weight, so two healing items can outweigh four gun
+    items. Ivy's middle cluster leads on Quicksilver Reload, Tesla Bullets,
+    and Titanic Magazine, yet scored "Support" by 1.2x.
     """
     scores = score_families(lifts, cache_dir)
     ranked = sorted(
@@ -511,18 +465,13 @@ def name_cluster(
 
     label = DISPLAY[best[1]]
     if margin < HYBRID_MARGIN:
-        # A second family with real weight behind the winner. Venator's two
-        # clusters are both gun builds; what separates them is that one leans
-        # on spirit and healing alongside the gun, which a player calls a
-        # "hybrid gun" build. Naming it that way distinguishes a pair the bare
-        # family label collapses.
+        # The second family is close behind. See HYBRID_MARGIN.
         label = f"Hybrid-{label}"
     return f"{label} {hero_name}", scores, margin
 
 
-# Kit tags map onto item build families where the vocabularies overlap. `burst`,
-# `dot` and `cc` describe how an ability delivers its effect and have no item
-# counterpart, so they carry no family weight.
+# Ability kit tags that have a matching build family, as (family, weight).
+# `burst`, `dot`, and `cc` have no item equivalent and are left out.
 KIT_TAG_FAMILIES = {
     "support": ("support", 3),
     "melee": ("melee", 3),
@@ -535,18 +484,14 @@ KIT_TAG_FAMILIES = {
 def hero_ability_families(
     hero_id: int, cache_dir: Path = assets.DEFAULT_CACHE
 ) -> dict[str, int]:
-    """Which families a hero's own abilities point toward.
+    """Family scores from a hero's ability descriptions, via `kits.hero_kits`.
 
-    Read from what the abilities DO, via `kits.hero_kits`, not from their stat
-    keys. The stat-only version could not see that Calico's Leaping Slash
-    deals melee damage -- the ability carries only HealAmount -- and so could
-    not explain why melee Calico is a real build. The description says
-    "slashing all enemies in a circle, dealing melee damage".
+    Uses the description text, not stats. Calico's Leaping Slash has only a
+    HealAmount stat, but its description says "dealing melee damage".
 
-    A hero's kit says what builds are PLAUSIBLE on them, not which build a
-    given player is running, so this stays a weak prior. Measured against the
-    fitted archetypes, kit predicts build family only for melee -- the one
-    family whose items are useless without a melee ability.
+    A kit says which builds make sense on a hero, not which one a player is
+    running. Against the fitted archetypes, the kit predicts the build family
+    only for melee.
     """
     from . import kits
 

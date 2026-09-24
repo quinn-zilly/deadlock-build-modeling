@@ -1,36 +1,25 @@
-"""The checks that would have caught the last failure.
+"""Checks on generated builds and next-item predictions.
 
-This module exists because of `docs/DIAGNOSIS.md`: the previous model passed an
-AUC gate, a replication guard, a popularity floor, a shuffled-label test and an
-antisymmetry test, and its builds were still unusable. Every one of those was an
-aggregate over the whole item table. None of them ever asked the question a
-player asks in one glance -- "where is Quicksilver Reload?"
+The main check is per item, not an aggregate (`docs/DIAGNOSIS.md` explains
+why):
 
-So the primary gate here is not an aggregate. It is a named, per-item
-assertion:
-
-    an item bought by >=70% of this hero+archetype's players
+    an item bought by at least 70% of a hero and archetype's players
     must appear in the build generated for them
 
-That is trivially automatable, it fails loudly with the item's name, and it
-reproduces the exact judgement a human made when they rejected the old builds.
+It fails with the missing item's name.
 
-The order metrics answer the question the product actually claims to answer.
-Membership is necessary but not sufficient: a build carrying all nine Wraith
-staples in a nonsensical order passes the prevalence gate and is still wrong.
-Kendall tau against the population's median order is what catches that.
+Having the right items isn't enough. A build with all nine Wraith staples in a
+senseless order still passes that check, so `order_distance` compares the
+order to the players' median order with Kendall tau.
 
-Membership is measured against real players, never against that median order.
-The median-order reference ranks items by when they are bought, so its top 12
-are the earliest -- cheap components that are absorbed within minutes. Scoring
-set overlap against it reported J@12 0.143 for builds that beat the
-player-vs-player ceiling in 72 of 75 cells. See `membership_vs_players`.
+Item overlap is compared against real players (`membership_vs_players`), not
+against the median order. See that function for why.
 
-Baselines are measured, not assumed. On Wraith, held out by match:
+Next-item baselines, measured on Wraith with a split by match:
 
     popularity, excluding owned        0.144
     modal item at position k           0.198
-    P(next | position k, prev item)    0.328   <- the bar to beat
+    P(next | prev item), the bigram    0.328   <- the bar to beat
 """
 
 from __future__ import annotations
@@ -51,19 +40,16 @@ if TYPE_CHECKING:  # pragma: no cover - import only for the annotation
 
 log = logging.getLogger(__name__)
 
-# An item bought by this fraction of a population is a staple for it. Below
-# this the item is a real choice and its absence from a build is not an error.
+# An item bought by at least this share of a cell's players is a staple.
 PREVALENCE_THRESHOLD = 0.70
 
-# Cells thinner than this cannot support a prevalence claim. Report the gate as
-# inconclusive rather than passing it -- a gate that passes on no evidence is
-# how the last pipeline stayed green.
+# A cell with fewer players than this is reported as inconclusive, not passed.
 MIN_CELL_OBSERVATIONS = 300
 
 
 @dataclass
 class GateResult:
-    """Outcome of the prevalence gate for one hero+archetype build."""
+    """Result of the staple gate for one hero and archetype."""
 
     hero_id: int
     archetype_id: int
@@ -99,11 +85,7 @@ class GateResult:
 
 
 def item_prevalence(df: pd.DataFrame) -> pd.Series:
-    """Fraction of player-matches that ever bought each item.
-
-    Computed over player-matches, not purchase rows: an item is either in a
-    player's build or it is not, and no item is ever bought twice.
-    """
+    """Share of player-matches that bought each item, highest first."""
     players = df[["match_id", "player_slot"]].drop_duplicates()
     n_players = len(players)
     if n_players == 0:
@@ -126,10 +108,10 @@ def prevalence_gate(
     threshold: float = PREVALENCE_THRESHOLD,
     min_observations: int = MIN_CELL_OBSERVATIONS,
 ) -> GateResult:
-    """Assert that a generated build contains its population's staples.
+    """Check that a generated build contains every staple of its cell.
 
-    `df` must already be restricted to the population the build claims to
-    describe -- one hero, and one archetype where the hero has more than one.
+    `df` must hold only the build's cell: one hero, and one archetype if the
+    hero has more than one.
     """
     n = len(df[["match_id", "player_slot"]].drop_duplicates())
     if n < min_observations:
@@ -143,11 +125,9 @@ def prevalence_gate(
 
 
 def population_order(df: pd.DataFrame) -> pd.Series:
-    """Median buy position of each item across a population.
+    """Median purchase position of each item, earliest first.
 
-    The reference ordering a generated build is compared against. Median rather
-    than mean because buy_index is bounded below but not above, and a few very
-    long matches would otherwise drag every staple later.
+    The median, because a few very long matches would pull a mean later.
     """
     return (
         df.groupby("item_id")["buy_index"]
@@ -159,7 +139,7 @@ def population_order(df: pd.DataFrame) -> pd.Series:
 
 @dataclass
 class OrderResult:
-    """How closely a build's ordering tracks the population's."""
+    """How closely a build's order matches a reference order."""
 
     kendall_tau: float
     n_shared: int
@@ -168,7 +148,7 @@ class OrderResult:
 
     @property
     def reliable(self) -> bool:
-        """Tau over a handful of items is not evidence of anything."""
+        """True when tau is computed over at least 5 shared items."""
         return self.n_shared >= 5
 
     def __str__(self) -> str:
@@ -188,12 +168,10 @@ def _jaccard(a: list[int], b: list[int], k: int) -> float:
 
 
 def order_distance(generated: list[int], reference: list[int]) -> OrderResult:
-    """Compare a generated build's ordering against a reference ordering.
+    """Compare a generated build's order with a reference order.
 
-    Kendall tau runs over the items the two have in common, since tau is
-    undefined on disjoint sets. `n_shared` is reported alongside because a high
-    tau on three shared items says nothing -- callers must not read the
-    coefficient without it.
+    Kendall tau is computed over the items both lists contain. Always read it
+    with `n_shared`: a high tau over three items means nothing.
     """
     reference_set = set(reference)
     shared = [i for i in generated if i in reference_set]
@@ -215,11 +193,10 @@ def order_distance(generated: list[int], reference: list[int]) -> OrderResult:
 
 
 def player_sequences(cell: pd.DataFrame, *, min_length: int = 12) -> list[list[int]]:
-    """Each player's purchase sequence in a cell, longest-first ties by buy order.
+    """Each player's purchase sequence in a cell.
 
-    Players with fewer than `min_length` purchases are dropped, since Jaccard@12
-    over a 5-item sequence measures how short the match was, not how the player
-    built.
+    Drops players with fewer than `min_length` purchases. Jaccard@12 on a
+    5-item sequence measures how short the match was, not the build.
     """
     grouped = (
         cell.sort_values("buy_index")
@@ -231,7 +208,7 @@ def player_sequences(cell: pd.DataFrame, *, min_length: int = 12) -> list[list[i
 
 @dataclass
 class MembershipResult:
-    """Set overlap against real players, with the ceiling real players set."""
+    """A build's item overlap with real players, and players' overlap with each other."""
 
     generated: float
     ceiling: float
@@ -239,7 +216,7 @@ class MembershipResult:
 
     @property
     def ratio(self) -> float:
-        """Above 1.0 the build matches a player better than players match."""
+        """Above 1.0, the build is closer to a player than players are to each other."""
         return self.generated / self.ceiling if self.ceiling else float("nan")
 
     def __str__(self) -> str:
@@ -257,27 +234,20 @@ def membership_vs_players(
     sample: int = 300,
     seed: int = 0,
 ) -> MembershipResult:
-    """Jaccard@k of a build against real players, against the player-vs-player bar.
+    """Mean Jaccard@k of a build against sampled players, and of players against each other.
 
-    **Do not score membership against `population_order`.** That ranks items by
-    median buy position, so its top 12 are the twelve items bought *earliest* --
-    Close Quarters, Headshot Booster, Healing Rite, cheap tier 1 components that
-    are absorbed almost immediately. A real player's first twelve purchases are
-    their staples. The two sets cannot overlap much whatever the model does, and
-    scoring that way reported J@12 0.143 for builds that are in fact closer to a
-    real player than two real players are to each other:
+    Don't compare against `population_order` instead. Its top 12 are the
+    items bought earliest, like Close Quarters and Headshot Booster, cheap
+    components that are absorbed within minutes. Measured over 75 cells:
 
-        reference by median buy position, vs a player   0.140
-        real player vs real player                      0.336   <- the ceiling
-        generated build vs a player                     0.412
+        median-order reference vs a player   0.140
+        player vs player                     0.336   <- the ceiling
+        generated build vs a player          0.412
 
-    Measured over all 75 cells; the build beat the ceiling in 72 of them. The
-    same correction `docs/DIAGNOSIS.md` records for the next-item baselines --
-    a metric is only a bar once you know what the honest bar is.
+    The build beat the ceiling in 72 of 75 cells. Scored against the median
+    order, the same builds looked bad (0.143).
 
-    Players disagree with each other, so the ceiling is not 1.0 and a build that
-    reached 1.0 would be overfitting to one player rather than describing the
-    population.
+    Players differ from each other, so the ceiling is well below 1.0.
     """
     rng = np.random.default_rng(seed)
     sequences = player_sequences(cell, min_length=k)
@@ -297,13 +267,12 @@ def membership_vs_players(
 
 # --- Next-item baselines -------------------------------------------------
 #
-# Each takes the training purchases and returns a lookup: given a hero and
-# some context, a ranked list of candidates. They exist to be beaten, and to
-# make "the model works" a comparative claim rather than an absolute one.
+# Each takes the training purchases and returns a lookup from a hero and some
+# context to a ranked list of items. The model has to beat them.
 
 
 def popularity_baseline(train: pd.DataFrame) -> dict[int, list[int]]:
-    """Rank by hero-level pick rate. The floor."""
+    """Rank items by the hero's pick rate."""
     return {
         hero: item_prevalence(g).index.tolist()
         for hero, g in train.groupby("hero_id")
@@ -311,7 +280,7 @@ def popularity_baseline(train: pd.DataFrame) -> dict[int, list[int]]:
 
 
 def positional_baseline(train: pd.DataFrame) -> dict[tuple[int, int], list[int]]:
-    """Rank by what is most often bought at this position for this hero."""
+    """Rank items by how often the hero buys them at this position."""
     counts = (
         train.groupby(["hero_id", "buy_index", "item_id"])
         .size()
@@ -326,11 +295,11 @@ def positional_baseline(train: pd.DataFrame) -> dict[tuple[int, int], list[int]]
 
 
 def bigram_baseline(train: pd.DataFrame) -> dict[tuple[int, int], list[int]]:
-    """Rank by what follows the previous item for this hero. The bar: 0.328.
+    """Rank items by how often the hero buys them right after the previous item.
 
-    Keyed on (hero, previous item) rather than (hero, position) -- measured on
-    Wraith this nearly doubles positional accuracy, which is the main evidence
-    that purchase signal is local rather than positional.
+    This is the baseline to beat (0.328 top-1 on Wraith). On Wraith it scores
+    much higher than the positional baseline, so the previous item predicts
+    the next better than the position does.
     """
     df = train.sort_values(["match_id", "player_slot", "buy_index"])
     prev = df.groupby(["match_id", "player_slot"])["item_id"].shift(1)
@@ -352,7 +321,7 @@ def bigram_baseline(train: pd.DataFrame) -> dict[tuple[int, int], list[int]]:
 def top_k_accuracy(
     predictions: list[list[int]], actuals: list[int], k: int = 1
 ) -> float:
-    """Fraction of decisions where the actual item is in the top k predicted."""
+    """Share of decisions where the actual item is in the top k predictions."""
     if not actuals:
         return float("nan")
     hits = sum(1 for pred, actual in zip(predictions, actuals) if actual in pred[:k])
@@ -360,11 +329,10 @@ def top_k_accuracy(
 
 
 def score_baselines(train: pd.DataFrame, test: pd.DataFrame) -> pd.DataFrame:
-    """Run all three baselines over the same held-out decisions.
+    """Score all three baselines on the same held-out decisions.
 
-    Each prediction excludes items the player already owns, since re-buying is
-    not a legal move -- without that exclusion the popularity baseline scores
-    against itself.
+    Predictions skip items the player already owns. Without that, the
+    popularity baseline would keep predicting items already bought.
     """
     popularity = popularity_baseline(train)
     positional = positional_baseline(train)
@@ -415,23 +383,16 @@ def next_item_accuracy(
     limit: int | None = None,
     min_badge: float | None = None,
 ) -> dict:
-    """Teacher-forced next-item accuracy over held-out decisions.
+    """Next-item accuracy on held-out purchases.
 
-    Every decision is made from the player's real prefix, so a model is never
-    scored on a trajectory it invented. `limit` caps the number of decisions,
-    which is what makes two archetype fits comparable: the same run, the same
-    test frame and the same cap score the same decisions under both.
+    Each prediction starts from the player's real purchases so far, not from
+    the model's own earlier predictions. `limit` caps the number of
+    decisions. To compare two archetype fits, score both in the same run with
+    the same test frame and limit.
 
-    Lives here rather than in a script because a figure recorded from one run
-    configuration and compared against another is not a comparison -- and that
-    mistake has already been made once in this work.
-
-    `min_badge` restricts the scored decisions to a bracket, which is how a
-    badge-weighted model has to be judged: weighting the tables toward strong
-    play makes general-population accuracy worse on purpose, so the
-    all-comers figure would report the intended change as a regression. A test
-    frame carrying no badge column scores nothing under `min_badge` rather
-    than quietly scoring everything.
+    `min_badge` scores only decisions at or above that badge. Use it for a
+    badge-weighted model, which is meant to do worse on the average player. A
+    test frame with no badge column scores nothing under `min_badge`.
     """
     if min_badge is not None:
         if "average_badge" not in test:

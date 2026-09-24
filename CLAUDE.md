@@ -1,43 +1,33 @@
 # deadlock-build-modeling
 
-## What this is
+A tool that tells a Deadlock player what to buy, in what order, and where to
+put ability points, for their hero and archetype, before and during a match.
+`README.md` has the commands. `CONTEXT.md` defines the project's terms; use
+them.
 
-A tool that tells a Deadlock player **what to buy, in what order, and where to
-put their ability points** -- for their hero and their archetype, before a match
-and during one. `README.md` has the commands; `CONTEXT.md` is the glossary and
-the terms in it are the ones to use.
+## Rules
 
-Four things about the project decide most arguments before they start:
-
-- **It imitates, it does not explain.** The model says what strong players do,
-  never that an item causes a win. The causal version was built and discarded;
-  `docs/DIAGNOSIS.md` records why, and late-game net worth being an outcome
-  rather than a control is the short version. Do not reintroduce a win-rate
-  objective.
-- **Every number must trace to a table row with a count.** That is what `why`
-  is for, and it is why the model is a backoff frequency table rather than a
-  network. A recommendation nobody can check by hand is the failure this
-  project was rebuilt to avoid.
-- **The gate is per-item, not aggregate.** An item bought by at least 70% of an
-  archetype's players must appear in the build generated for them
-  (`scripts/generate_builds.py`, which exits non-zero when one does not). The
-  previous model passed five aggregate gates and still produced unusable
-  builds.
-- **Two numbers from two different runs are not a comparison.** Cluster
-  separation falls when k rises, a hero that did not split reports the
-  separation of a rejected candidate, and held-out accuracy depends on the run
-  configuration. Rerun both sides in one run, or say nothing.
+- **Imitate strong players.** The model predicts what good players buy, not
+  what wins. Keep win rate out of every objective and score: late-game net
+  worth is a result of winning, not a cause. `docs/DIAGNOSIS.md` explains why
+  the earlier win-rate model was dropped.
+- **Every number traces to a table row with a count.** The model is a backoff
+  table of counts so a person can check any recommendation by hand, and the
+  `why` command prints the rows behind one. Keep it that way.
+- **Check builds item by item.** Every item bought by at least 70% of a
+  cell's players must appear in that cell's generated build.
+  `scripts/generate_builds.py` checks this and exits non-zero on a miss. The
+  earlier model passed five aggregate checks and still made unusable builds.
+- **Compare numbers only within one run.** Rerun both sides together before
+  comparing. Separation falls as k rises, a hero with no split reports the
+  separation of its rejected split, and held-out accuracy depends on the run's
+  sample and settings.
 
 ## Agent skills
 
-### Issue tracker
-
-Issues live as GitHub issues in `quinn-zilly/deadlock-build-modeling`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical triage roles, each label string equal to its name. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+- **Issues** are GitHub issues in `quinn-zilly/deadlock-build-modeling`,
+  managed with `gh`. See `docs/agents/issue-tracker.md`.
+- **Triage labels** use the five standard names. See
+  `docs/agents/triage-labels.md`.
+- **Domain docs**: one `CONTEXT.md` and `docs/adr/` at the repo root. See
+  `docs/agents/domain.md`.

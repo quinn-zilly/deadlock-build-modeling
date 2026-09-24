@@ -1,9 +1,20 @@
-# Ability focus: a second axis for naming builds, and what it cannot do
+# Ability focus: another way to name builds, and its limits
 
-`semantics.name_cluster` labels a build from the families its items feed. That
-works, but the vocabulary has one label per family per hero, so it cannot
-separate two builds of the same family on one hero. Three heroes have exactly
-that collision **[measured, `archetype_meta.json`]**:
+**Status:** a record of an investigation. Some of it has changed since:
+
+- `kits.py` now reads ability descriptions, with its own tag set (burst, dot,
+  cc, and so on) rather than the eleven tags here.
+- Section 4 found that ability levels can't separate same-family builds.
+  Later work found that the order abilities are maxed in does differ between
+  archetypes (Ivy 67% against 9%, Holliday 38% against 1%), though it still
+  doesn't find them (ADR 0003). Ability focus is used for naming, from imbue
+  targets first and the ability maxed first second.
+- Archetype counts here are from the time. Dynamo now has two archetypes.
+
+`semantics.name_cluster` names a build after its items' families. That gives
+one name per family per hero, so it can't tell apart two builds of the same
+family on one hero. Three heroes had exactly that problem
+**[measured, `archetype_meta.json`]**:
 
 | Hero | k | Archetypes | Colliding family |
 |---|---|---|---|
@@ -11,47 +22,47 @@ that collision **[measured, `archetype_meta.json`]**:
 | Celeste | 3 | Spirit Celeste, Celeste, Hybrid-Spirit Celeste | Spirit |
 | Drifter | 3 | Melee Drifter, Hybrid-Melee Drifter, Gun Drifter | Melee |
 
-A player proposed the missing vocabulary is **ability focus** — naming a spirit
-build after the ability it optimises for, "ult Dynamo" against "stomp Dynamo".
-This document tests that proposal. It has one large positive finding and one
-clear negative one.
+A player suggested naming them by ability focus: naming a spirit build after
+the ability it is built around, like "ult Dynamo" and "stomp Dynamo". This
+document tests that idea. It has one big positive finding and one clear
+negative one.
 
-**Positive:** abilities *do* carry descriptive text, in a field nothing in the
-codebase reads. All 38 playable heroes' kits are fully described, and a tag
-vocabulary derived from that text reproduces three of the player's six claimed
-groupings exactly.
+**Positive:** abilities do have description text, in a field the code didn't
+read at the time. All 38 playable heroes' abilities are fully described, and
+tags built from that text reproduce three of the player's six hero groupings
+exactly.
 
-**Negative:** ability leveling **cannot** separate the three same-family builds.
-It reaches AUC 0.68–0.82 alone but adds **at most +0.007** over items, because
-the same one or two abilities are maxed first regardless of build.
+**Negative:** ability levels can't separate the three same-family builds. On
+their own they reach AUC 0.68-0.82, but they add at most +0.007 over items,
+because players max the same one or two abilities first whatever the build.
 
 Sources are marked: **[asset]** for a field in
 `data/raw/assets/v1_assets_items__c2557efa885c5123.json`, **[web: URL]** for a
-cited page, **[measured]** for numbers computed from the parquet files,
-**[inferred]** where this document reasons rather than cites.
+linked page, **[measured]** for numbers computed from the parquet files, and
+**[inferred]** where this document is reasoning rather than citing.
 
 ---
 
-## 1. Ability descriptions exist — in `description`, not `tooltip_sections`
+## 1. Ability text is in `description`, not `tooltip_sections`
 
-The task brief recorded as established that abilities have no descriptive text,
-on the evidence that `semantics.tooltip_text()` returns empty for all 221
-signature abilities. **That measurement is correct and its conclusion is
-wrong.** `tooltip_text` reads `tooltip_sections`, which is an *item* field.
-Abilities carry their text in a differently-named field.
+The task assumed abilities have no description text, because
+`semantics.tooltip_text()` returns nothing for all 221 signature abilities.
+That result is right but the conclusion is wrong: `tooltip_text` reads
+`tooltip_sections`, which only items have. Abilities keep their text in a
+different field.
 
-### Full top-level field inventory, 389 ability entries **[asset]**
+### Every top-level field on the 389 ability entries **[asset]**
 
 | Field | Present | Non-empty | What it holds |
 |---|---|---|---|
 | `id`, `class_name`, `type` | 389 | 389 | identity |
 | `name` | 389 | 388 | display name |
-| `properties` | 389 | 388 | stat block, richly annotated (§1.2) |
+| `properties` | 389 | 388 | stats, with annotations (section 1.2) |
 | `ability_type` | 389 | 389 | `signature` \| `ultimate` \| others |
-| **`description`** | **389** | **211** | **the ability text — see below** |
+| **`description`** | **389** | **211** | **the ability text, see below** |
 | `heroes` | 389 | 285 | list of hero ids |
 | `image`, `image_webp` | 371 | 371 | art |
-| **`behaviours`** | **360** | **360** | 56 engine flags (§1.3) |
+| **`behaviours`** | **360** | **360** | 56 engine flags (section 1.3) |
 | `boss_damage_scale` | 287 | 287 | float |
 | `hero` | 285 | 285 | owning hero id |
 | `upgrades` | 285 | 276 | the 3 AP tiers, as `property_upgrades` |
@@ -63,18 +74,17 @@ Abilities carry their text in a differently-named field.
 | `weapon_info` | 388 | **0** | always empty |
 | `grant_ammo_on_cast` | 1 | 1 | one entry |
 
-There is **no `tooltip_sections`, no `damage_type`, and no `targeting` field**
-on any ability. `weapon_info` is present on 388 entries and empty on all of
-them.
+No ability has a `tooltip_sections`, `damage_type`, or `targeting` field.
+`weapon_info` is on 388 entries and empty on all of them.
 
-### 1.1 Coverage of the text
+### 1.1 How much text there is
 
-Only 152 of the 221 signature abilities belong to a **playable** hero — the
-other 69 are on the 19 disabled or in-development heroes. Scoped to the 38
-playable heroes the mapping is exactly complete: **38 heroes × 4 slots = 152**,
-no gaps **[measured]**.
+Only 152 of the 221 signature abilities belong to a playable hero. The other
+69 belong to the 19 disabled or unfinished heroes. For the 38 playable heroes
+the mapping is complete: 38 heroes times 4 slots is 152, with no gaps
+**[measured]**.
 
-`description` is a dict, and its sub-keys carry different things **[asset]**:
+`description` is a dict with several sub-keys **[asset]**:
 
 | Sub-key | Count (of 152) | Content |
 |---|---|---|
@@ -85,10 +95,9 @@ no gaps **[measured]**.
 | `quip` | 103 | flavour text, not mechanical |
 | `active` / `passive` | 3 / 3 | split text where an ability has both halves |
 
-Unioning `desc`, `active`, `passive`, then falling back to
-`tooltip_details.info_sections[].loc_string`, yields text for **151 of 152**
-signature abilities **[measured]**. The five abilities lacking `desc` are
-recovered as follows:
+Reading `desc`, `active`, and `passive`, then falling back to
+`tooltip_details.info_sections[].loc_string`, gives text for 151 of 152
+signature abilities **[measured]**. The five without `desc`:
 
 | Hero | Ability | Recovered from |
 |---|---|---|
@@ -96,38 +105,37 @@ recovered as follows:
 | Drifter | Bloodscent | `description.active` + `.passive` |
 | Graves | Borrowed Decree | `info_sections` |
 | Silver | Boot Kick | `info_sections` |
-| **Mina** | **Rake** | **nothing — unresolved key** |
+| **Mina** | **Rake** | **nothing: unresolved key** |
 
-Mina's Rake is the single gap. Its `info_sections` contains the literal
-unsubstituted localization key `#ability_vampirebat_steallife_desc`, so the
-asset dump does not carry that string at all **[asset]**. It is the one ability
-in the game whose behaviour this document cannot establish from the asset.
+Mina's Rake is the only gap. Its `info_sections` holds the raw localization
+key `#ability_vampirebat_steallife_desc`, so the asset data doesn't include
+that text at all **[asset]**. It is the one ability whose behaviour can't be
+read from the assets.
 
-The text is **not** plain: it is HTML with inline `<svg>` damage-type icons
-(one icon is 4 KB of path data) and `<span class="inline-attribute-label
-SpiritDamage">` markers. Stripping `<svg>…</svg>` then all remaining tags
-recovers clean prose. `semantics.tooltip_text` already implements exactly this
-strip — it is only pointed at the wrong field.
+The text is HTML, with inline `<svg>` damage-type icons (one is 4 KB) and
+`<span class="inline-attribute-label SpiritDamage">` markers. Removing the
+`<svg>` blocks and then all other tags leaves clean text.
+`semantics.tooltip_text` already does exactly this, just on the wrong field.
 
-**This is the single most valuable finding in the task.** Item labelling
-depends heavily on tooltips (`_tooltip_families` supplies most of the support
-family's evidence); the equivalent evidence for abilities was assumed absent
-and is in fact complete.
+This was the most useful finding of the task. Item naming relies heavily on
+tooltips (most support evidence comes from `_tooltip_families`). The same
+kind of evidence for abilities was thought to be missing and is actually
+complete.
 
-### 1.2 `properties` is sparse but well-annotated
+### 1.2 `properties` has few useful stat names but good annotations
 
-978 distinct stat names across the 152 abilities, and the long tail is
-per-ability trivia (`FallSpeedMax`, `DampingFactor`, `TossSpeed`). Only 11
-names appear on more than 20 abilities, and the most common ones are engine
-scaffolding — `AbilityUnitTargetLimit` (152/152), `AbilityCooldown` (143),
-`ChannelMoveSpeed` (138) **[measured]**. Reading ability semantics from stat
-names alone would be reading mostly noise, which is why
-`semantics.hero_ability_families` — which does exactly that — is weak.
+The 152 abilities have 978 distinct stat names, mostly one-off details
+(`FallSpeedMax`, `DampingFactor`, `TossSpeed`). Only 11 names appear on more
+than 20 abilities, and the most common are engine plumbing:
+`AbilityUnitTargetLimit` (152 of 152), `AbilityCooldown` (143),
+`ChannelMoveSpeed` (138) **[measured]**. Stat names alone are mostly noise,
+which is why `semantics.hero_ability_families`, which read them, was weak at
+the time. (It now reads `kits.hero_kits`, which uses the description text.)
 
-Three annotations inside `properties` are far more useful than the stat names:
+Three annotations in `properties` are much more useful than the names:
 
-**`css_class`** — a 22-value hand-curated vocabulary the game's own UI uses to
-colour each number **[asset]**:
+**`css_class`**: 22 hand-picked values the game's UI uses to color each
+number **[asset]**:
 
 | css_class | Abilities | css_class | Abilities |
 |---|---|---|---|
@@ -140,24 +148,23 @@ colour each number **[asset]**:
 | distance | 101 | melee_damage | 3 |
 | range | 59 | combat_barrier | 1 |
 
-`tech_damage`, `bullet_damage` and `melee_damage` are the engine's own
-damage-type markers. This is the compact semantic signal the 978 stat names are
-not.
+`tech_damage`, `bullet_damage`, and `melee_damage` are the game's own
+damage-type markers, a far clearer signal than the 978 stat names.
 
-**`provided_property_type`** — 46 `MODIFIER_VALUE_*` values marking stats the
-engine treats as real character modifiers, led by
+**`provided_property_type`**: 46 `MODIFIER_VALUE_*` values marking stats the
+game treats as real hero modifiers, most often
 `MODIFIER_VALUE_MOVEMENT_SPEED_SLOW_PERCENT` (31) and
 `MODIFIER_VALUE_MOVEMENT_SPEED_MAX` (18) **[asset]**.
 
-**`scale_function.specific_stat_scale_type`** — which stat an ability scales
-with (`ETechPower`, `ETechCooldown`), plus `stat_scale`, the coefficient. This
-is how the asset says "this ability scales with Spirit Power at 0.525".
+**`scale_function.specific_stat_scale_type`**: which stat an ability scales
+with (`ETechPower`, `ETechCooldown`), and `stat_scale`, the multiplier. This
+is how the assets say "this ability scales with Spirit Power at 0.525".
 
-### 1.3 `behaviours` is mostly UI plumbing
+### 1.3 `behaviours` is mostly input handling
 
-56 distinct flags on 145 of 152 abilities **[asset]**. Most are input handling
-(`DONT_INTERRUPT_SLIDE_ON_CAST` 67, `CAN_SET_QUICK_CAST` 42) and carry no
-playstyle meaning. Four are semantically useful:
+56 distinct flags on 145 of 152 abilities **[asset]**. Most are about input
+(`DONT_INTERRUPT_SLIDE_ON_CAST` 67, `CAN_SET_QUICK_CAST` 42) and say nothing
+about playstyle. Four are useful:
 
 | Flag | Count | Meaning |
 |---|---|---|
@@ -166,50 +173,44 @@ playstyle meaning. Four are semantically useful:
 | `_PROJECTILE` | 34 | fires a projectile |
 | `_CAN_HEAL_PLAYERS` | 4 | can heal another player |
 
-`_CAN_HEAL_PLAYERS` is the asset stating outright that an ability heals
-someone else — precisely the ally-versus-self distinction that
-`ITEM-SEMANTICS.md` needed a regex over tooltips to recover for items.
+`_CAN_HEAL_PLAYERS` says directly that an ability heals someone else, the
+ally-or-self distinction `ITEM-SEMANTICS.md` needed a tooltip pattern for.
 
-### 1.4 Community cross-check
+### 1.4 Checked against community sources
 
-The asset text matches community documentation verbatim where checked. Spot
-checks:
+Where checked, the asset text matches community sources word for word:
 
 - Dynamo's four abilities and the Singularity ultimate text match the wiki
   **[web: https://deadlock.wiki/Dynamo]**.
-- Kelvin's Frost Grenade "heals allies", Frozen Shelter "allies gain rapid
-  regeneration" — matches **[web: https://deadlock.wiki/Kelvin]**.
-- Venator's Consecrating Grenade, Gutshot and Ira Domini match a third-party
-  guide's wording closely enough to be the same source string
+- Kelvin's Frost Grenade "heals allies" and Frozen Shelter "allies gain rapid
+  regeneration" match **[web: https://deadlock.wiki/Kelvin]**.
+- Venator's Consecrating Grenade, Gutshot, and Ira Domini match a third-party
+  guide closely enough to come from the same text
   **[web: https://mobalytics.gg/deadlock/venator-guide]**.
 - Celeste's four abilities match **[web: https://deadlock.wiki/Celeste]**.
 
-No contradiction was found between the asset and any community source, so the
-asset is used as the primary source below and the web is corroboration rather
-than a supplement **[inferred]**.
+No community source contradicted the assets, so the assets are the main
+source below and the web is a cross-check **[inferred]**.
 
 ---
 
-## 2. A tag vocabulary for abilities
+## 2. Tags for abilities
 
-Eleven tags, derived from the text with the typed fields corroborating. The
-design follows `ITEM-SEMANTICS.md`: text says what an ability is *for*, stats
-say which numbers it moves, and where they disagree the text wins.
+Eleven tags, read from the text and backed up by the typed fields. As in
+`ITEM-SEMANTICS.md`, the text says what an ability is for, the stats say which
+numbers change, and when they disagree the text wins.
 
-Two precision rules were needed, both learned from false positives in a first
-pass **[measured]**:
+A first attempt made mistakes that led to two rules **[measured]**:
 
-1. **`css_class` alone is not evidence.** Abrams' Siphon Life carries css
-   `healing` but only heals Abrams; Warden's Alchemical Flask carries
-   `bullet_damage` but *reduces* the enemy's. A first pass keying on css scored
-   both wrong. Every tag except `spirit_burst` now requires a text match, with
-   the typed field only raising confidence.
-2. **`spirit_burst` is the exception.** Many descriptions say only "damaging
-   enemies" where `css_class: tech_damage` states the damage type. Since
-   `tech_damage` is a damage-type marker rather than a placeholder, it counts
-   as primary evidence for that one tag.
+1. **`css_class` alone isn't enough.** Abrams' Siphon Life has css `healing`
+   but only heals Abrams. Warden's Alchemical Flask has `bullet_damage` but
+   lowers the enemy's. Every tag except `spirit_burst` now needs a text match,
+   and the typed field only adds weight.
+2. **`spirit_burst` is the exception.** Many descriptions just say "damaging
+   enemies", and `css_class: tech_damage` gives the damage type. So for this
+   one tag, `tech_damage` counts on its own.
 
-A tag is scored **2** when text and typed field agree, **1** on text alone.
+A tag scores 2 when the text and the typed field agree, and 1 on text alone.
 
 ### Coverage over the 152 signature abilities **[measured]**
 
@@ -227,17 +228,17 @@ A tag is scored **2** when text and typed field agree, **1** on text alone.
 | summon | 14 | 9% | summon/deploy/turret/Ghoul/Assistant/familiar text |
 | melee | 11 | 7% | css `melee_damage`; "melee damage"/"heavy melee" |
 
-150 of 152 abilities carry at least one tag. The two that carry none are
-**Shiv's Bloodletting** (defers incoming damage — a mechanic no tag covers) and
-**Sinclair's Audience Participation** (copies an enemy ultimate, so its tags are
-whatever it copied) **[measured]**. Both are genuine gaps rather than parser
+150 of 152 abilities get at least one tag. The two that don't are Shiv's
+Bloodletting (delays incoming damage, which no tag covers) and Sinclair's
+Audience Participation (copies an enemy ultimate, so it does whatever it
+copied) **[measured]**. Both are real gaps in the tag set, not parsing
 failures.
 
-### 2.1 Testing the player's six claimed groupings
+### 2.1 The player's six groupings
 
-Each claim is scored by summing tag weights across a hero's four abilities.
+Each hero's score for a tag is the sum over its four abilities.
 
-#### support / healing — Kelvin, Dynamo, Paige, Viscous, Rem → **holds, 4 of 5**
+#### Support: Kelvin, Dynamo, Paige, Viscous, Rem. Holds for 4 of 5
 
 | Hero | support score | Rank of 38 |
 |---|---|---|
@@ -250,16 +251,17 @@ Each claim is scored by summing tag weights across a hero's four abilities.
 | McGinnis | 2 | 7 |
 | Viscous | 1 | **10** |
 
-Only 10 of 38 heroes have any support ability at all, so this is a sharp tag.
-Four of the five named heroes are ranked 1, 2, 3 and 5. **Viscous is the
-exception** — its only support evidence is Puddle Punch's "you and your allies
-have increased Air Control", which is a movement buff, not healing. The Cube
-heals a target but the text says "Can be used on self", so it does not commit.
-Viscous is a melee hero that can occasionally body-block, not a support hero
-**[inferred]**. The claim also **misses Ivy**, whose Kudzu Connection
-("replicated healing") and Air Drop ("grab an ally") tie Paige at 3.
+Only 10 of 38 heroes have any support ability, so this tag is selective. Four
+of the five named heroes rank 1, 2, 3, and 5. Viscous is the exception. Its
+only support evidence is Puddle Punch's "you and your allies have increased
+Air Control", a movement buff, not healing. The Cube heals a target, but the
+text says "Can be used on self", so it doesn't count. By these tags Viscous
+is a melee hero, not a support hero **[inferred]**. (The later `kits.py` tags,
+which read The Cube's text differently, do count Viscous as support.) The
+claim also leaves out Ivy, whose Kudzu Connection ("replicated healing") and
+Air Drop ("grab an ally") tie Paige at 3.
 
-#### gun / weapon-centric — Venator, Wraith, Haze, Vindicta → **holds, 4 of 4**
+#### Gun: Venator, Wraith, Haze, Vindicta. Holds for 4 of 4
 
 | Hero | gun score | Rank |
 |---|---|---|
@@ -269,89 +271,84 @@ Viscous is a melee hero that can occasionally body-block, not a support hero
 | Vindicta | 3 | **4** |
 | Wraith | 3 | **5** |
 
-All four named heroes are in the top five of 38. The tag adds **Silver**, whose
-Slam Fire ("instantly reload… bonus fire rate") and Lycan Curse ("stacking fire
-rate") are as weapon-centric as anything Haze has. This is the cleanest of the
-six claims.
+All four are in the top five of 38. The tag adds Silver, whose Slam Fire
+("instantly reload... bonus fire rate") and Lycan Curse ("stacking fire rate")
+are as gun-focused as anything of Haze's. This is the clearest of the six.
 
-#### melee — Calico, Viscous, Billy → **holds, 3 of 3**
+#### Melee: Calico, Viscous, Billy. Holds for 3 of 3
 
-Only 9 of 38 heroes have any melee ability. Five tie at the top: **Bebop,
-Billy, Calico, Viscous, Yamato** (score 2), then Drifter, Graves, Silver,
-Venator at 1. All three named heroes are in the top group. Two additions:
-Bebop (Exploding Uppercut) and Yamato (Flying Slash, Crimson Slash).
+Only 9 of 38 heroes have a melee ability. Five tie at the top with a score of
+2: Bebop, Billy, Calico, Viscous, and Yamato. Drifter, Graves, Silver, and
+Venator follow at 1. All three named heroes are in the top group, plus Bebop
+(Exploding Uppercut) and Yamato (Flying Slash, Crimson Slash).
 
-#### spirit burst — Lash, Viscous, Dynamo, Apollo → **NOT supported**
+#### Spirit burst: Lash, Viscous, Dynamo, Apollo. Doesn't hold
 
 | Hero | spirit_burst | Rank |
 |---|---|---|
 | Infernus | 8 | 1 |
 | Victor | 8 | 2 |
-| Bebop, Celeste, Paige, Pocket | 6 | 3–6 |
-| … | | |
+| Bebop, Celeste, Paige, Pocket | 6 | 3-6 |
+| ... | | |
 | Dynamo | 4 | **17** |
 | Apollo | 3 | **25** |
 | Lash | 3 | **28** |
 | Viscous | 2 | **36** |
 
-**All 38 heroes have at least one spirit_burst ability**, so the tag has zero
-IDF and cannot discriminate anything. The four named heroes rank 17th, 25th,
-28th and **36th of 38** — the grouping is close to inverted against the tag.
-Dealing spirit damage is what abilities in this game *are*; it is not a
-playstyle **[inferred]**. If "spirit burst" is to mean something, it must mean
-burst *timing* or *ratio* (one large hit against sustained damage), which the
-asset does not express.
+All 38 heroes have a spirit_burst ability, so the tag has an IDF of zero and
+can't tell heroes apart. The four named heroes rank 17th, 25th, 28th, and
+36th of 38, nearly the reverse of the claim. Dealing spirit damage is what
+abilities in this game do; it isn't a playstyle **[inferred]**. If "spirit
+burst" means something, it's about timing (one big hit against steady
+damage), which the assets don't show. (`kits.py` later handled this by
+requiring words like explosion or impact.)
 
-#### crowd control — Paige, Vindicta, Dynamo, Ivy, Graves → **weakly supported, 2 of 5**
+#### Crowd control: Paige, Vindicta, Dynamo, Ivy, Graves. Holds weakly, 2 of 5
 
-36 of 38 heroes have a control ability, so like spirit_burst this tag is nearly
-universal. Top: Viscous 7, Apollo 6, Bebop 6, then Graves, Grey Talon, Infernus,
-**Ivy**, Lady Geist, Rem, Vyper at 5. Of the named heroes only **Graves (4th)**
-and **Ivy (7th)** rank high; **Paige is 15th, Dynamo 27th, Vindicta 32nd**.
-Vindicta's Stake does tether, so the claim is not baseless, but the hero is far
-less control-dense than a dozen others.
+36 of 38 heroes have a control ability, so this tag is also nearly universal.
+Top: Viscous 7, Apollo 6, Bebop 6, then Graves, Grey Talon, Infernus, Ivy,
+Lady Geist, Rem, and Vyper at 5. Of the named heroes only Graves (4th) and Ivy
+(7th) rank high. Paige is 15th, Dynamo 27th, Vindicta 32nd. Vindicta's Stake
+does tether, but a dozen other heroes have more control.
 
-#### spirit damage-over-time — Infernus, Shiv, Holliday → **partly supported, 1 of 3**
+#### Spirit damage over time: Infernus, Shiv, Holliday. Holds partly, 1 of 3
 
 | Hero | dot | Rank |
 |---|---|---|
 | **Infernus** | 6 | **1** |
 | Dynamo | 3 | 2 |
-| Abrams, Drifter, **Holliday**, McGinnis, Mo & Krill, Paige, Pocket, Venator | 2 | 3–10 |
+| Abrams, Drifter, **Holliday**, McGinnis, Mo & Krill, Paige, Pocket, Venator | 2 | 3-10 |
 | **Shiv** | 1 | **14** |
 
-Infernus is the tag's defining hero by a factor of two — Napalm, Flame Dash and
-Afterburn all burn. Holliday is mid-pack. **Shiv scores only 1**, which is a
-real miss by the tagger rather than a refutation: Serrated Knives explicitly
-bleeds and stacks, but the ability's `properties` name the stacking stats
-without a `DPS` or `TickRate` key, so only the text fires **[measured]**. Shiv
-belongs in the group; the score understates it.
+Infernus scores twice anyone else: Napalm, Flame Dash, and Afterburn all
+burn. Holliday is in the middle. Shiv scores only 1, which is a tagging miss,
+not evidence against the claim: Serrated Knives clearly bleeds and stacks, but
+its stats have no `DPS` or `TickRate` key, so only the text counts
+**[measured]**. Shiv belongs in the group.
 
-### 2.2 Tags the player did not name
+### 2.2 Tags the player didn't name
 
-Four tags emerged from the data that the proposed vocabulary omits, and two are
-sharper than anything proposed:
+Four tags came out of the data that the player's list didn't have, and two are
+more selective than any on it:
 
-- **summon (9%, 8 heroes)** — the rarest tag and therefore the most
-  discriminating. **Graves, McGinnis and Sinclair** form a tight group (score 3
-  each) whose kits are built around units that act independently: Ghouls,
-  turrets and Spectral Assistant. Ivy, Paige, Rem, Vindicta and Wraith have one
-  each.
-- **mobility (42%)** — too common to name a build, but useful for separating
-  otherwise similar heroes: Bebop, Calico, Dynamo, Kelvin and Rem all score 6.
-- **channel (11%)** — a real mechanical constraint (the hero is immobilised and
-  interruptible) that shapes item choice toward survivability **[inferred]**.
-- **sustain** — kept distinct from support for exactly the reason
-  `ITEM-SEMANTICS.md` separates them: Abrams, Lady Geist, Mo & Krill and Yamato
-  all heal, and all heal only themselves.
+- **summon (9%, 8 heroes).** The rarest tag and so the most selective.
+  Graves, McGinnis, and Sinclair score 3 each; their kits center on units that
+  act on their own (Ghouls, turrets, the Spectral Assistant). Ivy, Paige, Rem,
+  Vindicta, and Wraith have one summon ability each.
+- **mobility (42%).** Too common to name a build, but helps tell similar
+  heroes apart. Bebop, Calico, Dynamo, Kelvin, and Rem all score 6.
+- **channel (11%).** The hero stands still and can be interrupted, which
+  pushes item choices toward survival **[inferred]**.
+- **sustain.** Separate from support for the same reason as in
+  `ITEM-SEMANTICS.md`: Abrams, Lady Geist, Mo & Krill, and Yamato all heal,
+  but only themselves.
 
-Two more the data does **not** support as tags: **imbue-target** (no field
-marks it) and **aura** (only `_CAN_HEAL_PLAYERS` gestures at it, on 4
-abilities).
+Two possible tags the data doesn't support: imbue target (no field marks it)
+and aura (only `_CAN_HEAL_PLAYERS` hints at it, on 4 abilities).
 
-### 2.3 Full ability table
+### 2.3 Every ability
 
-152 rows. **Bold** = text and typed field agree; plain = text only.
+152 rows. Bold means the text and typed field agree; plain means text only.
 
 | Hero | Slot | Ability | What it does **[asset]** | Tags |
 |---|---|---|---|---|
@@ -510,15 +507,15 @@ abilities).
 
 ---
 
-## 3. Clustering the heroes by kit
+## 3. Grouping heroes by kit
 
-### 3.1 Representation
+### 3.1 How heroes are compared
 
-A hero is an 11-vector of summed tag weights over its four abilities, then:
+Each hero is 11 numbers, one per tag, summed over its four abilities. Then:
 
-1. **Weighted by IDF**, exactly as `semantics.family_idf` does for items and for
-   the same reason — without it the near-universal tags drown the rare ones and
-   every hero looks alike. The measured weights **[measured]**:
+1. **Weighted by IDF**, like `semantics.family_idf` for items, so the common
+   tags don't swamp the rare ones and make every hero look alike. The weights
+   **[measured]**:
 
    | Tag | Heroes with it | IDF | | Tag | Heroes | IDF |
    |---|---|---|---|---|---|---|
@@ -529,20 +526,18 @@ A hero is an 11-vector of summed tag weights over its four abilities, then:
    | sustain | 14 | 1.00 | | **spirit_burst** | **38** | **0.00** |
    | channel | 14 | 1.00 | | | | |
 
-   `spirit_burst` gets weight **exactly zero** — all 38 heroes have it, so it
-   carries no information at all. This is the quantitative form of the §2.1
-   finding that the "spirit burst" grouping cannot hold.
+   `spirit_burst` gets weight zero because all 38 heroes have it. This is the
+   number behind section 2.1's finding that the spirit burst grouping fails.
 
-2. **L2-normalised, cosine distance.** A hero with more tagged abilities should
-   not be "bigger", only differently directed **[inferred]**.
+2. **Normalized to length 1, compared by cosine distance.** A hero with more
+   tagged abilities shouldn't count as "bigger", only as pointing in a
+   different direction **[inferred]**.
 
-3. **Average linkage.** Cophenetic correlation **0.754** — the tree is a fair
-   summary of the distance matrix rather than an artefact of the linkage
-   **[measured]**.
+3. **Average-linkage clustering.** The cophenetic correlation is 0.754, so the
+   tree is a fair summary of the distances **[measured]**.
 
-Counts beat binary tags here: binary discards that Venator has *three* gun
-abilities to Wraith's two, which is exactly the distinction the representation
-needs to make.
+Counts work better than yes/no tags here. Yes/no would lose that Venator has
+three gun abilities and Wraith two.
 
 ### 3.2 Dendrogram **[measured]**
 
@@ -635,41 +630,40 @@ Cutting at k=6 **[measured]**:
 | **C5 self-sustain fighters** | 13 | Abrams, Apollo, Celeste, Infernus, Lady Geist, Lash, Mirage, Mo & Krill, Pocket, Shiv, Victor, Warden, Yamato | sustain 2.1, tank 1.4, dot 1.2 |
 | **C6** | 1 | Vyper | singleton (control 5, tank 3, no rare tags) |
 
-The five substantive clusters are exactly the five naming families the item
-taxonomy already uses — **support, gun, melee, and a bruiser/sustain group** —
-plus **summon**, which the item taxonomy has no word for. The kit-side and
-item-side vocabularies were derived independently from different fields and
-landed in the same place **[inferred]**.
+The five real clusters match the item families (support, gun, melee, and a
+self-healing bruiser group), plus summon, which items have no word for. The
+ability tags and the item families were built separately from different data
+and ended up in the same place **[inferred]**.
 
-### 3.3 The player's claimed groupings, as distances
+### 3.3 The player's groupings as distances
 
-Mean pairwise cosine distance within each claimed group, against an all-pairs
-baseline of **0.713** (median 0.792) **[measured]**:
+Mean cosine distance between heroes within each claimed group, against 0.713
+for all pairs of heroes (median 0.792) **[measured]**:
 
 | Claimed group | Mean within-group distance | Verdict |
 |---|---|---|
-| Calico, Viscous, Billy | **0.184** | **holds** — 3.9x tighter than baseline |
-| Venator, Wraith, Haze, Vindicta | **0.191** | **holds** — 3.7x tighter |
-| Kelvin, Dynamo, Paige, Viscous, Rem | 0.364 | **holds without Viscous** |
+| Calico, Viscous, Billy | **0.184** | holds, 3.9x closer than all pairs |
+| Venator, Wraith, Haze, Vindicta | **0.191** | holds, 3.7x closer |
+| Kelvin, Dynamo, Paige, Viscous, Rem | 0.364 | holds without Viscous |
 
-**Melee — Calico/Viscous/Billy: holds, emphatically.** All three land in C3 and
-they are mutual nearest neighbours: Calico↔Viscous 0.134, Calico↔Billy 0.172,
-Viscous↔Billy 0.247. The cluster adds Bebop.
+**Melee (Calico, Viscous, Billy): holds strongly.** All three are in C3 and
+are each other's nearest neighbors: Calico to Viscous 0.134, Calico to Billy
+0.172, Viscous to Billy 0.247. The cluster also has Bebop.
 
-**Gun — Venator/Wraith/Haze/Vindicta: holds.** All four in C4, every pair under
-0.31. The tightest pairs run Venator↔Silver 0.075 and Haze↔Paradox 0.061, so
-the cluster is a little wider than the four named heroes but contains all of
-them.
+**Gun (Venator, Wraith, Haze, Vindicta): holds.** All four are in C4, every
+pair under 0.31. The closest pairs are Venator and Silver (0.075) and Haze and
+Paradox (0.061), so the cluster is a little wider than the four named heroes
+but includes all of them.
 
-**Support — Kelvin/Dynamo/Paige/Viscous/Rem: holds for four, fails for one.**
-Four are in C2 and mutually close (Kelvin↔Rem 0.096, Kelvin↔Paige 0.217,
-Dynamo↔Paige 0.207). **Viscous is 0.565–0.673 from each of them** — further
-than the all-pairs median — and sits in the melee cluster instead. Drop Viscous
-and the group's mean distance falls from 0.364 to **0.197**. The tightest
-support pair in the data is Kelvin↔The Doorman at **0.022**, a hero the claim
-does not name.
+**Support (Kelvin, Dynamo, Paige, Viscous, Rem): holds for four, not
+Viscous.** Four are in C2 and close together (Kelvin to Rem 0.096, Kelvin to
+Paige 0.217, Dynamo to Paige 0.207). Viscous is 0.565-0.673 from each of them,
+farther than the median of all pairs, and sits in the melee cluster. Without
+Viscous the group's mean distance falls from 0.364 to 0.197. The closest
+support pair of all is Kelvin and The Doorman (0.022), a hero the player
+didn't name.
 
-### 3.4 Three nearest heroes by kit **[measured]**
+### 3.4 Each hero's three nearest heroes by kit **[measured]**
 
 | Hero | 1st | 2nd | 3rd |
 |---|---|---|---|
@@ -712,13 +706,13 @@ does not name.
 | Wraith | Mina (0.133) | Vindicta (0.152) | Haze (0.180) |
 | Yamato | Celeste (0.208) | Warden (0.245) | Mirage (0.274) |
 
-### 3.5 Does the kit cluster predict which build families a hero supports?
+### 3.5 Does a hero's kit predict its build families?
 
-**This is the payoff the task was after, and it mostly does not arrive.**
+This was what the task hoped for, and mostly it doesn't.
 
-Cross-referencing the six kit clusters against the family labels in
-`archetype_meta.json` (33 labelled archetypes across 38 heroes, the rest being
-bare hero names) **[measured]**:
+The six kit clusters against the family names in `archetype_meta.json` (33
+named archetypes across 38 heroes; the rest are bare hero names)
+**[measured]**:
 
 | Kit cluster | Gun | Melee | Spirit | Support |
 |---|---|---|---|---|
@@ -728,11 +722,11 @@ bare hero names) **[measured]**:
 | C4 gun | 3 | 1 | 1 | 0 |
 | C5 sustain | 3 | 2 | 6 | 0 |
 
-chi-squared = 9.4, dof = 12, **p = 0.67**, Cramer's V = 0.308 **[measured]**.
-**The association is not significant.** Kit cluster does not predict build
-family in general.
+Chi-squared 9.4 with 12 degrees of freedom, p = 0.67, Cramer's V 0.308
+**[measured]**. Not significant: in general, the kit cluster doesn't predict
+the build family.
 
-Testing tag-to-family directly at hero level is sharper, and finds exactly one
+Testing each tag against each family per hero is more precise, and finds one
 real effect **[measured]**:
 
 | Tag | Family | P(family \| tag) | P(family) | Lift | Fisher p |
@@ -743,58 +737,55 @@ real effect **[measured]**:
 | spirit_burst | Spirit | 0.42 | 0.42 | 1.00 | 1.000 |
 | dot | Spirit | 0.36 | 0.42 | 0.85 | 0.829 |
 
-**Only melee reaches significance.** A hero with a melee ability is 2.4x more
-likely to have a fitted melee build — 4 of the 7 heroes with a Melee archetype
-(Calico, Drifter, Sinclair, Viscous) have a melee ability, against 9 of 38
-heroes overall.
+Only melee is significant. A hero with a melee ability is 2.4 times as likely
+to have a melee archetype: 4 of the 7 heroes with a melee archetype (Calico,
+Drifter, Sinclair, Viscous) have a melee ability, against 9 of 38 heroes
+overall.
 
-Support has the largest lift (3.8x) but **n = 1**: Kelvin is the only hero in
-the dataset with a Support archetype at all, so nothing can be concluded. That
-this one hero is also the top-ranked support kit is consistent with the
-hypothesis and is not evidence for it.
+Support has the biggest lift (3.8x) but only one case: Kelvin was the only
+hero with a support archetype. That Kelvin also has the strongest support kit
+fits the idea but doesn't prove it.
 
-Gun fails for an instructive reason. A hero having a gun *ability* and a hero
-supporting a gun *build* are different claims: Bebop, Lady Geist, Lash and
-Victor all have fitted Gun archetypes with **zero** gun abilities, because a
-gun build is bought, not innate. The kit constrains what is plausible only
-where the kit is the mechanism — which is why melee, the one family whose items
-are near-useless without an ability that deals melee damage, is the one that
-works **[inferred]**.
+Gun fails for a useful reason. Having a gun ability and having a gun build
+are different things: Bebop, Lady Geist, Lash, and Victor all have gun
+archetypes and no gun abilities, because a gun build comes from items. A kit
+only limits builds where the kit is what makes the build work. That is why
+melee works: melee items are nearly useless without an ability that deals
+melee damage **[inferred]**.
 
-**What this section does establish:** kit similarity is real and well-measured
-(cophenetic 0.754, claimed groups 3.7–3.9x tighter than baseline), and it
-recovers the naming families independently. What it does **not** establish is
-that a hero's kit predicts its archetypes. With 33 labelled archetypes over 38
-heroes, this dataset is too small to detect anything but the largest effect,
-and only melee is that large.
+So this section shows that kit similarity is real and measurable (cophenetic
+0.754, claimed groups 3.7-3.9 times closer than all pairs), and that it lands
+on the same families as items. It doesn't show that a hero's kit predicts its
+archetypes. With 33 named archetypes over 38 heroes, only a very large effect
+could show up, and only melee's is that large.
 
 ---
 
 ## 4. Can ability data separate same-family builds?
 
-**No.** This is the task's concrete question and the answer is negative.
+No. This was the task's main question.
 
 ### 4.1 Setup
 
-Two corrections to the brief's framing, both from `archetype_meta.json`
+Two corrections to the task's framing, from `archetype_meta.json` at the time
 **[measured]**:
 
-- **Drifter's duplicate family is Melee, not Spirit** — Melee Drifter and
+- Drifter's repeated family is melee, not spirit: Melee Drifter and
   Hybrid-Melee Drifter, with Gun Drifter third.
-- **Dynamo is k=1.** Dynamo has a single fitted archetype, so there is nothing
-  to separate. **Abrams** (k=2, hero id 6) is used instead as a positive
-  control: two archetypes of *differing* family, where separation must be
-  visible if the method works at all.
+- Dynamo had one archetype then, so there was nothing to separate. Abrams (two
+  archetypes, hero id 6) is used instead as a positive control: two
+  archetypes of different families, where any working method should show a
+  difference.
 
-Features are per-slot level plus the time each slot first reached levels 2, 3
-and 4 — the order information, not just the allocation. Logistic regression,
-5-fold stratified CV, macro one-vs-rest AUC.
+Features are each slot's level plus the time each slot first reached levels
+2, 3, and 4, so order is included, not just levels. Logistic regression with
+5-fold stratified cross-validation, macro one-vs-rest AUC.
 
-### 4.2 The player's complication is real and large
+### 4.2 The player's concern is real
 
-The player predicted early ability order would not discriminate because almost
-everyone maxes the same ability first. Measured across all 38 heroes — share of
-players taking a given slot to level 2 before any other **[measured]**:
+The player expected early ability order not to help, because almost everyone
+maxes the same ability first. Across all 38 heroes, the share of players
+taking one particular slot to level 2 before any other **[measured]**:
 
 | Hero | Slot | Share | | Hero | Slot | Share |
 |---|---|---|---|---|---|---|
@@ -807,13 +798,13 @@ players taking a given slot to level 2 before any other **[measured]**:
 | Infernus | 3 | 95% | | Rem | 3 | 46% |
 | **Dynamo** | **1** | **94%** | | | | |
 
-**Median across heroes: 77%. Seventeen of 38 heroes exceed 80%.** The player's
-own example is confirmed exactly: **94% of Dynamo players take Kinetic Pulse to
-level 2 first**, regardless of build.
+The median across heroes is 77%, and 17 of 38 heroes are above 80%. The
+player's own example holds: 94% of Dynamo players take Kinetic Pulse to level
+2 first, whatever the build.
 
-The three target heroes are among the *most* concentrated — Drifter 98%,
-Venator 90%, Celeste 73% — while the control, Abrams, is the second *least*
-concentrated at 49%. That contrast is the whole result in miniature.
+The three heroes being tested are among the most uniform (Drifter 98%,
+Venator 90%, Celeste 73%), while the control, Abrams, is second least uniform
+at 49%. That contrast is the whole result in small.
 
 ### 4.3 Mean level per slot, by cluster **[measured]**
 
@@ -826,11 +817,11 @@ concentrated at 49%. That contrast is the whole result in miniature.
 | Gun Drifter | 2.64 / 2.28 / 1.26 / 1.08 | 3.07 / 3.13 / 2.68 / 2.09 | 3.77 / 3.90 / 3.69 / 3.66 |
 | **max spread** | **0.17 / 0.32 / 0.04 / 0.05** | 0.64 / 0.15 / 0.52 / 0.76 | 0.23 / 0.06 / 0.07 / 0.40 |
 
-At 480s the largest gap between any two clusters on any slot is **0.32 levels**.
-The two *same-family* clusters (Melee and Hybrid-Melee) are closer still.
+At 480s the biggest gap between any two clusters on any slot is 0.32 levels.
+The two same-family clusters (Melee and Hybrid-Melee) are closer still.
 
-**Venator** (Consecrating Grenade / Gutshot / Snap Trap / Ira Domini) — the
-purest same-family test, since both clusters are Gun:
+**Venator** (Consecrating Grenade / Gutshot / Snap Trap / Ira Domini), the
+cleanest same-family test, since both clusters are gun:
 
 | Cluster | 480s | 900s | final |
 |---|---|---|---|
@@ -838,12 +829,12 @@ purest same-family test, since both clusters are Gun:
 | Gun Venator | 1.35 / 2.86 / 1.04 / 2.10 | 2.51 / 3.06 / 1.22 / 3.76 | 3.80 / 3.75 / 3.40 / 3.99 |
 | **max spread** | **0.15 / 0.04 / 0.01 / 0.06** | 0.21 / 0.00 / 0.42 / 0.00 | 0.13 / 0.33 / 0.25 / 0.00 |
 
-At 480s the two Venator builds are **within 0.15 levels of each other on every
-slot**. They are the same ability build.
+At 480s the two Venator builds are within 0.15 levels on every slot. They
+level abilities the same way.
 
-**Celeste** — max spread 0.35 at 480s, 0.49 at 900s, **0.15 at final**.
+**Celeste**: biggest gap 0.35 at 480s, 0.49 at 900s, 0.15 at the end.
 
-**Abrams (control, differing families)** — the contrast is stark:
+**Abrams (control, different families)** looks very different:
 
 | Cluster | 480s | 900s |
 |---|---|---|
@@ -851,12 +842,12 @@ slot**. They are the same ability build.
 | Melee Abrams | 1.15 / 2.95 / 1.51 / 1.02 | 1.58 / 3.91 / 2.10 / 2.50 |
 | **max spread** | **1.28 / 1.19** / 0.01 / 0.02 | **1.92** / 0.73 / 0.26 / 1.07 |
 
-**1.28 levels apart at 480s**, four to eight times the spread of any
-same-family pair. Median time to level 2 on Siphon Life: **185s** for one
-cluster, **1153s** for the other. When two builds really do use different
-abilities, the leveling data says so loudly.
+1.28 levels apart at 480s, four to eight times the gap of any same-family
+pair. Median time to level 2 on Siphon Life is 185s in one cluster and 1153s
+in the other. When two builds really use different abilities, the level data
+shows it clearly.
 
-### 4.4 Discrimination, as AUC **[measured]**
+### 4.4 How well abilities separate the clusters (AUC) **[measured]**
 
 | Hero | k | Abilities @480s | @900s | @final | Items @900s |
 |---|---|---|---|---|---|
@@ -864,96 +855,91 @@ abilities, the leveling data says so loudly.
 | Celeste | 3 | 0.657 | 0.679 | 0.732 | **0.757** |
 | Drifter | 3 | 0.609 | 0.736 | 0.753 | **0.886** |
 | **Abrams** (control) | 2 | **0.877** | **0.924** | 0.927 | 0.952 |
-| Dynamo | 1 | — | — | — | single archetype |
+| Dynamo | 1 | - | - | - | single archetype |
 
-At 480s the three same-family heroes sit at **0.60–0.66**, barely above chance,
-while the differing-family control is at **0.877**. Ability state does become
-more informative later, reaching 0.73–0.82 by the end. That looks encouraging
-until the next test.
+At 480s the three same-family heroes are at 0.60-0.66, barely above chance,
+while the different-family control is at 0.877. Ability levels become more
+useful later, reaching 0.73-0.82 by the end. That looks promising until the
+next test.
 
-### 4.5 The decisive test: does it add anything over items?
+### 4.5 The deciding test: do abilities add anything to items?
 
-The clusters were **defined** by item purchases, so a positive ability AUC may
-be nothing but an echo of the items through a common cause — a player committed
-to a build buys certain items *and* levels certain abilities. The question that
-matters is whether abilities add information items do not already carry.
+The clusters were found from purchases, so a decent ability AUC could just
+reflect the items: a player committed to a build buys certain items and also
+levels certain abilities. What matters is whether abilities add information
+the items don't have.
 
 Same features, same folds, at 900s **[measured]**:
 
 | Hero | Items alone | Abilities alone | Both | **Delta over items** |
 |---|---|---|---|---|
-| Venator | 0.959 | 0.792 | 0.957 | **−0.002** |
+| Venator | 0.959 | 0.792 | 0.957 | **-0.002** |
 | Celeste | 0.757 | 0.679 | 0.764 | **+0.007** |
 | Drifter | 0.886 | 0.736 | 0.889 | **+0.003** |
 | Abrams | 0.952 | 0.924 | 0.952 | **+0.000** |
 
-**Ability state adds at most +0.007 AUC, and on Venator it adds nothing at
-all.** The 0.68–0.82 that abilities achieve alone is almost entirely redundant
-with what the items already say. Even for Abrams — where the two builds
-genuinely level different abilities, at 1.28 levels of separation — the
-increment is exactly zero, because items had already reached 0.952.
+Ability levels add at most +0.007 AUC, and nothing for Venator. What
+abilities reach on their own (0.68-0.82) is almost all already in the items.
+Even for Abrams, whose builds really do level different abilities (1.28
+levels apart), the gain is zero, because items were already at 0.952.
 
-### 4.6 Verdict
+### 4.6 Conclusion
 
-**Ability focus cannot separate two builds of the same family, and the reason
-is structural rather than a limitation of the features.**
+Ability levels can't separate two builds of the same family, because of how
+players level, not because of the features chosen:
 
-1. **Early order is fixed by the hero, not the build.** 94% of Dynamos take
-   Kinetic Pulse first; 98% of Drifters take Rend; 90% of Venators take
-   Gutshot. Median 77% across all heroes. There is no variance to explain
-   with.
-2. **Final allocation saturates.** By match end every cluster is at 3.3–4.0 on
-   every slot; max spread across Celeste's three clusters is 0.15 levels. This
-   independently reproduces the measurement already recorded in
-   `abilities.py`'s docstring.
-3. **The middle window is where variance lives, and it is redundant.** 900s is
-   the best moment for ability features, and it is precisely where item
-   features are strongest too.
+1. **The hero decides the early order, not the build.** 94% of Dynamos take
+   Kinetic Pulse first, 98% of Drifters take Rend, and 90% of Venators take
+   Gutshot. The median across heroes is 77%. There is little variation to
+   use.
+2. **Final levels are all the same.** By match end every cluster is at 3.3 to
+   4.0 on every slot; Celeste's three clusters differ by at most 0.15 levels.
+   This matches the note in `abilities.py`.
+3. **Mid-match is where levels vary, and items already cover it.** 900s is
+   the best time for ability features and also where item features are
+   strongest.
 
-The player's intuition about *why* was exactly right, and the mechanism is
-worth stating plainly: **"ult Dynamo" versus "stomp Dynamo" is a claim about
-how a player spends souls and where they aim, not about where they spend
-ability points.** Both builds level Kinetic Pulse first. The distinction the
-player is drawing is real — it is simply not encoded in ability points.
+The player was right about why. "Ult Dynamo" against "stomp Dynamo" is about
+how a player spends souls and aims, not how they spend ability points. Both
+builds level Kinetic Pulse first. The difference the player sees is real; it
+just isn't in the ability points.
 
-### 4.7 What could work instead
+### 4.7 What might work instead
 
-Not tested here; recorded so the negative result points somewhere **[inferred]**:
+Not tested here; noted so the negative result points somewhere
+**[inferred]**:
 
-- **Ability points are not the only ability signal.** Cast counts, damage
-  dealt per ability, and time-to-first-cast are per-ability behaviours that
-  would separate an ult-focused player from a stomp-focused one. None are in
-  `abilities.parquet`, which holds only level-ups.
-- **The item side already knows.** Venator's two clusters are 0.959
-  separable by items at 900s. The naming vocabulary is what is missing, not the
-  signal — the two Venator builds differ by *which* items, and §2's tags could
-  name that difference if applied to the cluster's distinguishing items rather
-  than to the hero's kit.
-- **AP upgrade tiers are unexplored.** `description.t1/t2/t3_desc` covers 145 of
-  152 abilities in prose and says what each of the three upgrades does. Which
-  tier a player reaches is in `abilities.parquet` as the level. Whether the
-  *content* of those upgrades splits same-family builds is a question this
-  document did not test.
+- **Other ability data.** Cast counts, damage per ability, and time to first
+  cast would separate an ult-focused player from a stomp-focused one. None of
+  these are in `abilities.parquet`, which has only level-ups. (Imbue targets,
+  used later, turned out to separate Dynamo's builds.)
+- **The items already separate them.** Venator's two clusters are 0.959
+  separable by items at 900s. What's missing is a name, not a signal: the two
+  builds differ in which items they buy, and the section 2 tags could name
+  that if applied to the cluster's distinctive items instead of the hero's
+  kit.
+- **Upgrade tiers.** `description.t1/t2/t3_desc` describes each of the three
+  upgrades for 145 of 152 abilities, and the level a player reaches is in
+  `abilities.parquet`. Whether what the upgrades do separates same-family
+  builds wasn't tested.
 
 ---
 
-## 5. What could not be determined
+## 5. What this couldn't answer
 
 - **Mina's Rake.** The one signature ability with no text anywhere in the
-  asset — `info_sections` holds the unsubstituted key
-  `#ability_vampirebat_steallife_desc` **[asset]**. Its tags come from
-  `properties` alone and should be treated as unverified.
-- **Shiv's Bloodletting and Sinclair's Audience Participation** carry no tag.
-  Both are genuinely outside the vocabulary (damage deferral; ultimate-copying)
-  rather than parser failures.
-- **Whether kit predicts archetype.** p = 0.67 over 33 labelled archetypes is
-  not a null result, it is an underpowered one. With 38 heroes and one Support
-  archetype in the entire dataset, only an effect the size of melee's is
-  detectable.
-- **Whether "spirit burst" means anything.** It is not distinguishable by the
-  asset's damage-type markers, since all 38 heroes deal spirit damage. It may
-  well be a real distinction in burst timing or ratio that this data does not
-  express.
-- **Ability usage.** Cast frequency, per-ability damage and cast timing are not
-  in any local parquet; the discrimination question in §4 was answerable only
-  from level-ups.
+  assets: `info_sections` holds the raw key
+  `#ability_vampirebat_steallife_desc` **[asset]**. Its tags come from stats
+  alone and are unverified.
+- **Shiv's Bloodletting and Sinclair's Audience Participation** have no tags.
+  What they do (delaying damage, copying an ultimate) isn't covered by any
+  tag. They aren't parsing failures.
+- **Whether a kit predicts archetypes.** p = 0.67 over 33 named archetypes
+  isn't evidence of no effect; there's too little data to tell. With one
+  support archetype in the whole dataset, only an effect as big as melee's
+  could show up.
+- **Whether "spirit burst" means anything.** The damage-type markers can't
+  show it, since all 38 heroes deal spirit damage. It may be a real
+  difference in timing that this data doesn't capture.
+- **How abilities are used.** Cast counts, per-ability damage, and cast timing
+  aren't in any local table, so section 4 could only use level-ups.

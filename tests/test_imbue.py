@@ -1,9 +1,7 @@
-"""Imbue: which ability an imbueable item is pointed at.
+"""Imbues: which ability each imbueable item is aimed at.
 
-The claim the feature design rests on is that a target is **never missing** --
-the game makes the player choose at the counter. So a player with no imbue
-features is a player who bought no imbueable item, which the item features
-already record. Imputing anything there would invent a statement.
+The game makes players pick a target when they buy, so a target is never
+missing. A player with no imbue rows simply bought no imbueable item.
 """
 
 from __future__ import annotations
@@ -31,7 +29,7 @@ IMBUEABLE = {
 
 
 def player(entries: list[tuple[int, int]]) -> dict:
-    """(item_id, imbued_ability_id) pairs as an `items` array."""
+    """A player whose `items` list holds the given (item_id, imbued_ability_id) pairs."""
     return {
         "items": [
             {"item_id": item, "imbued_ability_id": target, "game_time_s": 100 * i}
@@ -61,7 +59,7 @@ def frame(rows: list[tuple[int, int, int, str]]) -> pd.DataFrame:
 
 class TestImbueableItems:
     def test_only_a_handful_of_items_can_be_imbued(self):
-        """9 in practice: 11 shopable, of which 2 are tier 5 and never bought."""
+        """11 shop items are imbueable, and 2 of those are tier 5, which nobody buys."""
         items = assets.shopable_items()
         imbueable = imbue.imbueable_items()
         assert len(imbueable) == 11
@@ -72,7 +70,7 @@ class TestImbueableItems:
             assert kind in imbue.TYPE_GROUP
 
     def test_echo_shard_is_an_active_imbue_that_cannot_target_the_ult(self):
-        """The restriction is itself a signal about what the build wants."""
+        """Echo Shard is imbue_active_non_ult and groups as active."""
         assert imbue.imbueable_items()[ECHO_SHARD] == "imbue_active_non_ult"
         assert imbue.TYPE_GROUP["imbue_active_non_ult"] == imbue.ACTIVE
 
@@ -88,11 +86,10 @@ class TestImbueRows:
         assert rows == []
 
     def test_a_missing_target_produces_no_row_rather_than_slot_zero(self):
-        """If targets ever stop being universal, it must show as absence.
+        """An imbueable purchase with target 0 gives no row, not a row with slot 0.
 
-        A zero target on an imbueable item would mean the game recorded a
-        choice that was never made. Emitting slot 0 would bury that in the
-        features; emitting nothing makes the coverage check catch it.
+        That way build_imbues.py's coverage check notices if targets ever go
+        missing.
         """
         rows = imbue.imbue_rows(player([(MYSTIC_REVERB, 0)]), IMBUEABLE, SLOTS)
         assert rows == []
@@ -123,10 +120,10 @@ class TestImbueFeatures:
         assert got["imb_active_2"].iloc[0] == 0.0
 
     def test_depth_separates_one_imbue_from_four(self):
-        """Direction and commitment are different facts.
+        """imb_depth tells one imbue from four, which the shares can't.
 
-        Dynamo's ult cluster imbues Singularity 1.78 times per player against
-        0.77 for its stomp cluster. Shares alone read those as identical.
+        Dynamo's ult cluster imbues Singularity 1.78 times per player, against
+        0.77 for its stomp cluster.
         """
         one = imbue.imbue_features(frame([(0, 1, MYSTIC_REVERB, "active")]))
         many = imbue.imbue_features(
@@ -136,7 +133,7 @@ class TestImbueFeatures:
         assert one["imb_active_1"].iloc[0] == many["imb_active_1"].iloc[0]
 
     def test_a_player_who_imbued_nothing_is_zeros_and_flagged(self):
-        """Not a hero mean: they made no statement, and the flag says so."""
+        """A player with no imbues gets all zeros and has_imbue 0."""
         index = pd.MultiIndex.from_tuples([(1, 0)], names=["match_id", "player_slot"])
         got = imbue.imbue_features(frame([]), players=index)
         assert got["has_imbue"].iloc[0] == 0.0
@@ -169,10 +166,10 @@ class TestDominantTargets:
 
 class TestAgainstRealData:
     def test_every_imbueable_purchase_carries_a_target(self):
-        """The claim the whole encoding rests on, checked on real data.
+        """On real data, every imbueable purchase has a target.
 
-        If this fails, `has_imbue` has stopped meaning "bought no imbueable
-        item" and the all-zeros encoding is wrong.
+        If this fails, a player with no imbues might still have bought an
+        imbueable item, and the imbue code's assumption is wrong.
         """
         if not IMBUES.exists():
             pytest.skip("requires the imbue table")
@@ -181,7 +178,7 @@ class TestAgainstRealData:
         assert (df["signature_slot"] >= 1).mean() > 0.99
 
     def test_ids_survive_the_round_trip(self):
-        """73 of 173 item ids exceed int32 and wrap silently if stored narrower."""
+        """Ids stay int64. 73 of 173 item ids would wrap negative as int32."""
         if not IMBUES.exists():
             pytest.skip("requires the imbue table")
         df = pd.read_parquet(IMBUES, columns=["item_id", "imbued_ability_id"])
@@ -191,13 +188,7 @@ class TestAgainstRealData:
 
 
 class TestTargetsForBuild:
-    """What `deadlock build` puts in front of the player.
-
-    A recommendation to buy Mystic Reverb is half an instruction: the item does
-    nothing until it is pointed at an ability. `dominant_targets` already knew
-    which one; this is the same fact with the names and the evidence attached,
-    which is what a player can actually read.
-    """
+    """`targets_for_build`: the imbue lines `deadlock build` prints, with names and counts."""
 
     ITEM_NAMES = {MYSTIC_REVERB: "Mystic Reverb", DURATION_EXTENDER: "Duration Extender",
                   MONSTER_ROUNDS: "Monster Rounds"}
@@ -223,18 +214,13 @@ class TestTargetsForBuild:
         assert "Singularity" in str(got[0])
 
     def test_items_that_cannot_be_imbued_are_absent(self):
-        """Most of a build is not imbueable, and saying so for every line is noise."""
+        """Items that can't be imbued get no line."""
         rows = [(0, 3, MYSTIC_REVERB, "active")]
         got = self.targets(rows, [MONSTER_ROUNDS, MYSTIC_REVERB])
         assert [t.item_id for t in got] == [MYSTIC_REVERB]
 
     def test_an_imbueable_item_the_population_never_imbued_says_so(self):
-        """Silence, not a guess.
-
-        Every imbueable purchase carries a target, so a recommended imbueable
-        item with no rows means the cell is too thin to speak -- and a build
-        that invented an ability there would be worse than one that admits it.
-        """
+        """An imbueable item nobody in the cell bought gets ability None, not a guess."""
         got = self.targets([(0, 3, MYSTIC_REVERB, "active")], [DURATION_EXTENDER])
         assert [t.item_id for t in got] == [DURATION_EXTENDER]
         assert got[0].ability_id is None
@@ -256,7 +242,7 @@ class TestTargetsForBuild:
         assert got[0].ability_id is None
 
     def test_ability_ids_stay_wide(self):
-        """Item and ability ids both exceed int32; a narrowed id wraps negative."""
+        """Ability ids come back unchanged. Some don't fit in int32."""
         wide = 3577481646
         rows = pd.DataFrame(
             [{"match_id": 1, "player_slot": 0, "item_id": MYSTIC_REVERB,
@@ -270,12 +256,10 @@ class TestTargetsForBuild:
         assert got[0].ability_id == wide
 
     def test_a_split_population_is_marked_rather_than_stated_flatly(self):
-        """39% is a majority of nothing.
+        """A most-common target under 50% is marked [split].
 
-        Ivy's spirit build points Compress Cooldown at Air Drop 39% of the
-        time, which is the most common choice and still not what most players
-        do. Printing that identically to Wraith's 100% Card Trick would sell a
-        coin flip as a rule.
+        Ivy's spirit build aims Compress Cooldown at Air Drop 39% of the time.
+        That shouldn't print the same as Wraith's 100% Card Trick.
         """
         rows = (
             [(0, 3, MYSTIC_REVERB, "active")] * 2
@@ -289,12 +273,10 @@ class TestTargetsForBuild:
         assert not agreed.split and "[split]" not in str(agreed)
 
     def test_a_target_from_four_imbues_is_marked_thin(self):
-        """Dynamo's stomp cluster points Echo Shard somewhere on 4 imbues.
+        """A target from only 4 imbues is marked [thin], but still shown.
 
-        75% of 4 and 75% of 4,000 print identically otherwise, which is the
-        misplaced confidence `THIN_EVIDENCE` exists to prevent everywhere else
-        in the tool. Marked rather than hidden: it may still be the right
-        ability, and there is nothing else to offer in its place.
+        Dynamo's stomp cluster has only 4 Echo Shard imbues. Otherwise 75% of 4
+        would print the same as 75% of 4,000.
         """
         thin = self.targets([(0, 3, MYSTIC_REVERB, "active")] * 4, [MYSTIC_REVERB])[0]
         assert thin.thin and "[thin]" in str(thin)
@@ -305,18 +287,17 @@ class TestTargetsForBuild:
         assert not solid.thin and "[thin]" not in str(solid)
 
     def test_an_absent_target_is_not_called_thin(self):
-        """No rows is a different statement from few rows."""
+        """A target with no data is not marked thin. No rows and few rows are different."""
         got = self.targets([], [MYSTIC_REVERB])[0]
         assert not got.thin
 
 
 class TestOneModeImplementation:
     def test_the_export_and_the_printed_line_agree_on_a_tie(self):
-        """Two mode implementations break ties differently.
+        """On a tie, the exported target and the printed target are the same ability.
 
-        The CLI and `generate_builds.py` export the same (hero, archetype)
-        build, and a build whose printed imbue target differs from the one in
-        its own exported JSON is worse than either answer alone.
+        The CLI and `generate_builds.py` must not export different targets for
+        the same build.
         """
         tied = frame(
             [(0, 1, MYSTIC_REVERB, "active"), (1, 3, MYSTIC_REVERB, "active")]
@@ -326,13 +307,10 @@ class TestOneModeImplementation:
 
 
 class TestConditionalFeatures:
-    """Direction only: given the build imbued, which ability did it point at.
+    """`conditional_features`: target shares only, with non-imbuers at their hero's mean.
 
-    The non-conditional block put `has_imbue` and a depth count in the
-    clustering, and heroes split on *whether* a build bought Mystic Reverb
-    rather than on what it aimed at. This block carries neither, and it places
-    a build that imbued nothing at its hero's mean so it says nothing rather
-    than joining every other non-imbuer at the origin.
+    Leaves out `has_imbue` and `imb_depth`, which made heroes split on whether
+    a player bought an imbueable item.
     """
 
     def heroes(self, slots: list[int], hero_id: int = 11) -> pd.Series:
@@ -352,7 +330,7 @@ class TestConditionalFeatures:
         assert got["imb_active_1"].iloc[0] == pytest.approx(1.0)
 
     def test_a_build_that_imbued_nothing_sits_at_its_heros_mean(self):
-        """Not at zero: zero is a coordinate, and every non-imbuer shares it."""
+        """A player who imbued nothing gets the hero's mean shares, not zeros."""
         hero_of = self.heroes([0, 1, 2])
         got = imbue.conditional_features(
             frame(
@@ -387,7 +365,7 @@ class TestConditionalFeatures:
         assert got.loc[(1, 3), "imb_active_1"] == pytest.approx(0.0)
 
     def test_a_hero_nobody_imbued_stays_at_zero(self):
-        """No imbuer to average, so there is no mean to place them at."""
+        """If no player of a hero imbued, there's no mean, so they stay at zero."""
         hero_of = self.heroes([0, 1])
         got = imbue.conditional_features(frame([]), hero_of.index, hero_of)
         assert (got == 0.0).all().all()
@@ -408,10 +386,10 @@ def players():
 
 
 class TestSamePlayersAsPurchases:
-    """The imbue table once held abandon and draw players that the purchase
-    table dropped (#41), and a rate that divided one table by the other put
-    Wraith, Warden and Mina above 1.0. `features.in_scope` is now the one
-    rule every builder asks.
+    """Every player in the imbue table is in the purchase table.
+
+    The imbue table once kept abandon and draw players that the purchase table
+    dropped, which put Wraith, Warden, and Mina's imbue rates above 1.0 (#41).
     """
 
     def test_every_imbuing_player_is_in_the_purchase_table(self, players):

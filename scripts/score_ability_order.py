@@ -1,16 +1,13 @@
-"""Score the ability-order model against the baselines it has to beat.
+"""Score the ability-order model against simple baselines on held-out points.
 
-The item model clears a 0.267 bigram. That bar means nothing here: ability
-order has **four** outcomes rather than 173, so a coin-flip scores 0.25 and a
-positional lookup scores far more. A number like "0.6 top-1" is meaningless
-until it is put beside what a trivial rule gets on the same decisions, which is
-the correction `docs/DIAGNOSIS.md` records for the item baselines.
+There are only four choices per point, so random guessing scores about 0.25
+and simple rules score much higher. The model's score only means something
+next to theirs on the same decisions.
 
-Every candidate here respects the one hard rule of an ability order -- a slot
-at level 4 cannot take another point -- so the baselines are not handicapped
-against the model.
+The baselines (bigram, positional, overall, chance) all skip maxed slots, the
+same as the model. Points with only one legal slot aren't scored.
 
-    python scripts/score_ability_order.py [--matches N] [--hero NAME]
+    python scripts/score_ability_order.py [--matches N] [--hero NAME] [--limit N]
 """
 
 from __future__ import annotations
@@ -34,13 +31,14 @@ PURCHASES = Path("data/processed/purchases.parquet")
 
 
 def load(matches: int | None, hero_id: int | None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The ability points (with account_id added) and archetype labels."""
     df = pd.read_parquet(ABILITIES)
     if hero_id is not None:
         df = df[df["hero_id"] == hero_id]
     if matches:
         keep = df["match_id"].drop_duplicates().head(matches)
         df = df[df["match_id"].isin(keep)]
-    # account_id lives on the purchase table; the account split needs it.
+    # The account split needs account_id, which is on the purchase table.
     accounts = (
         pd.read_parquet(PURCHASES, columns=["match_id", "player_slot", "account_id"])
         .drop_duplicates(["match_id", "player_slot"])
@@ -74,7 +72,7 @@ def legal(levels: Counter) -> list[int]:
 
 
 def build_baselines(train: pd.DataFrame, labels: pd.Series) -> dict:
-    """Three trivial rules, each keyed the way a person would guess."""
+    """Slot counts for three baselines: per hero, per position, and per previous slot."""
     overall: dict[int, Counter] = defaultdict(Counter)
     positional: dict[tuple[int, int, int], Counter] = defaultdict(Counter)
     bigram: dict[tuple[int, int, int], Counter] = defaultdict(Counter)
@@ -96,7 +94,7 @@ def _pick(counter: Counter, allowed: list[int]) -> int | None:
 
 
 def score(model, test: pd.DataFrame, labels: pd.Series, baselines: dict, limit: int) -> dict:
-    """Teacher-forced next-slot accuracy for the model and every baseline."""
+    """Next-slot accuracy for the model and each baseline, from each player's real points so far."""
     hits = Counter()
     level_counts: Counter = Counter()
     total = 0
@@ -108,7 +106,7 @@ def score(model, test: pd.DataFrame, labels: pd.Series, baselines: dict, limit: 
                 break
             allowed = legal(levels)
             if len(allowed) <= 1:
-                # No decision to make; scoring it would inflate every rule.
+                # Only one legal slot, so there's no choice to score.
                 levels[actual] += 1
                 continue
 

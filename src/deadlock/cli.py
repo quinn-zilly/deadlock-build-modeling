@@ -1,28 +1,17 @@
-"""The command line: what to build before a match, what to buy during one.
+"""What to build before a Deadlock match, and what to buy during one.
 
-Five commands, matching the two products:
+    deadlock heroes                     list heroes and their archetypes
+    deadlock build  --hero Ivy          a full build in purchase order (before a match)
+    deadlock next   --hero Ivy ...      what to buy now (during a match)
+    deadlock watch  --hero Ivy          like next, as an interactive session
+    deadlock why    --hero Ivy --item X the table rows behind a recommendation
 
-    deadlock heroes                     what can be built, and how
-    deadlock build  --hero Ivy          a full ordered build (pre-match)
-    deadlock next   --hero Ivy ...      what to buy now (in-match)
-    deadlock watch  --hero Ivy          the same, without retyping
-    deadlock why    --hero Ivy --item X the table row behind a recommendation
+Every command that gives advice takes --badge, which weights the data toward
+players at that badge. The default is 80 (Oracle), so the advice follows
+strong players. Use --badge all for every player.
 
-`why` is a command rather than a debug flag because inspectability is the
-point of this project: every number here traces to a literal table row with a
-count you can check.
-
-Every command that gives advice takes `--badge`, which weights the tables
-toward a bracket. It defaults high rather than to the population median: a
-build tool exists to show what strong players do, and for a long time the
-kernel that does this was implemented, tested, and never passed by any caller,
-so the advice imitated the median player. `--badge all` asks for the whole
-population instead.
-
-The model is fitted once and cached under data/processed, since fitting takes
-about a minute over 5M purchases and nobody wants that mid-match. Each bracket
-caches its own file, and a cached model records the bracket it was fitted for,
-so two brackets cannot quietly share one set of tables.
+The first run fits the model, which takes about a minute, and caches it under
+data/processed. Each badge setting gets its own cached model.
 """
 
 from __future__ import annotations
@@ -66,7 +55,7 @@ COLUMNS = [
 
 
 def parse_time(value: str) -> float:
-    """Accept 8:30 or 510. A player reads the clock, not a second count."""
+    """Parse a game time given as 8:30 or as seconds (510)."""
     value = value.strip()
     if ":" in value:
         minutes, _, seconds = value.partition(":")
@@ -75,16 +64,10 @@ def parse_time(value: str) -> float:
 
 
 def target_badge(args: argparse.Namespace) -> float | None:
-    """The bracket the advice should imitate, from `--badge`.
+    """The badge to weight toward, from `--badge`. None means all players.
 
-    A number weights the tables toward that badge; `all` asks for the whole
-    population. The default is high rather than average on purpose -- a build
-    tool exists to show what strong players do, and until this was wired the
-    tool imitated the median player instead.
-
-    Every command built by `build_parser` carries `--badge`, so the fallback is
-    for callers that build a namespace by hand -- the tests do, and a namespace
-    missing one field should not crash a command that never needed it.
+    Falls back to the default when `args` has no `badge`, which happens when
+    tests build the namespace by hand.
     """
     if "badge" not in vars(args):
         return sequence.DEFAULT_TARGET_BADGE
@@ -92,7 +75,7 @@ def target_badge(args: argparse.Namespace) -> float | None:
 
 
 def badge_argument(raw: str) -> float | None:
-    """`--badge` as argparse sees it, refusing anything that is not a bracket."""
+    """argparse type for `--badge`: a number or `all`."""
     try:
         return sequence.parse_target_badge(raw)
     except ValueError:
@@ -102,11 +85,7 @@ def badge_argument(raw: str) -> float | None:
 
 
 def model_path(badge: float | None) -> Path:
-    """One cached model per bracket.
-
-    Two brackets sharing a file would serve whichever was fitted last while
-    reporting the one that was asked for, so the bracket is in the name.
-    """
+    """Cache path for the item model at this badge. Each badge gets its own file."""
     if badge == sequence.DEFAULT_TARGET_BADGE:
         return MODEL_PATH
     suffix = "all" if badge is None else f"b{badge:g}"
@@ -114,6 +93,7 @@ def model_path(badge: float | None) -> Path:
 
 
 def ability_model_path(badge: float | None) -> Path:
+    """Cache path for the ability-order model at this badge."""
     if badge == sequence.DEFAULT_TARGET_BADGE:
         return ABILITY_MODEL_PATH
     suffix = "all" if badge is None else f"b{badge:g}"
@@ -126,8 +106,8 @@ def load_model(
     path = model_path(badge)
     if path.exists() and not refit:
         cached = sequence.SequenceModel.load(path)
-        # A model fitted before the bracket was recorded, or under a different
-        # one, is not the model that was asked for. Refit rather than serve it.
+        # Refit if the cached model was fitted for a different badge, or
+        # before models recorded their badge.
         if cached.target_badge == badge:
             return cached
     print("fitting the model (about a minute; cached afterwards)...", file=sys.stderr)
@@ -141,21 +121,18 @@ def load_model(
 def load_ability_model(
     *, refit: bool = False, badge: float | None = sequence.DEFAULT_TARGET_BADGE
 ):
-    """The ability-order model and the point frame its timings come from.
+    """The ability-order model, and the point frame that `generate_order` needs for timings.
 
-    Returns (None, None) when the ability table has not been built, so the tool
-    degrades to item-only advice rather than failing. The frame comes back
-    alongside the model because the clock is part of every deep context -- see
-    `abilityorder.generate_order`.
+    Returns (None, None) if the ability table hasn't been built, and the
+    commands then give item advice only.
     """
     if not ABILITIES_PATH.exists():
         return None, None
     raw = pd.read_parquet(ABILITIES_PATH)
     labels, _ = archetype.load()
     if badge is not None and PURCHASES.exists():
-        # The badge lives on the purchase rows, so it is carried across before
-        # anything reads it -- and before the frame is built, because the frame
-        # is where the timings come from and those follow the bracket too.
+        # Copy badges from the purchase table before building the frame, so
+        # the timings are badge-weighted too.
         raw = abilityorder.attach_badges(
             raw,
             pd.read_parquet(
@@ -179,6 +156,7 @@ def load_ability_model(
 
 
 def load_counters(*, refit: bool = False) -> pd.DataFrame:
+    """The counter-pick lift table, computed and cached on first use."""
     if COUNTERS_PATH.exists() and not refit:
         return pd.read_parquet(COUNTERS_PATH)
     frame = pd.read_parquet(
@@ -190,7 +168,11 @@ def load_counters(*, refit: bool = False) -> pd.DataFrame:
 
 
 def resolve_archetype(hero_id: int, query: str | None, meta: dict) -> tuple[int, str]:
-    """Which archetype the player declared. Declaration beats inference."""
+    """(archetype id, name) for the archetype named by `--archetype`.
+
+    With no `--archetype`, returns the hero's only archetype, or exits asking
+    the player to pick one if there are several.
+    """
     entries = (meta.get("heroes") or {}).get(str(hero_id), {}).get("archetypes") or []
     if not entries:
         return 0, ""
@@ -240,16 +222,11 @@ def cmd_heroes(args: argparse.Namespace) -> int:
 def load_imbue_targets(
     cell: pd.DataFrame | None, item_ids: list[int]
 ) -> list[imbue.ImbueTarget]:
-    """Which ability this cell points each recommended imbueable item at.
+    """Imbue targets for the build's imbueable items, from the players in `cell`.
 
-    Nine shopable items can be imbued, and for those the item is only half the
-    advice -- Mystic Reverb aimed at the wrong ability is a wasted 3,200 souls.
-    Restricted to the same (hero, archetype) rows the build was generated from,
-    because the target is a property of the build and not of the item: Dynamo's
-    ult cluster and its stomp cluster aim the same item at different abilities.
-
-    Returns nothing when the imbue table has not been built, so the tool
-    degrades to item-only advice the way the ability order does.
+    Uses only the build's hero and archetype, because archetypes aim the same
+    item differently: Dynamo's ult and stomp archetypes imbue different
+    abilities. Returns [] if the imbue table hasn't been built.
     """
     if cell is None or not IMBUES_PATH.exists():
         return []
@@ -398,11 +375,10 @@ def _print_recommendations(
 
 
 def _print_ability_points(hero_id: int, archetype_id: int, args) -> None:
-    """Where the next point goes, given the points already spent.
+    """Print the next ability point, given the points in `--points`.
 
-    The points so far have to be supplied: a slot at level 4 is the only
-    illegal move in an ability order, and without knowing the current levels
-    the tool would happily recommend a fifth point in a maxed ability.
+    Prints nothing without `--points`, because without the current levels
+    the tool could recommend a point in a maxed ability.
     """
     spent = _split(getattr(args, "points", None))
     if not spent:
@@ -465,9 +441,9 @@ def cmd_next(args: argparse.Namespace) -> int:
         _print_ability_points(hero_id, archetype_id, args)
         return 0
 
-    # No declaration: infer, and when the evidence is thin show each archetype
-    # separately rather than blending. A blend can recommend an item that
-    # neither build actually wants.
+    # No --archetype: infer it from the owned items. If more than one archetype
+    # is plausible, show each separately. A blend can recommend an item neither
+    # build wants.
     posterior = archetype.archetype_posterior(owned, hero_id, meta)
     names = {int(e["archetype_id"]): e.get("name", "") for e in entries}
     ordered = sorted(posterior.items(), key=lambda kv: -kv[1])
@@ -482,9 +458,7 @@ def cmd_next(args: argparse.Namespace) -> int:
         _print_recommendations(
             model, state, lifts, top=args.top, item_names=item_names, hero_names=hero_names
         )
-        # The archetype was inferred rather than declared, but the points were
-        # still spent, and dropping the ability advice here is the mid-match
-        # case `--points` exists for.
+        # Show ability advice for the inferred archetype too.
         _print_ability_points(hero_id, chosen, args)
         return 0
 
@@ -517,7 +491,7 @@ def cmd_why(args: argparse.Namespace) -> int:
 
 
 def cmd_watch(args: argparse.Namespace) -> int:
-    """A session that keeps the model loaded. Mid-match, nobody retypes."""
+    """Interactive session: add items as you buy them and see the next recommendations."""
     hero_id = assets.resolve_hero(args.hero)
     _, meta = archetype.load()
     model = load_model(refit=args.refit, badge=target_badge(args))

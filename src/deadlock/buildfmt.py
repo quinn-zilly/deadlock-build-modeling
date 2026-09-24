@@ -1,15 +1,13 @@
-"""Build representation and export to Deadlock's build-browser schema.
+"""The Build type, and export to the in-game build browser's JSON format.
 
-A *build* here is a purchase sequence, not an inventory. The distinction is
-load-bearing: the median player makes 17 purchases but holds only 11-12 items,
-because 37.3% of purchases are later sold. Emitting just the final inventory
-would silently drop a third of the decisions the model is meant to advise on,
-and "buy Extra Regen early, sell it around 20 minutes" is real advice that only
-the sequence view can express.
+A build is a purchase sequence, not an inventory. The median player makes 17
+purchases and ends holding 11 or 12 items, because about a third of purchases
+are later sold or absorbed. The final inventory alone would lose advice like
+"buy Extra Regen early, sell it around 20 minutes".
 
-So `Build.items` is the full ordered sequence with sell annotations, and
-`held_items()` is the subset that survives to the end -- which is what the
-in-game build browser imports, since it has no way to represent a sale.
+`Build.items` is the full sequence with sell times. `held_items()` is what is
+left at the end, which is all the build browser can import because its format
+has no way to say "sell".
 """
 
 from __future__ import annotations
@@ -18,14 +16,14 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Deadlock's shop tiers. Tier 5 exists in the asset file (17 items at cost
-# 9999) but is never purchased -- zero rows in 5,095,598 -- so it is not in the
-# shop this patch. Cost is a perfect function of tier for everything buyable.
+# Cost of each shop tier. Every buyable item's cost is set by its tier. The
+# asset file also lists 17 tier 5 items at 9999, but none of 5,095,598
+# purchases was tier 5, so they aren't in the shop.
 TIER_COSTS = (800, 1600, 3200, 6400)
 
-# The real inventory limit, measured on items held at match end: max 12,
-# mean 10.78. There is no per-slot-type cap; 83.5% of players hold more than
-# four items of some one type, which the old 4/4/4/3 section prior forbade.
+# Inventory limit, measured on items held at match end (max 12, mean 10.78).
+# There is no limit per slot type: 83.5% of players hold more than four items
+# of one type.
 MAX_HELD_ITEMS = 12
 
 
@@ -79,7 +77,7 @@ class Build:
         return self.archetype_name or self.hero_name
 
     def held_items(self) -> list[BuildItem]:
-        """The items still owned at match end -- what the shop can import."""
+        """The items still held at match end, which is what the game can import."""
         return [item for item in self.items if not item.sold]
 
     def __str__(self) -> str:
@@ -93,16 +91,16 @@ class Build:
 
 
 def ability_order_json(order: list) -> dict:
-    """The ability order, in the shape `/v1/builds` returns it.
+    """The ability order in the format `/v1/builds` uses.
 
-    `details.ability_order.currency_changes` is a flat ordered list of 16
-    entries, one per point, each naming the ability and what the point cost.
-    Verified against the live endpoint: entry order *is* spend order, and each
-    ability's own levels appear in ascending order within it -- one real build
-    reads `1111234223432434` when levels are printed in entry order.
+    `currency_changes` is a list of 16 entries in spend order, one per point,
+    each naming the ability and the point's cost. We checked this against the
+    live endpoint: printing one real build's levels in entry order gives
+    `1111234223432434`.
 
-    Unlocking spends one point of currency type 2; levels 2, 3 and 4 spend 1, 2
-    and 5 of type 1. Those costs come from the endpoint rather than from us.
+    Unlocking an ability costs 1 of currency type 2. Levels 2, 3, and 4 cost
+    1, 2, and 5 of type 1. These costs are the game's, copied from the
+    endpoint.
     """
     from . import abilityorder
 
@@ -130,17 +128,15 @@ def to_deadlock_json(
     ability_order: list | None = None,
     imbue_targets: dict[int, int] | None = None,
 ) -> dict:
-    """Serialize to the hero-build schema Deadlock's build browser accepts.
+    """Convert a build to the JSON the in-game build browser imports.
 
-    Mirrors the structure returned by /v1/builds: `mod_categories` holding
-    named groups of `mods`, each keyed by `ability_id` (the item id), and
-    `ability_order` holding the point sequence.
+    Uses the same structure as /v1/builds: `mod_categories` holds named groups
+    of `mods`, where each mod's `ability_id` is an item id, and
+    `ability_order` holds the ability points.
 
-    Only held items are exported. The schema has no way to say "buy this, then
-    sell it", so an exported build is the surviving inventory in purchase
-    order; the sell advice lives in the human-readable view. The ability order
-    has no such loss: a point once spent is never refunded, so the sequence
-    exports whole.
+    Only held items are exported, in purchase order, because the format can't
+    express selling. The text view shows sell times. The ability order exports
+    in full, since points are never refunded.
     """
     held = build.held_items()
     categories = []
@@ -160,11 +156,8 @@ def to_deadlock_json(
                         ),
                         "required_flex_slots": None,
                         "sell_priority": None,
-                        # Deadlock's own schema has always had this field and
-                        # this exporter always sent null, so every build it
-                        # produced left the imbue choice to the reader. Only
-                        # 9 shopable items can be imbued, and for those the
-                        # target is what the population actually picks.
+                        # The ability players most often imbue with this item.
+                        # None for the items that can't be imbued.
                         "imbue_target_ability_id": (imbue_targets or {}).get(
                             item.item_id
                         ),
@@ -202,11 +195,10 @@ def to_deadlock_json(
 
 
 def _group_by_tier(items: list[BuildItem]) -> dict[str, list[BuildItem]]:
-    """Group a sequence into shop-tier sections, preserving buy order.
+    """Group items into one section per cost, cheapest first, keeping buy order.
 
-    Sections are a presentation device for the build browser, not a constraint
-    on generation -- the old code had this backwards and forced builds into a
-    4/4/4/3 shape that only 16.5% of real players match.
+    The sections are only for display in the build browser. Build generation
+    doesn't limit how many items go in each.
     """
     groups: dict[str, list[BuildItem]] = {}
     for item in items:
@@ -215,7 +207,7 @@ def _group_by_tier(items: list[BuildItem]) -> dict[str, list[BuildItem]]:
 
 
 def export_build(build: Build, path: Path, **kwargs) -> Path:
-    """Write a build as Deadlock-importable JSON."""
+    """Write a build as JSON the game can import. Returns the path."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(to_deadlock_json(build, **kwargs), indent=2))

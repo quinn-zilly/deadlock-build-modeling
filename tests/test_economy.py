@@ -1,9 +1,4 @@
-"""Tests for economic features.
-
-These replace positional item encoding, which measurably hurt the model
-(-0.0055 AUC) because buy position is largely a price proxy
-(corr(buy_index, cost) = 0.435).
-"""
+"""Per-player spending features in economy.py."""
 
 from __future__ import annotations
 
@@ -57,7 +52,7 @@ class TestPlayerEconomics:
         assert economy.player_economics(df)["n_tier_jumps"] == 2
 
     def test_handles_unsorted_input(self):
-        # Purchase arrays are not reliably time-ordered in the source data.
+        # Purchases in the source data aren't always in time order.
         ordered = economy.annotate_costs(
             _frame([(1, 1, 10, 60), (1, 1, 40, 600)]), ITEMS
         )
@@ -106,7 +101,7 @@ class TestEconomicFeatures:
         assert set(out.columns) == set(economy.ECONOMIC_COLUMNS)
 
     def test_matches_per_group_implementation(self):
-        # The vectorized path and player_economics() must not drift apart.
+        # economic_features must match player_economics for every player.
         rng = np.random.default_rng(0)
         rows = []
         for player in range(12):
@@ -131,11 +126,10 @@ class TestEconomicFeatures:
 
 
 class TestWealthProxySeparation:
-    """total_spend correlates 0.78 with net worth on real data.
+    """total_spend is a wealth proxy and stays out of BEHAVIOURAL_COLUMNS.
 
-    A player who spent more souls had more souls, so it carries the same
-    problem as nw_final: it is largely an outcome, not a choice. It must not
-    enter a model whose lift is measured against the wealth baseline.
+    It correlates 0.78 with net worth, which is mostly a result of how the
+    match went, not a choice.
     """
 
     def test_total_spend_is_flagged(self):
@@ -145,7 +139,7 @@ class TestWealthProxySeparation:
         assert not set(economy.BEHAVIOURAL_COLUMNS) & economy.WEALTH_PROXY_COLUMNS
 
     def test_behavioural_keeps_the_saving_signal(self):
-        # The save-vs-buy behaviour is the point of this module.
+        # Saving-up features are behavioural.
         for col in ("median_gap_s", "n_saved_up", "saved_up_fraction", "cost_slope"):
             assert col in economy.BEHAVIOURAL_COLUMNS
 

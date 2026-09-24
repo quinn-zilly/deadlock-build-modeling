@@ -1,17 +1,20 @@
-"""Generate a build for every hero and archetype, and gate every one.
+"""Generate a build for every hero and archetype, check each for its staples, and export them.
 
-The gate runs on the **purchase sequence**, not the held inventory. About 31%
-of purchases are components absorbed into a composite, so a 12-slot inventory
-cannot hold every staple -- hero 4's first archetype has 12 staples, 7 of them
-sold more than half the time. Gating held items would fail correct builds.
+The check runs on the purchase sequence, not the final inventory. About 31% of
+purchases are components that a composite later absorbs, so a 12-slot
+inventory can't hold every staple. Hero 4's first archetype has 12 staples,
+and 7 of them are gone by match end more than half the time.
 
-Exits non-zero if any cell fails, so this is usable as a regression check. That
-is what makes it the gate for the badge weighting too: a build weighted toward
-strong play still has to contain the staples of its archetype, and an item
-bought by 70% of a cell that the weighting quietly drops fails here.
+Exits 1 if any build is missing a staple, so it works as a regression check.
+That includes badge weighting: a build weighted toward strong players must
+still contain its archetype's staples.
+
+Also prints how closely each build's order and items match real players.
+--samples N samples N builds per cell and reports staples that show up in
+fewer than 90% of them.
 
     python scripts/generate_builds.py [--hero NAME] [--export DIR] [--samples N]
-                                      [--badge N|all]
+                                      [--badge N|all] [--no-staples]
 """
 
 from __future__ import annotations
@@ -79,9 +82,7 @@ def main() -> int:
 
     model = sequence.fit(df, labels, target_badge=target_badge)
 
-    # The ability order is the other half of a build, and it is a separate
-    # sequence over the same players -- same chain, four outcomes instead of
-    # 173. Absent only if the ability table has not been built.
+    # The ability-order model, if the ability table has been built.
     ability_model = None
     ability_frame = None
     if ABILITIES.exists():
@@ -99,9 +100,7 @@ def main() -> int:
     else:
         print("no ability table; builds will export without an ability order")
 
-    # Which ability the population points each imbueable item at. Nine items,
-    # so this is a small lookup, but it is the difference between exporting a
-    # build that says "buy Mystic Reverb" and one that says what to do with it.
+    # Imbue targets, so exported builds say which ability to imbue.
     imbues = pd.read_parquet(IMBUES) if IMBUES.exists() else pd.DataFrame()
 
     args.export.mkdir(parents=True, exist_ok=True)
@@ -155,8 +154,8 @@ def main() -> int:
             generated_ids = [item.item_id for item in generated.items]
             reference = evaluate.population_order(cell).index.tolist()
             order = evaluate.order_distance(generated_ids, reference)
-            # Order comes from the median-buy-position reference; membership
-            # must not. See evaluate.membership_vs_players for why.
+            # Order is compared with the median order, but items are compared
+            # with real players. See evaluate.membership_vs_players.
             membership = evaluate.membership_vs_players(generated_ids, cell)
             order_rows.append(
                 {
@@ -199,8 +198,8 @@ def main() -> int:
                         target_badge=target_badge,
                     )
                 except ValueError as exc:
-                    # A cell with no ability points is a data gap, not a build
-                    # that happens to have no order. Say which, and move on.
+                    # No ability data for this cell. Report it and export the
+                    # build without an ability order.
                     print(f"  no ability order for {generated.label}: {exc}")
 
             buildfmt.export_build(
@@ -251,8 +250,11 @@ def main() -> int:
 def _report_calibration(
     generated, model, hero_id, archetype_id, staples, item_names, n
 ) -> None:
-    """A staple appearing in 60% of sampled builds is a calibration problem
-    that greedy generation hides."""
+    """Print staples that appear in fewer than 90% of `n` sampled builds.
+
+    The greedy build shows one result. Sampling shows whether a staple is
+    only barely making it in.
+    """
     if not staples:
         return
     samples = build.sample_builds(hero_id, archetype_id, model, n=n, staples=staples)

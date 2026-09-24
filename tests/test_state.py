@@ -1,4 +1,4 @@
-"""The decision point: time bucketing, and what counts as a legal move."""
+"""Time buckets, GameState, and which items a player can buy."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ class TestTimeBucket:
         assert len(state.TIME_BUCKET_LABELS) == len(state.TIME_BUCKET_BOUNDS_S) + 1
 
     def test_last_bucket_is_open_ended(self):
-        """Match length varies, so the final bucket cannot have an upper bound."""
+        """Any time past the last bound falls in the last bucket."""
         assert state.time_bucket(10_000) == len(state.TIME_BUCKET_BOUNDS_S)
 
 
@@ -43,7 +43,7 @@ class TestGameState:
         assert s.n_owned == 3
 
     def test_posterior_defaults_empty_not_shared(self):
-        """A mutable default would be shared across every state."""
+        """Each state gets its own posterior dict, not one shared default."""
         a = state.GameState(hero_id=1, game_time_s=0, souls_available=0)
         b = state.GameState(hero_id=2, game_time_s=0, souls_available=0)
         a.archetype_posterior[0] = 1.0
@@ -70,6 +70,6 @@ class TestCandidateFiltering:
         assert state.candidate_items(s) == []
 
     def test_affordable_only_off_ignores_souls(self):
-        """Pre-match planning asks what to buy eventually, not what is affordable now."""
+        """With affordable_only off, items the player can't afford are included."""
         s = state.GameState(hero_id=1, game_time_s=0, souls_available=0)
         assert len(state.candidate_items(s, affordable_only=False)) > 100

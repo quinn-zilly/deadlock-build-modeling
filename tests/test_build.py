@@ -1,14 +1,12 @@
-"""Generating a build: legality, absorption, and the gate it has to clear.
+"""Build generation: legal purchases, absorption, staples, and the gate.
 
-The load-bearing claim here is about *component absorption*. A build is ~17
-purchases but only 12 items can be held, and those reconcile because buying a
-composite consumes the components already owned. Sold rate is 70.6% for items
-that are a component of something against 6.4% for items that are not, so most
-"selling" is not a player changing their mind -- it is a slot being freed.
+A build is about 17 purchases, but a player holds at most 12 items. Absorption
+makes that work: buying a composite removes its held components. Items that
+are a component of something are sold 70.6% of the time, against 6.4% for
+other items, so most "selling" is absorption.
 
-Which is why the prevalence gate runs on the purchase sequence and never on
-held items. `TestGateRunsOnPurchases` pins that directly: it is the trap this
-design exists to avoid.
+That is why the staple gate checks the purchase sequence, never held items.
+`TestGateRunsOnPurchases` tests this directly.
 """
 
 from __future__ import annotations
@@ -25,10 +23,9 @@ from deadlock.buildfmt import MAX_HELD_ITEMS
 HERO = 7
 REAL_ITEMS = sorted(assets.shopable_items())
 
-# The two real composite/component pairs the staple force has to order
-# correctly, named so the prevalences asserted against them are traceable to a
-# cell rather than to an arbitrary index. Resolved by id, never by name --
-# two catalogue entries share the name "Silencer".
+# Two real composite/component pairs the staple forcing must order correctly.
+# Given by id, not name, because two catalogue entries are both called
+# "Silencer".
 RADIANT_REGENERATION = 2947183272  # absorbs Mystic Regeneration
 MYSTIC_REGENERATION = 1439347412
 ENDURING_SPEED = 2447176615  # absorbs Sprint Boots
@@ -38,12 +35,11 @@ SPRINT_BOOTS = 3399065363
 def purchases(
     items: tuple[int, ...], n_players: int = 200, *, vary: bool = False
 ) -> pd.DataFrame:
-    """A synthetic population.
+    """Made-up purchases.
 
     `vary` rotates each player's order. Without it every player buys the same
-    sequence, the conditional is 1.0 on a single item, and both sampling and
-    the completion pass have nothing to act on -- which is a property of the
-    fixture, not of the generator.
+    sequence, each step has one item at probability 1.0, and sampling and
+    staple forcing have nothing to do.
     """
     rows = []
     for m in range(n_players):
@@ -73,7 +69,7 @@ def model_over(
 
 class TestBuyTime:
     def test_matches_the_measured_medians(self):
-        """Buy time is linear in the index, so timing is a lookup not a model."""
+        """buy_time returns MEDIAN_BUY_TIME_S for each position."""
         assert build.buy_time(0) == 70
         assert build.buy_time(5) == 629
         assert build.buy_time(13) == 1570
@@ -97,12 +93,12 @@ class TestInventoryAbsorption:
 
         assert set(absorbed) == {100, 101}
         assert inventory.held == {200}
-        # The purchase record never shrinks: they were still bought.
+        # Absorbed components stay in `purchased`.
         assert inventory.purchased == [100, 101, 200]
         assert inventory.consumed == {100: 200, 101: 200}
 
     def test_absorption_frees_slots(self):
-        """This is the mechanism that fits 17 purchases into 12 slots."""
+        """Buying a composite frees the slots of the components it absorbs."""
         components = {200: (100,)}
         inventory = build.Inventory()
         inventory.buy(100, components)
@@ -128,7 +124,7 @@ class TestInventoryAbsorption:
 
 class TestLegality:
     def test_no_item_is_ever_bought_twice(self):
-        """Exact, not approximate: no player rebuys in 5,119,990 rows."""
+        """A build never has the same item twice. No player did in 5,119,990 purchases."""
         generated = build.generate_build(HERO, 0, model_over(tuple(REAL_ITEMS[:20])))
         ids = [item.item_id for item in generated.items]
         assert len(ids) == len(set(ids))
@@ -153,10 +149,9 @@ class TestLegality:
 
 class TestComponentPreference:
     def test_the_penalty_is_soft_not_a_mask(self):
-        """19% of real builds buy a composite without its component first.
+        """A composite can still be picked when its component isn't held.
 
-        A hard mask would make those unreachable, so the composite has to stay
-        selectable even when its component is missing.
+        19% of real composite purchases come without the component first.
         """
         composite, component = REAL_ITEMS[0], REAL_ITEMS[1]
         ids = np.array([composite])
@@ -188,14 +183,12 @@ class TestComponentPreference:
         assert scored[0] == pytest.approx(0.5)
 
     def test_the_penalty_survives_the_staple_force(self):
-        """A composite and its own component can both be staples.
+        """When a composite and its component are both staples, the component comes first.
 
-        Gun Shiv has three such pairs -- Radiant Regeneration over Mystic
-        Regeneration, Swift Striker over Rapid Rounds, Mercurial Magnum over
-        Quicksilver Reload. Forcing by raw prevalence ranks each composite
-        first, so its component arrives after its parent, absorbs nothing, and
-        13 staples need 13 slots against a cap of 12. The completion pass must
-        not erase the penalty that puts the component first.
+        Gun Shiv has three such pairs, such as Radiant Regeneration and Mystic
+        Regeneration. Ranked by prevalence alone the composite comes first,
+        its component comes later and isn't absorbed, and 13 staples need 13
+        slots when the cap is 12.
         """
         composite, component = RADIANT_REGENERATION, MYSTIC_REGENERATION
         scored = build._apply_priors(
@@ -204,20 +197,18 @@ class TestComponentPreference:
             inventory=build.Inventory(),
             components={composite: (component,)},
             component_penalty=build.COMPONENT_PENALTY,
-            # Gun Shiv's own prevalences, n=2,011. The composite is the more
-            # prevalent of the two, as it is in every real pair: a player who
-            # buys the composite bought the component.
+            # Gun Shiv's real prevalences (n=2,011). The composite is higher, as
+            # in every real pair.
             staples={composite: 0.972, component: 0.959},
             remaining=2,
         )
         assert scored[1] > scored[0]
 
     def test_a_staple_is_not_demoted_for_a_component_nobody_buys(self):
-        """The demotion applies only while both items are owed.
+        """A staple isn't pushed back for a component that isn't a staple.
 
-        Enduring Speed is bought by 85% of Gun Victor, and its component Sprint
-        Boots is bought too rarely to be a staple. Demoting on a component that
-        is never coming drops the staple for an absorption that cannot happen.
+        85% of Gun Victor players buy Enduring Speed, but its component Sprint
+        Boots isn't a staple, so waiting for it would drop Enduring Speed.
         """
         composite, component = ENDURING_SPEED, SPRINT_BOOTS
         scored = build._apply_priors(
@@ -226,8 +217,8 @@ class TestComponentPreference:
             inventory=build.Inventory(),
             components={composite: (component,)},
             component_penalty=build.COMPONENT_PENALTY,
-            # Gun Victor's own prevalence, n=1,568. Sprint Boots is not in its
-            # staple set at all, so it is not passed as one.
+            # Gun Victor's real prevalence (n=1,568). Sprint Boots isn't one of
+            # its staples.
             staples={composite: 0.848},
             remaining=1,
         )
@@ -236,13 +227,12 @@ class TestComponentPreference:
 
 class TestStapleCompletion:
     def test_a_reserved_slot_admits_a_missing_staple(self):
-        """Slots are reserved once free space runs down to what is still owed.
+        """Staples are forced in once free slots are down to the number still missing.
 
-        Deferring staples to the closing buys does not work: the inventory is
-        full by then, and a staple with no components to absorb can never be
-        added. Melee Silver lost Hunter's Aura exactly this way -- an item 71%
-        of its players buy, at index 7, pushed to index 14 against 12 held
-        items.
+        Waiting until the last purchases fails, because the inventory is full
+        by then. Melee Silver lost Hunter's Aura this way: 71% of those players
+        buy it at position 7, and the generator pushed it to 14 with 12 items
+        held.
         """
         staple = REAL_ITEMS[5]
         inventory = build.Inventory()
@@ -261,8 +251,7 @@ class TestStapleCompletion:
         assert scored[0] == pytest.approx(0.71)
 
     def test_a_staple_off_the_ballot_is_restored(self):
-        """The nudge reweights candidates, so it cannot promote an item the
-        model never offered."""
+        """A missing staple the model gives no probability is added to the candidates."""
         staple = REAL_ITEMS[5]
         ids, probability = build._ensure_staples_present(
             np.array([REAL_ITEMS[0]]),
@@ -272,7 +261,7 @@ class TestStapleCompletion:
             remaining=1,
         )
         assert staple in ids.tolist()
-        # Honest about the model's own view: it did not expect this here.
+        # Its probability stays 0, which is what the model predicts.
         assert probability[ids.tolist().index(staple)] == 0.0
 
     def test_an_already_bought_staple_is_not_restored(self):
@@ -285,12 +274,9 @@ class TestStapleCompletion:
         assert staple not in ids.tolist()
 
     def test_a_nudged_pick_is_labelled(self):
-        """A forced staple must never read as the model's own preference."""
-        # A staple outside the training vocabulary entirely: the model has no
-        # reason to offer it, so only the completion pass can put it in. The
-        # build is kept short so a slot is still free -- a staple with nothing
-        # to absorb cannot enter a full inventory, which is a real constraint
-        # rather than a failure of the nudge.
+        """A forced staple gets "+staple" in its backoff_level."""
+        # A staple the model never saw, so only staple forcing can add it. The
+        # build is short so a slot is still free.
         generated = build.generate_build(
             HERO,
             0,
@@ -303,11 +289,7 @@ class TestStapleCompletion:
         assert all(i.item_id == REAL_ITEMS[20] for i in nudged)
 
     def test_a_full_inventory_cannot_take_another_staple(self):
-        """The honest limit: 12 slots is a hard constraint, not a preference.
-
-        A staple with no components to absorb genuinely cannot be added to a
-        full inventory, and the generator must not pretend otherwise.
-        """
+        """A staple that absorbs nothing can't be added to a full 12-item inventory."""
         inventory = build.Inventory()
         for item_id in REAL_ITEMS[:MAX_HELD_ITEMS]:
             inventory.buy(item_id, {})
@@ -316,12 +298,11 @@ class TestStapleCompletion:
 
 class TestGateRunsOnPurchases:
     def test_a_staple_absorbed_as_a_component_still_passes(self):
-        """The trap this whole design avoids.
+        """A staple that was bought and then absorbed still passes the gate.
 
-        Hero 4's first archetype has 12 staples, 7 sold more than half the
-        time -- Mystic Burst is bought by 96% of its players and sold by 95%.
-        A 12-slot inventory cannot hold them, so gating `held_items()` would
-        fail a correct build.
+        Hero 4's first archetype has 12 staples, and 7 are gone by match end
+        more than half the time. Mystic Burst is bought by 96% and sold by
+        95%. A gate on `held_items()` would fail a correct build.
         """
         component, composite = REAL_ITEMS[0], REAL_ITEMS[1]
         population = purchases((component, composite), n_players=400)
@@ -347,8 +328,8 @@ class TestGateRunsOnPurchases:
 
         # The component was absorbed, so it is not held...
         assert component not in {i.item_id for i in generated.held_items()}
-        # ...but it was bought by 100% of the population, so gating held items
-        # would fail it while gating purchases passes.
+        # ...but every player bought it, so a gate on held items would fail and
+        # a gate on purchases passes.
         on_held = evaluate.prevalence_gate(
             [i.item_id for i in generated.held_items()], population, hero_id=HERO
         )
@@ -359,7 +340,7 @@ class TestGateRunsOnPurchases:
         assert on_purchases.passed
 
     def test_absorption_sets_the_sell_time_to_the_parent_buy(self):
-        """A checkable fact about this build, not an estimated sell time."""
+        """An absorbed component's sell time is the time its composite was bought."""
         components = assets.component_map()
         parent = next(iter(components))
         component = components[parent][0]
@@ -413,11 +394,10 @@ ARCHETYPES = Path("data/processed/archetypes.parquet")
 @pytest.mark.data
 @pytest.mark.skipif(not PARQUET.exists(), reason="needs data/processed/*.parquet")
 class TestAgainstRealData:
-    """The headline regression: every generated build carries its staples.
+    """On real data, every generated build has all its staples, in every cell.
 
-    Successor to `test_old_planner_build_fails_the_gate`. That one proved the
-    gate could catch a bad build; this one proves the generator produces good
-    ones -- for all 80 hero-and-archetype cells, not just the easy ones.
+    `test_old_planner_build_fails_the_gate` shows the gate catches a bad
+    build. This shows the generator makes good ones.
     """
 
     @staticmethod
@@ -454,18 +434,21 @@ class TestAgainstRealData:
         )
 
     def test_median_buy_time_matches_the_lookup_table(self):
-        """Pins the linearity claim: if a patch shifts the economy, this fails
-        rather than the timings silently drifting."""
+        """Real median purchase times still match MEDIAN_BUY_TIME_S.
+
+        If a patch changes purchase pace, this fails instead of the build
+        timings quietly going stale.
+        """
         frame = pd.read_parquet(PARQUET, columns=["buy_index", "buy_time_s"])
         median = frame.groupby("buy_index")["buy_time_s"].median()
         for index, expected in enumerate(build.MEDIAN_BUY_TIME_S):
             assert abs(median.loc[index] - expected) <= 30, f"buy {index} moved"
 
     def test_component_consumption_explains_most_selling(self):
-        """The finding the whole generation design rests on.
+        """On real data, components are sold far more often than other items.
 
-        If a patch changes this, the slot arithmetic needs revisiting -- so it
-        is pinned rather than assumed.
+        Build generation relies on this. If a patch changes it, revisit how
+        builds fit into 12 slots.
         """
         frame = pd.read_parquet(PARQUET, columns=["item_id", "sold"])
         components = {

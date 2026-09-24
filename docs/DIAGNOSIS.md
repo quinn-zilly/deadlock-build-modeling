@@ -1,13 +1,17 @@
 # Why the generated builds were wrong
 
-The build planner produced builds a Deadlock player judged clearly wrong. This
-records the diagnosis, because the aggregate metrics never caught it: the gate
-passed at +0.0169 AUC and the recommender beat its popularity floor by 14.7 SE
-while the builds were unusable.
+The first version of this project scored items by how much buying them
+raised the chance of winning, and built plans from those scores. A Deadlock
+player looked at its builds and judged them clearly wrong. Every automated
+check had passed: the AUC gate at +0.0169, and the recommender beat its
+popularity baseline by 14.7 standard errors.
 
-## The evidence
+This file records what went wrong. After it, the project stopped trying to
+measure what wins and switched to imitating what strong players buy.
 
-For Wraith, high-rank winning players buy:
+## What the builds got wrong
+
+For Wraith, high-rank players who won bought:
 
 | Item | % of winning high-rank Wraiths |
 |---|---|
@@ -17,66 +21,68 @@ For Wraith, high-rank winning players buy:
 | Extra Spirit | 79.6% |
 | Surge of Power | 72.6% |
 
-The planner recommended **none** of them. It chose Golden Goose Egg, Split
-Shot, Infuser and Escalating Exposure instead. Every item in its global top 10
-had a pick rate between 1% and 10%.
+The planner recommended none of them. It chose Golden Goose Egg, Split Shot,
+Infuser, and Escalating Exposure. Every item in its overall top 10 was bought
+by between 1% and 10% of players.
 
-## Root cause: selection on early purchase
+## Cause: buying a rare item early means you were already ahead
 
-Not the cost confound, which within-tier centring had already handled
-(corr(advantage, cost) = 0.00; corr with net-worth-at-buy only 0.11).
+Item cost wasn't the problem. Comparing items only against others of the same
+tier had already removed it (correlation with cost 0.00, with net worth at the
+time of purchase only 0.11).
 
-The problem is that **buying a rarely-bought item early means the player was
-already ahead**:
+The problem was that the model looked at items bought in the first 20
+minutes, and a player who buys an unusual item early is usually already
+winning:
 
 | Item | Cost | Bought in first 20 min by | Median buy time |
 |---|---|---|---|
-| Split Shot | 1600 | **1.3%** | 694s |
-| Quicksilver Reload | 1600 | **23.1%** | 411s |
+| Split Shot | 1600 | 1.3% | 694s |
+| Quicksilver Reload | 1600 | 23.1% | 411s |
 | Infuser | 6400 | 1.0% | 1083s |
 | Monster Rounds | 800 | 21.2% | 174s |
 
-Split Shot and Quicksilver Reload cost exactly the same, so tier centring
-treats them as comparable — but their early-buy populations are completely
-different. Conditioning on "bought this within 20 minutes" is a collider: for a
-staple everyone buys it selects nobody, and for a rare item it selects players
-with an economic lead.
+Split Shot and Quicksilver Reload cost the same, so the model treated them as
+comparable. But almost everyone buys Quicksilver Reload early, so "bought it
+early" tells you nothing about the player. Few buy Split Shot early, and those
+who do are the ones with a lead in souls. The model credited the item with
+the lead.
 
-## A second, independent flaw
+## A second, separate flaw
 
-The paired design excludes any item held by *both* lane sides. A near-universal
-staple is therefore measured only in the rare lanes where one side skipped it,
-and the global table dilutes hero-specific staples across all 38 heroes.
+The model compared the two sides of each lane and skipped any item both sides
+held. An item nearly everyone buys was therefore measured only in the rare
+lanes where one side skipped it. And one table covered all 38 heroes, which
+washed out each hero's own staples.
 
-Measured per-hero, the effect these methods missed is large:
+Measured per hero, the effect was there all along:
 
-    Quicksilver Reload, Wraith:  buyers 51.2% win, non-buyers 41.4%  (+9.8 pts)
+    Quicksilver Reload, Wraith:  buyers 51.2% win, non-buyers 41.4%  (+9.8 points)
 
-The signal was always there. The method could not see it.
+## What didn't fix it
 
-## What did not fix it
+Adjusting scores within groups of similar cost and pick rate. That removed the
+correlation with pick rate (-0.007) but ranked the staples even lower:
+Quicksilver Reload fell from 45th to 76th. Adjusting away a correlation
+doesn't fix a selection effect.
 
-Centring within (cost, pick-rate) cells. It removed the correlation
-(corr(adj, pick_rate) = -0.007) but made the staples *worse*: Quicksilver
-Reload fell from rank 45 to 76. Residualising away a correlation does not
-address a selection mechanism.
+## What looked promising at the time
 
-## What looks promising
+Comparing buyers with non-buyers per hero, within net-worth quintiles. Without
+the quintiles it just measures wealth (correlation with cost 0.62), since
+buying anything takes souls. With them the correlation halved to 0.36 and the
+top Wraith items looked sensible: Ricochet (27% pick rate), Dispel Magic
+(37%), Rapid Rounds (78%), Mercurial Magnum (16%).
 
-Per-hero buyer-vs-non-buyer lift, stratified by net-worth quintile.
-Unstratified it reproduces the wealth confound (corr with cost 0.62), since
-buying anything requires souls. Stratifying halves that to 0.36 and surfaces
-plausible Wraith items: Ricochet (27% pick), Dispel Magic (37%), Rapid Rounds
-(78%), Mercurial Magnum (16%).
+This was never finished. The project dropped the win-rate approach instead,
+partly because late-game net worth turned out to be mostly a result of
+winning rather than something to control for.
 
-This is a direction, not a finished method. The remaining 0.36 correlation with
-cost still needs work.
+## The lesson
 
-## The lesson worth keeping
+Every aggregate check passed while the output was wrong: the AUC gate, the
+replication check, the popularity baseline, the shuffled-label test, and the
+antisymmetry test. It took a player reading a build to find the problem.
 
-Every aggregate check passed while the output was wrong. The AUC gate, the
-replication guard, the popularity floor, the shuffled-label and antisymmetry
-tests — all green. It took a player looking at a build to find the flaw.
-
-Validate item models against what strong players actually buy, before trusting
-any aggregate metric.
+So check a model's output against what strong players actually buy, item by
+item, before trusting any aggregate score. That is why the staple gate exists.

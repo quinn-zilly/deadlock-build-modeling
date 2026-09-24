@@ -1,9 +1,4 @@
-"""The delivery surface: name resolution, clock parsing, archetype choice.
-
-These are the parts a player touches directly. Nobody types 4008176313 or
-thinks in seconds since match start, so a wrong answer here makes the tool
-unusable regardless of how good the model underneath is.
-"""
+"""The CLI: name lookup, time parsing, archetype choice, and command arguments."""
 
 from __future__ import annotations
 
@@ -89,7 +84,7 @@ class TestResolveArchetype:
         assert cli.resolve_archetype(9, None, self.META) == (0, "Haze")
 
     def test_multiple_archetypes_require_a_choice(self):
-        """Silently picking one would answer a question the player did not ask."""
+        """With several archetypes and no --archetype, exit and ask instead of picking one."""
         with pytest.raises(SystemExit, match="pick one"):
             cli.resolve_archetype(7, None, self.META)
 
@@ -122,7 +117,7 @@ class TestArchetypePosterior:
     }
 
     def test_no_items_gives_the_population_share(self):
-        """Before any evidence the honest prior is how often people play it."""
+        """With nothing bought, each archetype's probability is its share of players."""
         posterior = archetype.archetype_posterior([], 20, self.META)
         assert posterior[0] == pytest.approx(0.6)
         assert posterior[1] == pytest.approx(0.4)
@@ -153,8 +148,7 @@ class TestPartialFamilyShares:
 
 class TestThinEvidence:
     def test_a_thin_recommendation_says_so(self):
-        """A probability from 2 observations is not the same claim as one from
-        1,635, and printing them identically invites misplaced confidence."""
+        """A recommendation from 2 observations prints with [thin]."""
         from deadlock.state import Recommendation
 
         thin = Recommendation(1, "Rare", 0.08, 2, "L0", 1600)
@@ -164,7 +158,7 @@ class TestThinEvidence:
 
 
 class TestAbilityPointArguments:
-    """The guardrails on `--points`, which the model cannot enforce itself."""
+    """Checks on `--points` input."""
 
     class Args:
         def __init__(self, points, time="5:00", refit=False):
@@ -184,7 +178,7 @@ class TestAbilityPointArguments:
             cli._print_ability_points(self.hero(), 0, self.Args("Fireball"))
 
     def test_a_fifth_point_in_one_ability_is_refused(self):
-        """Four levels is the cap, and a fifth point is not a legal build."""
+        """A fifth point in one ability is an error."""
         with pytest.raises(SystemExit, match="more than four"):
             cli._print_ability_points(
                 self.hero(), 0, self.Args("Powder Keg," * 5)
@@ -192,11 +186,10 @@ class TestAbilityPointArguments:
 
 
 class TestPointsWithoutADeclaredArchetype:
-    """`--points` must not be silently ignored mid-match.
+    """`--points` still gives ability advice when the archetype is inferred.
 
-    Ability advice needs an archetype, and a player mid-match often has not
-    declared one -- the tool infers it from what they have bought. Dropping
-    the advice in that case is the exact situation `--points` exists for.
+    During a match players often don't pass --archetype, so the tool infers
+    one from their items. The ability advice must still appear.
     """
 
     class Args:
@@ -221,21 +214,18 @@ class TestPointsWithoutADeclaredArchetype:
 
 
 class TestImbueTargets:
-    """`deadlock build` has to say what to do with an imbueable item.
-
-    The exported JSON has carried the target since it was built, but the
-    command line printed nothing about it -- and the command line is what a
-    player reads before a match.
-    """
+    """`deadlock build` prints the imbue target for each imbueable item."""
 
     def test_no_cell_means_no_targets(self):
-        """No purchase table is item-only advice, not a crash."""
+        """With no purchase table, there are no targets and no crash."""
         assert cli.load_imbue_targets(None, [1, 2, 3]) == []
 
     def test_a_build_with_no_imbueable_item_prints_nothing(self):
-        """Guarded: without the table this passes through the absent-file
-        branch instead of the filter it is here to cover, and `data/` is
-        gitignored, so on a fresh clone it would pass having tested nothing."""
+        """No imbueable items means no targets.
+
+        Skipped without the imbue table. Without it the function returns early
+        and the test would pass without testing the filter.
+        """
         if not cli.IMBUES_PATH.exists():
             pytest.skip("requires the imbue table")
         cell = pd.DataFrame({"match_id": [1], "player_slot": [0]})
@@ -256,11 +246,7 @@ class TestImbueTargets:
 
 
 class TestBadgeArgument:
-    """Which bracket the advice imitates, and how a player asks for another.
-
-    The default is the point of the whole feature: without it the tool serves
-    the median player, which is not what anyone opens a build tool for.
-    """
+    """`--badge` parsing and its default of DEFAULT_TARGET_BADGE."""
 
     @staticmethod
     def parsed(argv):
@@ -291,7 +277,7 @@ class TestBadgeArgument:
 
 
 class TestModelCachePaths:
-    """One cached file per bracket, so two brackets cannot share a cache."""
+    """Each badge gets its own cached model file."""
 
     def test_each_bracket_gets_its_own_file(self):
         assert cli.model_path(80.0) != cli.model_path(55.0)

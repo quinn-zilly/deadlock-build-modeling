@@ -1,30 +1,23 @@
-"""Ability leveling: the half of the `items` array the purchase path discards.
+"""Ability points: the entries in a player's `items` list that aren't purchases.
 
-`features.clean_purchases` keeps entries whose id is a known upgrade. This
-module is its exact complement -- same input, opposite filter -- and recovers
-the ~46% of entries that are ability level-ups. Keeping them separate rather
-than generalizing `clean_purchases` is deliberate: that function's behaviour is
-pinned by regression tests and the whole purchase path depends on it, so the
-two paths prove each other by staying distinct.
+`features.clean_purchases` keeps the entries whose id is an upgrade. This
+module keeps the rest, about 46% of entries. The two stay separate functions
+so `reconcile` can check that together they account for every entry.
 
-Each level-up entry carries three usable fields:
+Each ability-point entry has three useful fields:
 
-    item_id       the ability id, joinable to a hero signature slot
+    item_id       the ability id, which maps to a signature slot
     game_time_s   when the point was spent
-    upgrade_info  the level, in its high 16 bits
+    upgrade_info  the level reached, in the high 16 bits
 
-**Read the level from `upgrade_info`, never from a running count.** The high
-word takes exactly four values -- 1, 3, 7, 15 -- for levels 1 through 4, and
-7.9% of players have a missing level row. Counting rows would silently
-mis-level every one of them.
+Read the level from `upgrade_info`, not by counting rows. The high 16 bits are
+1, 3, 7, or 15 for levels 1 to 4. 7.9% of players are missing a level row, and
+counting rows would give them the wrong levels.
 
-What this data is for: distinguishing how a hero is being played. But note the
-measured limit -- ability state predicts a player's build archetype poorly
-early (AUC 0.607 from the first ability, at ~13s) and only becomes informative
-around 480-600s, by which point their purchases say more (0.854). Final levels
-are useless for this: everyone maxes everything. So these features are read at
-a mid-match instant, and they support clustering rather than in-match
-inference.
+Ability levels say little about a player's archetype early in a match. From
+the first point (around 13s) they predict it with AUC 0.607, and by 480-600s,
+when they become useful, purchases predict it better (0.854). Final levels say
+nothing, because everyone maxes everything.
 """
 
 from __future__ import annotations
@@ -39,29 +32,27 @@ from . import assets
 
 log = logging.getLogger(__name__)
 
-# upgrade_info >> 16 -> ability level. A bitmask of levels reached, so each
-# value is the previous one with another bit set.
+# Maps upgrade_info >> 16 to ability level. The value is a bitmask with one
+# bit per level reached.
 LEVEL_BITS = {1: 1, 3: 2, 7: 3, 15: 4}
 
 MAX_ABILITY_LEVEL = 4
 N_SIGNATURE_SLOTS = 4
 
-# When to read ability state for archetype features. Levels vary meaningfully
-# here; by match end they are saturated and carry almost no signal.
+# When `ability_features` reads ability levels. At 8 minutes players still
+# differ; by match end everyone is maxed.
 ARCHETYPE_READ_TIME_S = 480.0
 
-# Ability ids with no signature slot in the hero assets get this, rather than
-# being dropped, so row counts reconcile against the raw array and the gap
-# stays visible.
+# Slot for ability ids that don't map to a signature slot. These rows are kept,
+# not dropped, so row counts still match the raw data.
 UNMAPPED_SLOT = -1
 
 
 def ability_level(upgrade_info: int) -> int:
-    """Ability level encoded in the high word of `upgrade_info`.
+    """The ability level stored in the high 16 bits of `upgrade_info`.
 
-    Returns 0 for an unrecognized encoding rather than guessing, so a patch
-    that changes the format shows up as zeros instead of plausible-looking
-    wrong levels.
+    Returns 0 for an unknown value, so if a patch changes the format the
+    levels show up as zeros instead of believable wrong numbers.
     """
     return LEVEL_BITS.get(int(upgrade_info) >> 16, 0)
 
@@ -69,11 +60,9 @@ def ability_level(upgrade_info: int) -> int:
 def clean_ability_points(
     player: dict[str, Any], upgrade_ids: frozenset[int]
 ) -> list[dict[str, Any]]:
-    """Ability level-ups for one player, in true chronological order.
+    """One player's ability points, sorted by time.
 
-    The complement of `features.clean_purchases`: everything in the `items`
-    array that is not a purchasable upgrade. Sorted by time, since array order
-    is not reliable in the source data.
+    Everything in `items` that `features.clean_purchases` drops.
     """
     spends = [
         entry
@@ -89,7 +78,7 @@ def ability_rows(
     upgrade_ids: frozenset[int],
     slots: dict[int, int] | None = None,
 ) -> list[dict[str, Any]]:
-    """Flatten one player's ability spends into table rows."""
+    """One player's ability points as rows: ability_id, signature_slot, level, game_time_s."""
     slots = assets.signature_slots() if slots is None else slots
     rows = []
     for entry in clean_ability_points(player, upgrade_ids):
@@ -106,10 +95,10 @@ def ability_rows(
 
 
 def ability_state_at(rows: pd.DataFrame, at_time: float) -> dict[int, int]:
-    """Level of each signature slot as of `at_time`, for one player.
+    """One player's level in each signature slot at `at_time`.
 
-    Takes the maximum level reached rather than the last row, because a
-    player's missing level rows would otherwise make their state jump around.
+    Uses the highest level reached, not the last row, so a missing level row
+    doesn't make a level go backwards.
     """
     state = {slot: 0 for slot in range(1, N_SIGNATURE_SLOTS + 1)}
     if rows.empty:
@@ -126,14 +115,13 @@ def ability_state_at(rows: pd.DataFrame, at_time: float) -> dict[int, int]:
 def ability_features(
     df: pd.DataFrame, at_time: float = ARCHETYPE_READ_TIME_S
 ) -> pd.DataFrame:
-    """Per-player ability state, indexed by (match_id, player_slot).
+    """Each player's ability levels at `at_time`, indexed by (match_id, player_slot).
 
-    Columns are `lvl_1` .. `lvl_4` -- the level of each signature slot at
-    `at_time` -- plus `first_slot`, which slot the player invested in first.
+    Columns are `lvl_1` to `lvl_4`, the level of each signature slot, and
+    `first_slot`, the slot that got the first point.
 
-    Read at a mid-match instant by default. Final levels do not discriminate:
-    measured on Ivy the four means are 3.62/3.70/3.71/3.82, because everyone
-    eventually maxes everything.
+    The default time is mid-match because final levels are all nearly the
+    same. On Ivy the four final means are 3.62, 3.70, 3.71, and 3.82.
     """
     keys = ["match_id", "player_slot"]
     valid = df[df["signature_slot"] != UNMAPPED_SLOT]
@@ -154,8 +142,8 @@ def ability_features(
         .rename("first_slot")
     )
 
-    # Reindex over every player present, so a player whose abilities are all
-    # unmapped still appears with zeros rather than vanishing from the join.
+    # Include every player, so one whose abilities are all unmapped gets zeros
+    # instead of disappearing.
     everyone = df[keys].drop_duplicates().set_index(keys).index
     out = levels.reindex(everyone).fillna(0.0)
     out["first_slot"] = first.reindex(everyone).fillna(0).astype(int)
@@ -163,11 +151,7 @@ def ability_features(
 
 
 def order_index(df: pd.DataFrame) -> pd.DataFrame:
-    """Ordinal position at which each slot first reached level 1.
-
-    The leveling *order*, which is what carries playstyle information --
-    unlike the final allocation, which saturates.
-    """
+    """For each slot, whether it was unlocked 1st, 2nd, 3rd, or 4th (0 if never)."""
     keys = ["match_id", "player_slot"]
     firsts = (
         df[(df["level"] == 1) & (df["signature_slot"] != UNMAPPED_SLOT)]
@@ -189,35 +173,25 @@ def order_index(df: pd.DataFrame) -> pd.DataFrame:
 def point_order_features(
     df: pd.DataFrame, levels: tuple[int, ...] = (2, 3, 4)
 ) -> pd.DataFrame:
-    """How far into a player's spending each slot reached each level.
+    """When each slot reached each level, as a fraction of the player's points.
 
-    Twelve columns, `pt_1_l2` .. `pt_4_l4`: the point at which signature slot
-    *s* reached level *L*, as a fraction of that player's total ability points.
-    A slot never reaching a level reads 1.0, which sorts after every slot that
-    did -- "not by the end" is the honest reading, and it keeps the column
-    ordered rather than punching a hole in it.
+    Twelve columns, `pt_1_l2` to `pt_4_l4`. `pt_s_lL` is the point at which
+    slot s reached level L, divided by the player's total ability points. A
+    slot that never reached the level gets 1.0, which sorts after every slot
+    that did.
 
-    **This is the ability feature that carries playstyle, and it is not
-    `ability_features`.** That one reads levels at a fixed instant, which is a
-    snapshot of state; `CONTEXT.md` says of items that a build is a sequence and
-    not an inventory, and the same holds here. State was measured and rejected
-    for the archetype clustering (see the module docstring in `archetype.py`),
-    and **order was measured separately and rejected there too** --
-    `docs/adr/0003-ability-order-out-of-the-clustering.md`. What survives that
-    rejection is the claim these columns were built on: order does vary across
-    a hero's archetypes. On Ivy 67% of one cluster maxes Stone Form first
-    against 9% of another, where the largest gap in levels at 480s was 0.48 of
-    4, and Ivy keeps all three archetypes under every order fit tried. Order
-    describes archetypes; it does not find them, which is why these columns
-    serve the sequence model and the naming rather than the clustering.
+    Position is counted in points, not seconds, because players level at
+    different speeds.
 
-    Ordering by point rather than by clock because players level at different
-    speeds; the fifth point is the fifth decision whenever it was taken.
+    Order separates a hero's archetypes better than levels at a fixed time
+    do. On Ivy, 67% of one archetype maxes Stone Form first against 9% of
+    another, while the biggest gap in levels at 480s was 0.48. Even so, order
+    was tested as a clustering input and rejected (ADR 0003), so these columns
+    are for describing and naming archetypes, not finding them.
 
-    Level *L* is read as the first point where the recorded level is **at least**
-    L, not exactly L. 7.9% of players have a missing level row, and exact
-    matching would report those slots as never reaching a level they plainly
-    reached.
+    Level L is reached at the first point where the recorded level is at
+    least L. Requiring exactly L would miss the 7.9% of players with a missing
+    level row.
     """
     keys = ["match_id", "player_slot"]
     ordered = df.sort_values(keys + ["game_time_s"]).copy()
@@ -249,29 +223,22 @@ def residual_point_order_features(
     form: str = "mean",
     levels: tuple[int, ...] = (2, 3, 4),
 ) -> pd.DataFrame:
-    """`point_order_features`, measured against the player's own hero.
+    """`point_order_features` relative to the average for the player's hero.
 
-    Raw order is largely hero-constant: a hero front-loads the same ability for
-    almost everyone who plays it, so the raw columns mostly re-encode hero
-    identity -- which the fit already conditions on, since `fit_hero` runs one
-    hero at a time. What is left after the hero's own average is removed is
-    where *this* player diverged from what everyone on that hero does, which is
-    the only part a per-hero clustering can use.
+    Most players on a hero level abilities in the same order, so the raw
+    columns mostly identify the hero. Clustering already runs one hero at a
+    time, so only the difference from the hero's average is useful.
 
-    Two residual forms, because the right one is a measurement rather than a
-    preference:
+    `form` picks how the difference is taken:
 
-        mean    the column minus that hero's mean of the column. Keeps the
-                units of the raw feature (a fraction of the player's points),
-                so a 0.2 residual means the same thing in every column.
-        rank    the column's within-hero percentile, centred on 0. Immune to
-                the heavy tie mass at 1.0 ("never reached"), which drags the
-                mean toward the players who skipped a level entirely.
+        mean    the value minus the hero's mean. Stays in the raw units, a
+                fraction of the player's points.
+        rank    the value's percentile within the hero, minus 0.5. Not pulled
+                around by the many ties at 1.0 ("never reached"), which drag
+                the mean.
 
-    Centring inside the hero makes each column mean ~0 per hero, so
-    `scale_block` divides by a mean row L1 that is now a spread rather than a
-    level. That is the intended footing: the block's mass becomes how far
-    players sit from their hero's habit, not how big the habit is.
+    Each column now averages about 0 per hero, so `scale_block` scales by
+    how far players spread from their hero's habit.
     """
     if form not in {"mean", "rank"}:
         raise ValueError(f"unknown residual form {form!r}; want 'mean' or 'rank'")
@@ -290,15 +257,10 @@ def residual_point_order_features(
 
 
 def first_maxed_slot(df: pd.DataFrame) -> pd.Series:
-    """Which signature slot each player took to level 4 first.
+    """The signature slot each player took to level 4 first, or 0 if none.
 
-    The single most legible summary of an ability order, and the one a player
-    would recognise: the ability maxed first is maxed for most of the match,
-    the one maxed last for a few minutes. Reported for review sheets and
-    archetype naming rather than fed to the clustering, which reads the full
-    `point_order_features` instead.
-
-    Players who max nothing get 0.
+    This is the one-line summary of an ability order that players recognize.
+    Review sheets and archetype naming use it.
     """
     keys = ["match_id", "player_slot"]
     valid = df[df["signature_slot"] != UNMAPPED_SLOT]
@@ -315,11 +277,10 @@ def first_maxed_slot(df: pd.DataFrame) -> pd.Series:
 def reconcile(
     n_purchases: int, n_abilities: int, n_raw: int
 ) -> tuple[bool, str]:
-    """Check that the two paths together account for every raw entry.
+    """Check that purchases plus ability points equals the raw entry count.
 
-    The single most valuable check in the ability pipeline: purchases and
-    abilities partition the `items` array, so any drift means one path is
-    silently dropping records.
+    Every `items` entry is one or the other, so a mismatch means one path is
+    dropping entries. Returns (ok, message).
     """
     total = n_purchases + n_abilities
     ok = total == n_raw

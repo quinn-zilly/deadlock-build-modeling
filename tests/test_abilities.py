@@ -1,8 +1,8 @@
-"""Ability leveling recovery, and the defects it has to survive.
+"""Reading ability points from the `items` list, and the features built on them.
 
-The load-bearing one: level comes from `upgrade_info`, never from a running
-count. 7.9% of players have a missing level row, so counting would mis-level
-every one of them silently.
+The most important check: the level comes from `upgrade_info`, not from
+counting rows. 7.9% of players are missing a level row, and counting would
+give them wrong levels.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from deadlock import abilities, assets
 
 ABILITIES = Path("data/processed/abilities.parquet")
 
-# Two ability ids and one upgrade id, standing in for the asset join.
+# Two ability ids and one upgrade id, in place of the real asset data.
 FIRE = 100
 ICE = 200
 DASH = 300
@@ -26,7 +26,7 @@ SLOTS = {FIRE: 1, ICE: 2, DASH: 3}
 
 
 def entry(item_id: int, t: int, level: int = 1) -> dict:
-    """One `items` array entry, with the level encoded as the game does."""
+    """One `items` entry, with the level encoded the way the game does it."""
     bits = {1: 1, 2: 3, 3: 7, 4: 15}[level]
     return {"item_id": item_id, "game_time_s": t, "upgrade_info": (bits << 16) | 1}
 
@@ -57,11 +57,11 @@ class TestAbilityLevel:
         assert abilities.ability_level((bits << 16) | 1) == expected
 
     def test_ignores_the_low_word(self):
-        """The low word is always 1 and carries nothing."""
+        """The low 16 bits (always 1 in real data) don't affect the level."""
         assert abilities.ability_level((7 << 16) | 9999) == 3
 
     def test_unknown_encoding_is_zero_not_a_guess(self):
-        """A patch changing the format must show as zeros, not plausible levels."""
+        """An unknown encoding decodes to 0, so a format change is easy to spot."""
         assert abilities.ability_level((5 << 16) | 1) == 0
 
     def test_zero_is_zero(self):
@@ -75,13 +75,13 @@ class TestCleanAbilityPoints:
         assert [e["item_id"] for e in got] == [FIRE, ICE]
 
     def test_sorts_by_time(self):
-        """Source arrays are not reliably ordered."""
+        """Ability points come back in time order, whatever order the source has."""
         p = player([entry(ICE, 300), entry(FIRE, 10), entry(DASH, 100)])
         got = abilities.clean_ability_points(p, UPGRADES)
         assert [e["game_time_s"] for e in got] == [10, 100, 300]
 
     def test_is_the_complement_of_clean_purchases(self):
-        """Together the two paths must partition the array, leaving nothing."""
+        """Every `items` entry is either a purchase or an ability point, never both or neither."""
         from deadlock import features
 
         entries = [entry(FIRE, 10), entry(ITEM, 20), entry(ICE, 30), entry(ITEM, 40)]
@@ -104,7 +104,7 @@ class TestAbilityRows:
         assert [r["signature_slot"] for r in rows] == [1, 2]
 
     def test_unmapped_ability_is_flagged_not_dropped(self):
-        """Hero 80's abilities have no signature entry; counts must reconcile."""
+        """An ability with no signature slot is kept with UNMAPPED_SLOT, not dropped."""
         p = player([entry(FIRE, 10), entry(777, 20)])
         rows = abilities.ability_rows(p, UPGRADES, SLOTS)
         assert len(rows) == 2
@@ -115,11 +115,7 @@ class TestAbilityRows:
         assert abilities.ability_rows(p, UPGRADES, SLOTS)[0]["level"] == 3
 
     def test_does_not_count_rows_for_level(self):
-        """The defect this guards: a player missing level 2 must not read as 1,2,3.
-
-        Three rows at levels 1, 3 and 4 must decode as 1, 3, 4 -- a running
-        count would report 1, 2, 3 and be wrong for 7.9% of players.
-        """
+        """Rows at levels 1, 3, and 4 decode as 1, 3, 4, not 1, 2, 3."""
         p = player([entry(FIRE, 10, 1), entry(FIRE, 20, 3), entry(FIRE, 30, 4)])
         rows = abilities.ability_rows(p, UPGRADES, SLOTS)
         assert [r["level"] for r in rows] == [1, 3, 4]
@@ -139,7 +135,7 @@ class TestAbilityStateAt:
         assert abilities.ability_state_at(rows, 60) == {1: 0, 2: 0, 3: 0, 4: 0}
 
     def test_takes_max_not_last(self):
-        """Out-of-order rows must not make state go backwards."""
+        """A slot's level is the highest reached, so out-of-order rows can't lower it."""
         rows = table([(0, 1, 3, 100), (0, 1, 1, 90)])
         assert abilities.ability_state_at(rows, 200)[1] == 3
 
@@ -158,7 +154,7 @@ class TestAbilityFeatures:
         assert early["lvl_1"].iloc[0] == 1
 
     def test_default_read_time_is_mid_match(self):
-        """Final levels saturate -- Ivy averages 3.6-3.8 on all four."""
+        """Levels are read mid-match, because at the end Ivy averages 3.6-3.8 on all four."""
         assert abilities.ARCHETYPE_READ_TIME_S == 480.0
 
     def test_records_first_slot(self):
@@ -171,7 +167,7 @@ class TestAbilityFeatures:
         assert all(f"lvl_{i}" in got.columns for i in range(1, 5))
 
     def test_unmapped_player_survives_as_zeros(self):
-        """Dropping them would silently shrink the join."""
+        """A player with only unmapped abilities still gets a row of zeros."""
         rows = table([(0, abilities.UNMAPPED_SLOT, 1, 10)])
         got = abilities.ability_features(rows)
         assert len(got) == 1
@@ -190,7 +186,7 @@ class TestOrderIndex:
         assert abilities.order_index(rows)["order_4"].iloc[0] == 0
 
     def test_ignores_higher_levels(self):
-        """Order is about when a slot was first touched."""
+        """order_index uses only level 1, when each slot was unlocked."""
         rows = table([(0, 1, 1, 10), (0, 1, 2, 20), (0, 2, 1, 30)])
         got = abilities.order_index(rows)
         assert got["order_1"].iloc[0] == 1
@@ -198,29 +194,28 @@ class TestOrderIndex:
 
 
 class TestPointOrderFeatures:
-    """The feature that separates archetypes where ability *state* could not."""
+    """When each slot reached each level, as a fraction of the player's points."""
 
     def test_position_is_a_fraction_of_the_player_s_points(self):
         rows = table(
             [(0, 1, 1, 10), (0, 1, 2, 20), (0, 2, 1, 30), (0, 2, 2, 40)]
         )
         got = abilities.point_order_features(rows)
-        # Four points; slot 1 hits level 2 on the second (index 1) -> 1/4.
+        # Four points. Slot 1 reaches level 2 on the second point (index 1), so 1/4.
         assert got["pt_1_l2"].iloc[0] == pytest.approx(0.25)
         assert got["pt_2_l2"].iloc[0] == pytest.approx(0.75)
 
     def test_a_level_never_reached_reads_one(self):
-        """Not by the end sorts after every slot that got there."""
+        """A level never reached gets 1.0, later than any level that was reached."""
         rows = table([(0, 1, 1, 10), (0, 1, 2, 20)])
         got = abilities.point_order_features(rows)
         assert got["pt_1_l4"].iloc[0] == 1.0
         assert got["pt_3_l2"].iloc[0] == 1.0
 
     def test_a_missing_level_row_does_not_hide_the_level(self):
-        """7.9% of players skip a level row; exact matching would lose them.
+        """A player recorded at level 1 and then 3 counts as having reached level 2.
 
-        A player recorded at level 1 then level 3 plainly passed level 2, and
-        reporting 'never reached level 2' would be wrong about the game.
+        7.9% of players are missing a level row.
         """
         rows = table([(0, 1, 1, 10), (0, 1, 3, 20)])
         got = abilities.point_order_features(rows)
@@ -228,7 +223,7 @@ class TestPointOrderFeatures:
         assert got["pt_1_l2"].iloc[0] == got["pt_1_l3"].iloc[0]
 
     def test_ordered_by_point_not_by_clock(self):
-        """Two players who level identically but at different speeds match."""
+        """Two players with the same order at different speeds get the same features."""
         fast = table([(0, 1, 1, 10), (0, 1, 2, 20), (0, 2, 1, 30)])
         slow = table([(0, 1, 1, 100), (0, 1, 2, 400), (0, 2, 1, 900)])
         assert abilities.point_order_features(fast).values.tolist() == (
@@ -247,17 +242,16 @@ class TestPointOrderFeatures:
         ]
 
     def test_unmapped_slots_are_ignored_but_still_count_as_points(self):
-        """An unmapped ability is a spent point even if it has no slot."""
+        """An unmapped ability has no column but still counts toward the total points."""
         rows = table([(0, abilities.UNMAPPED_SLOT, 1, 5), (0, 1, 2, 10)])
         got = abilities.point_order_features(rows)
         assert got["pt_1_l2"].iloc[0] == pytest.approx(0.5)
 
     def test_separates_a_real_hero_the_state_features_could_not(self):
-        """Holliday's gun archetype takes its third slot far earlier.
+        """On real data, Holliday's gun archetype levels its third slot much earlier.
 
-        Pinned on real data because this is the claim the whole ability
-        reversal rests on: order carries playstyle where levels at 480s did
-        not. If this stops holding, the feature has stopped earning its place.
+        This is the evidence that order differs between archetypes where levels
+        at 480s didn't. If it stops holding, these features aren't useful.
         """
         if not ABILITIES.exists():
             pytest.skip("requires the processed ability table")
@@ -278,12 +272,10 @@ class TestPointOrderFeatures:
 
 
 class TestResidualPointOrderFeatures:
-    """Order measured against the hero's own average, not against the roster.
+    """Point order relative to the player's hero, not to all players.
 
-    Rejected as a clustering block -- see
-    `docs/adr/0003-ability-order-out-of-the-clustering.md` -- but kept as the
-    apparatus behind that measurement, including the finding that hero identity
-    carries 43% of the raw variance.
+    Rejected as a clustering input (ADR 0003), but kept because the scripts
+    behind that decision use it.
     """
 
     @staticmethod
@@ -300,7 +292,7 @@ class TestResidualPointOrderFeatures:
         assert got["pt_1_l2"].mean() == pytest.approx(0.0)
 
     def test_two_heroes_are_centred_separately(self):
-        """The whole point: a hero's habit is removed, not the roster's."""
+        """Each hero is centered on its own mean, not the mean of all heroes."""
         rows = self.heroed(
             table([(0, 1, 2, 10), (0, 2, 1, 20), (1, 1, 1, 10), (1, 1, 2, 20)]),
             {0: 7, 1: 8},
@@ -324,8 +316,8 @@ class TestResidualPointOrderFeatures:
         )
         raw = abilities.point_order_features(rows)
         got = abilities.residual_point_order_features(rows, form="rank")
-        # A percentile, so the hero's latest player sits at the top of the
-        # range and the order of the raw column survives.
+        # A percentile, so the latest player is at the top and the raw order
+        # is kept.
         assert got["pt_1_l2"].max() == pytest.approx(0.5)
         assert got["pt_1_l2"].rank().tolist() == raw["pt_1_l2"].rank().tolist()
 
@@ -399,7 +391,7 @@ class TestAgainstRealData:
         return pd.read_parquet(ABILITIES)
 
     def test_every_level_decoded(self):
-        """A level of 0 means an encoding this code does not understand."""
+        """No real row decodes to level 0, which would mean an unknown encoding."""
         assert (self.load()["level"] == 0).sum() == 0
 
     def test_levels_are_in_range(self):
@@ -408,7 +400,7 @@ class TestAgainstRealData:
         assert levels.max() <= abilities.MAX_ABILITY_LEVEL
 
     def test_unmapped_slots_are_negligible(self):
-        """Only hero 80 (Silver) should be unmapped, at ~0.015%."""
+        """Only hero 80 (Silver) has unmapped abilities, about 0.015% of rows."""
         df = self.load()
         unmapped = (df["signature_slot"] == abilities.UNMAPPED_SLOT).mean()
         assert unmapped < 0.001
@@ -419,14 +411,13 @@ class TestAgainstRealData:
         assert bad["hero_id"].nunique() == 1
 
     def test_every_player_levels_abilities(self):
-        """Zero players had no ability spends when this was measured."""
+        """The ability table covers over 290,000 players, so almost no one is missing."""
         df = self.load()
         assert df.groupby(["match_id", "player_slot"]).ngroups > 290_000
 
 
 class TestSamePlayersAsPurchases:
-    """The ability table kept the same abandon and draw players as the imbue
-    table did (#41); `features.in_scope` now filters both."""
+    """Every player in the ability table is in the purchase table (#41)."""
 
     PURCHASES = Path("data/processed/purchases.parquet")
     KEY = ["match_id", "player_slot"]

@@ -1,28 +1,20 @@
 #!/usr/bin/env python
-"""Do the ability features earn a place in the archetype clustering?
+"""Sweep the weight of an ability feature block in the archetype clustering.
 
-`archetype.py` records that ability features were tried and removed: adding
-ability *levels* monotonically degraded the fit, with Ivy falling 0.508 ->
-0.421 -> 0.361 -> 0.274 as the weight went 0 -> 0.25 -> 0.5 -> 1.0. That
-measurement stands, and it is why the prior here is against these features.
+For each hero and each weight in WEIGHTS, fits archetypes with the block
+added and prints k, separation, and silhouette. Blocks:
 
-But what it measured was ability state at a fixed instant. Two features were
-never tried:
+    order   when each ability reached each level, in points
+    imbue   which ability each imbueable item was aimed at
+    both    each of the above, separately
+    joint   both blocks in the fit together
 
-    point order   how far into a player's spending each ability reached each
-                  level -- a sequence, where levels at 480s are an inventory
-    imbue         which ability the build points its imbueable items at
+Both blocks were later rejected from the clustering (ADR 0001 for imbue, ADR
+0003 for order). This script is the rough view across weights. The per-hero
+comparisons behind those decisions are `compare_imbue_fits.py` and
+`compare_order_fits.py`.
 
-So this runs the same sweep on the same criterion, and the same rule applies:
-if separation falls monotonically, the feature goes back to naming only.
-
-**Both have since been decided, and both went back to naming only** --
-`docs/adr/0001-imbue-out-of-the-clustering.md` for imbue and
-`docs/adr/0003-ability-order-out-of-the-clustering.md` for order. This sweep is
-the exploratory view over weights; the per-hero split accounting that decided
-each one is `scripts/compare_imbue_fits.py` and `scripts/compare_order_fits.py`.
-
-    python scripts/sweep_ability_features.py [--heroes N] [--block order|imbue|both]
+    python scripts/sweep_ability_features.py [--heroes A,B,...] [--block order|imbue|both|joint]
 """
 
 from __future__ import annotations
@@ -43,9 +35,8 @@ IMBUES = Path("data/processed/imbues.parquet")
 
 WEIGHTS = (0.0, 0.25, 0.5, 1.0)
 
-# The heroes the original ability sweep reported on, plus the ones this work
-# predicts should gain: Doorman, Rem and Pocket all show order structure that
-# the item features cannot see.
+# The heroes from the original ability-level sweep, plus The Doorman, Rem, and
+# Pocket, whose ability order varies in ways their items don't show.
 DEFAULT_HEROES = (
     "Ivy", "Haze", "Dynamo", "Bebop", "Wraith",
     "Holliday", "Lady Geist", "Paradox", "The Doorman", "Rem", "Pocket",
@@ -88,9 +79,7 @@ def main() -> int:
         return 1
 
     if args.block == "joint":
-        # What would actually ship: both blocks in the fit together. Sweeping
-        # them separately says whether each can help; only this says whether
-        # they help at the same time.
+        # Both blocks in one fit, since that's what would ship.
         joint = [
             archetype.scale_block(available[name], 1.0)
             for name in ("order", "imbue")
@@ -149,13 +138,10 @@ def main() -> int:
             base_k = int(ks.loc[hero, 0.0])
             best_weight = row.idxmax()
             best_k = int(ks.loc[hero, best_weight])
-            # A hero that was k=1 has no separation to compare against. NaN
-            # there means "there was no split", not "the split got worse", and
-            # reporting it as a degradation buries the most interesting result
-            # available: a playstyle the item features could not see.
+            # NaN separation means k=1, no split, which is not the same as a
+            # worse split. A hero going from k=1 to a split is a new split.
             if row.isna().all():
-                # k=1 at every weight: the hero has one build and the feature
-                # did not invent a second. Not a degradation.
+                # k=1 at every weight.
                 print(f"  {hero:12s} no split at any weight")
                 continue
             if base_k == 1 and best_k > 1 and row.max() >= archetype.MIN_SEPARATION:

@@ -1,9 +1,7 @@
-"""A refit must not leave the CLI serving models fitted on the old tables.
+"""refit.py deletes the CLI's cached models that the refit makes stale.
 
-The CLI caches its fitted models beside the tables and reuses them for as long
-as the file exists. `refit.py` used to rebuild every table under those caches
-and leave them in place, so after a refit the CLI still answered from models
-two weeks older than the tables.
+The CLI reuses a cached model as long as the file exists. Before refit.py
+deleted them, the CLI kept answering from models older than the tables.
 """
 
 from __future__ import annotations
@@ -58,12 +56,12 @@ class TestClearCaches:
         assert not (tmp_path / "counter_lifts.parquet").exists()
 
     def test_counters_stay_when_the_purchase_table_does(self, tmp_path):
-        # They read only the purchase table, which a later start keeps.
+        # Counter lifts read only the purchase table, which a later start keeps.
         refit.clear_caches(processed(tmp_path), "archetypes")
         assert (tmp_path / "counter_lifts.parquet").exists()
 
     def test_a_rebuild_of_the_builds_alone_keeps_the_models(self, tmp_path):
-        # Neither the tables nor the labels change after the archetype step.
+        # No table or label changes after the archetype step.
         refit.clear_caches(processed(tmp_path), "builds")
         assert all((tmp_path / name).exists() for name in MODELS)
 

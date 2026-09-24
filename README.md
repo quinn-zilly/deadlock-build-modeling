@@ -1,40 +1,38 @@
 # deadlock-build-modeling
 
-Modeling **what order to buy items in, and when** for Deadlock players.
+Tells a Deadlock player what items to buy, in what order, and when.
 
-Item win rates and pick rates are easy to look up. The harder question, and the
-one this project answers, is sequencing: what to buy first, when to buy it, and
-when to diverge from the standard build.
+Win rates and pick rates for single items are easy to look up. The order is
+harder: what to buy first, when to buy it, and when to leave the standard
+build. This project answers that in two ways:
 
-Two products:
+- `deadlock build` gives a full ordered build for a hero and archetype before
+  a match.
+- `deadlock next` takes what you own and the game clock during a match and
+  says what to buy next.
 
-- **Pre-match build maker** — a full ordered build for a hero and playstyle.
-- **In-match advisor** — given what you own and the clock, what to buy next.
+## How it works
 
-## Approach
+The model copies what strong players buy. It never claims an item causes a
+win, only that strong players buy it, in this order, at about this time. An
+earlier version tried to estimate how much each item adds to win rate. It
+passed every aggregate check and still left out every item that at least 70%
+of Wraith players buy. `docs/DIAGNOSIS.md` explains why it was dropped.
 
-The model **imitates observed play**. It does not estimate causal item effects.
-An earlier version of this project did, and `docs/DIAGNOSIS.md` records why that
-was abandoned: the estimator cleared every aggregate gate while producing
-builds that omitted every item ≥70% of Wraith players buy. Imitation
-sidesteps the confounding entirely, because it never claims an item *causes* a
-win — only that strong players buy it, in this order, at about this time.
+Advice is per hero and archetype, not per hero. Ivy players split into a gun
+build and a spirit build that share few items, and an average of the two
+serves neither. Archetypes are fitted separately for each hero. 31 of 38
+heroes split, for 80 hero and archetype pairs, and the other seven keep one
+archetype. Each archetype has a name no other archetype of that hero uses, so
+a player can always ask for it.
 
-Recommendations are conditioned on **(hero, archetype)**, not hero alone.
-Heroes are played in materially different ways: Ivy splits cleanly into a gun
-build and a spirit build that share few items, and averaging them produces a
-build serving neither. Archetypes are fit per hero: 31 of 38 heroes
-split, and the seven that do not stay single. Every archetype of a hero has a
-name that selects only it -- two clusters sharing one name is a build a player
-cannot ask for.
+The model is a backoff table of purchase counts, not a neural network. A
+hero and archetype pair has a median of 3,232 player-matches, and every
+recommendation traces to a table row with its count. `deadlock why` prints
+those rows.
 
-The model is a **backoff frequency table**, deliberately not a neural network.
-Conditioning on hero × archetype leaves a median of 3,232 player-matches per
-cell, and every recommendation stays traceable to a table row with its
-observation count — which matters in a project already burned once by a model
-that produced a number and no recourse.
-
-Six levels, most specific first, interpolated rather than hard-switched:
+The table has six levels, most specific first. The model mixes all six,
+weighting each by how much data backs it:
 
     L0  (hero, archetype, last two items, time bucket)
     L1  (hero, archetype, last item, time bucket)
@@ -43,32 +41,31 @@ Six levels, most specific first, interpolated rather than hard-switched:
     L4  (hero, purchases so far)
     L5  (hero)
 
-### Measured, held out, owned items excluded
+## Results
 
-Top-1, match split, measured 2026-09-15 on the post-re-pull population. Every
-row of a column comes from one `scripts/score_sequence.py` run, so the columns
-compare within themselves and not across the table:
+Top-1 accuracy at predicting a player's next purchase, on held-out matches,
+counting only items the player doesn't already own. One run of
+`scripts/score_sequence.py` on 2026-09-15 produced every number in the table:
 
 | | all heroes | Wraith |
 |---|---|---|
-| popularity | 0.134 | 0.149 |
-| modal at position | 0.212 | 0.251 |
-| bigram (the bar) | 0.265 | 0.277 |
-| **backoff chain** | **0.362** | **0.384** |
+| most popular item | 0.134 | 0.149 |
+| most common item at that position | 0.212 | 0.251 |
+| bigram, the bar to beat | 0.265 | 0.277 |
+| **backoff table** | **0.362** | **0.384** |
 
-The match-vs-account gap is 0.003, so the model is learning strategy rather
-than memorising individual players; the match-vs-time gap is 0.009, which is
-patch drift. Both gaps come from the same run as the table.
+Splitting by account instead of by match changes accuracy by 0.003, so the
+model learns strategy, not individual players. Splitting by time changes it by
+0.009, which is patch drift. Both come from the same run.
 
-These are **not** the 0.391 / 0.406 measured on 2026-09-04. That file is gone
-and the two do not compare; the bar moved with them, and the backoff chain
-still clears the bigram by 0.097 on all heroes.
+Older docs and issues quote 0.391 and 0.406 from 2026-09-04. That run used a
+different population, so the numbers don't compare with these.
 
-All **80 hero × archetype builds** carry every item ≥70% of that archetype's
-players buy, at median Kendall tau +0.794 against the population's own
-purchase order, and mean Jaccard@12 0.409 against a player-vs-player ceiling
-of 0.339. Measured on the 2026-09-15 population, in the run that generated
-them.
+All 80 generated builds contain every item that at least 70% of that
+archetype's players buy. Against the order players actually buy in, the median
+Kendall tau is +0.794. Mean Jaccard@12 against real players is 0.409, higher
+than the 0.339 two real players of the same archetype score against each
+other. These come from the 2026-09-15 run that generated the builds.
 
 ## Setup
 
@@ -79,193 +76,193 @@ uv venv --python 3.13
 uv pip install -e ".[dev]"
 ```
 
-Use the project venv (`.venv`), not the system Python — the system install has
-a `typeguard` that breaks pytest on 3.14.
+Run the tests with the project venv. The system Python has a `typeguard` that
+breaks pytest on 3.14.
 
 ```bash
 .venv/Scripts/python.exe -m pytest    # Windows
 .venv/bin/python -m pytest            # POSIX
 ```
 
-Tests marked `data` need the processed Parquet tables and are skipped without
-them.
-
-## Data
-
-Match data comes from the community API at
-[deadlock-api.com](https://api.deadlock-api.com) (unofficial; not endorsed by
-Valve). Pulls are cached under `data/` (gitignored), so re-running a completed
-pull costs no requests. 24,999 matches → 296,478 player-matches → 5,119,990
-purchases, as rebuilt on 2026-09-15.
-
-Each cached page also carries the match's objectives, its Mid-Boss kills and
-the community build each player had selected, so the purchase table has a
-column for the Walker kill that unlocked each of slots 10, 11 and 12, for the
-first Mid-Boss the team claimed, and for the intended build. Every one is null
-for "unknown", never zero. The schema and the measured coverage of each column
-are in the `src/deadlock/dataset.py` docstring; the mechanics behind them, and
-the three traps in the raw arrays, are in `docs/game-mechanics.md`.
-
-The population is Ranked + Normal matches, because `average_badge` — the rank
-control — is only populated for Ranked.
-
-Pulls run unauthenticated by default, paced under the per-IP rate limits. An
-API key lifts those limits several-fold; set `DEADLOCK_API_KEY` and the client
-sends it and paces faster. No command needs a key.
-
-Training uses **all** matches, with badge, outcome, and hero familiarity as row
-*weights* rather than filters. Filtering to won + high-badge costs about 9× and
-leaves the median hero with ~366 player-matches per archetype, too thin to
-model.
-
-The badge weight is **on by default**, centred at 80 -- the top 29.6% of a
-distribution whose median is 56 -- so the tool imitates strong play rather than
-median play. `--badge N` asks for another bracket and `--badge all` for none;
-each bracket caches its own model. What that buys, and what it does not, is
-measured in `docs/adr/0002-badge-weighting-on-by-default.md`.
-
-## Layout
-
-| Path | Purpose |
-|---|---|
-| `src/deadlock/api.py` | Rate-limited, disk-cached HTTP client |
-| `src/deadlock/ingest.py` | Match metadata pagination |
-| `src/deadlock/assets.py` | Item, hero, and ability lookups |
-| `src/deadlock/features.py` | Purchase cleaning, net-worth reconstruction |
-| `src/deadlock/economy.py` | Purchase tempo and tier-ladder features |
-| `src/deadlock/dataset.py` | Purchase-level table assembly |
-| `src/deadlock/splits.py` | Train/test splits and leakage rules |
-| `src/deadlock/state.py` | The buy decision point and its legal moves |
-| `src/deadlock/semantics.py` | What items do, read from their tooltips |
-| `src/deadlock/kits.py` | What abilities do, read from their descriptions |
-| `src/deadlock/archetype.py` | Per-hero build archetypes, and inferring one mid-match |
-| `src/deadlock/evaluate.py` | The prevalence gate and order metrics |
-| `src/deadlock/sequence.py` | The backoff model |
-| `src/deadlock/build.py` | Generation, with component absorption |
-| `src/deadlock/counters.py` | Items bought because of the enemy team |
-| `src/deadlock/abilityorder.py` | The order ability points are spent in |
-| `src/deadlock/imbue.py` | Which ability an imbueable item is pointed at |
-| `src/deadlock/buildfmt.py` | Build representation and in-game export |
-| `src/deadlock/cli.py` | The command line |
-| `tests/` | Regression tests for known source-data defects |
-| `scripts/refit.py` | Rebuild every derived artifact, in dependency order |
+Tests marked `data` need the processed Parquet tables and skip without them.
 
 ## Using it
 
 ```bash
 deadlock heroes --archetypes                     # what can be built
 deadlock build --hero Ivy --archetype gun        # a full ordered build
-deadlock build --hero Ivy --archetype gun --export ivy.json   # importable
+deadlock build --hero Ivy --archetype gun --export ivy.json   # importable in game
 deadlock next  --hero Ivy --owned "Extra Spirit,Mystic Burst" --time 8:30
 deadlock next  --hero Wraith --owned "..." --enemies "Lash,Vindicta"
-deadlock next  --hero Ivy --owned "..." --points "Air Drop,Air Drop"  # and where the next point goes
-deadlock watch --hero Ivy                        # a session; "+ Ricochet"
+deadlock next  --hero Ivy --owned "..." --points "Air Drop,Air Drop"  # and the next ability point
+deadlock watch --hero Ivy                        # interactive; type "+ Ricochet" as you buy
 deadlock why   --hero Ivy --item Ricochet --owned "..." --time 8:30
-deadlock build --hero Ivy --badge 55             # weighted to your own bracket
+deadlock build --hero Ivy --badge 55             # weighted to another badge
 ```
 
-`build` prints three things: the purchase order, the ability-point order, and
-the imbue targets — for each of the nine imbueable items it recommends, the
-ability that archetype actually points it at, with the count behind it. An
-imbueable item is half an instruction without that, and the export carries the
-same target in `imbue_target_ability_id`.
+`build` prints three things: the purchase order, the order to spend ability
+points, and imbue targets. Nine items are imbued into one of the hero's
+abilities. For each one in the build, `build` names the ability that
+archetype's players pick most, with the count behind it. The export stores
+the same target in `imbue_target_ability_id`.
 
-Declare your archetype when you know it. Without one the tool infers it from
-what you have bought and, while the evidence is thin, shows the plausible
-archetypes *separately* rather than blending them — a blend can recommend an
-item that neither build actually wants.
+Give `--archetype` when you know it. Without it, the tool guesses from what
+you have bought. While the evidence is thin it shows each likely archetype
+separately. Blending them could recommend an item neither build wants.
 
-`next` takes `--points` -- the ability points you have already spent, in order
--- and answers the other mid-match question: where the next one goes. It
-refuses a fifth point in an ability, which is the only illegal move an ability
-order has.
+`next --points` takes the ability points you have spent, in order, and says
+where the next one goes. It never suggests a fifth point in one ability, since
+four is the maximum.
+
+`next --enemies` lists items strong players buy against those heroes. They
+appear beside the recommendations and don't change their order.
 
 `why` prints the whole backoff chain for one item: the context at each level,
-the raw count, the mixture weight, and which level carried the mass.
+the raw count, the level's weight, and which level contributed most.
+
+Every command that gives advice weights players by badge. The default is 80,
+the Oracle tier, which was the top 29.6% of players when measured, so the
+advice follows strong players rather than the median one. `--badge N` weights
+toward another badge and `--badge all` turns weighting off. Each setting
+caches its own model. `docs/adr/0002-badge-weighting-on-by-default.md` measures
+what the weighting changes.
+
+## Data
+
+Match data comes from the community API at
+[deadlock-api.com](https://api.deadlock-api.com), which Valve doesn't endorse.
+`scripts/pull_data.py` caches every page under `data/`, which git ignores, so
+rerunning a finished pull sends no requests. The 2026-09-15 rebuild has 24,999
+matches, 296,478 player-matches, and 5,119,990 purchases.
+
+The matches are Ranked and Normal. Only Ranked matches have `average_badge`,
+the rank used for weighting.
+
+Each cached page also has the match's objectives, its Mid-Boss kills, and the
+community build each player picked. From these the purchase table records the
+Walker kill that unlocked each of slots 10, 11 and 12, the team's first
+Mid-Boss, and the player's selected build. Each is null when unknown, never
+zero. The `src/deadlock/dataset.py` docstring lists the columns and how often
+each is filled in. `docs/game-mechanics.md` explains the game rules behind them
+and three traps in the raw data.
+
+Pulls run without an API key by default, paced under the per-IP rate limits.
+Set `DEADLOCK_API_KEY` and the client sends it and runs faster. No command
+needs a key.
+
+Training uses every match, with badge as a row weight rather than a filter.
+Keeping only won, high-badge matches throws away about eight in nine rows and
+leaves the median archetype about 366 player-matches, too few to model.
+`sequence.row_weights` can also weight by wins and hero experience, but
+nothing turns those on.
 
 ## Refitting
 
-Everything derived from the cached pages rebuilds with one command, in
-dependency order -- purchases, ability points, imbues, the archetype fit, the
-builds, the page:
+One command rebuilds everything derived from the cached pages, in order:
 
 ```bash
-python scripts/refit.py                  # all six steps
-python scripts/refit.py --from archetypes  # keep the three parquet passes
+python scripts/refit.py                    # all six steps
+python scripts/refit.py --from archetypes  # reuse the three parquet tables
 python scripts/refit.py --badge all --hero Ivy
 ```
 
-It exits non-zero if any hero-and-archetype build misses a staple, so a refit
-that produced unusable builds fails rather than reporting success.
+It exits non-zero if any build is missing a staple, so a refit that makes an
+unusable build fails.
 
-It also deletes the models the `deadlock` CLI caches beside the tables
-(`sequence_model*`, `ability_model*`, and `counter_lifts.parquet` when the
-purchase table is rebuilt). The CLI reuses a cache for as long as it exists, so
-without this it would keep answering from the models fitted before the refit.
-The first CLI command after a refit refits them, about a minute each.
+It also deletes the models the `deadlock` command caches next to the tables:
+`sequence_model*`, `ability_model*`, and `counter_lifts.parquet` when it
+rebuilds the purchase table. The command uses a cached model for as long as
+the file exists, so without this it would keep answering from the old fit. The
+first command after a refit fits them again, about a minute each.
 
-Measured on 2026-09-15, over 125 cached pages / 24,999 matches, so `--from` has
-something to weigh:
+Timings from 2026-09-15, over 125 cached pages and 24,999 matches:
 
-| Step | Writes | Elapsed |
+| Step | Writes | Time |
 | --- | --- | --- |
 | `purchases` | `purchases.parquet` | 7m 25s |
 | `abilities` | `abilities.parquet` | 2m 01s |
 | `imbues` | `imbues.parquet` | 1m 23s |
 | `archetypes` | the fit, labels and review sheet | 53s |
-| `builds` | 80 builds, and the gate | 27s |
+| `builds` | 80 builds, and the staple check | 27s |
 | `site` | `builds.html` | 14s |
 
-About **12 minutes** end to end. The first three steps re-read the cached JSON
-and take 87% of it; everything downstream of the parquet files is under two
-minutes, which is why `--from archetypes` is the one worth reaching for.
+About 12 minutes in total. The first three steps reread the cached JSON and
+take 87% of that. Everything after them takes under two minutes, so use
+`--from archetypes` unless the pages changed.
 
-Archetype names a person accepted live in `data/archetype_names.json`, which is
-checked in and applied on every fit, so a refit cannot silently rename a build
-a Deadlock player already ruled on.
+Archetype names a person has approved live in `data/archetype_names.json`. The
+file is checked in and applied on every fit, so a refit can't rename a build
+someone already reviewed.
 
-## Source data caveats
+## Source data problems
 
-Defects corrected in `features.py`, each pinned by a test:
+`features.py` fixes these, and a test covers each one:
 
-- **~46% of `items` entries are ability points**, not purchases. These are not
-  noise — they carry the ability leveling order and timing, which feeds
-  archetype clustering.
-- **~11.5% of players have unsorted item arrays**, so purchase order needs a
-  sort. This one is load-bearing here: if order is wrong, every gap is wrong.
-- **~9% of purchases report a corrupt `net_worth_at_buy`** equal to the
-  player's *final* net worth, concentrated in the early game. Net worth is
-  reconstructed from the 180s stats series instead.
-- **The metadata endpoint has no per-player `won` field.** Reading it returns
-  None, which silently becomes a 0% win rate.
+- About 46% of entries in a player's `items` list are ability points, not
+  purchases. They aren't noise: `abilities.py` reads them for the order
+  players spend ability points in.
+- 11.5% of players have an `items` list out of time order, so purchases are
+  sorted. Everything here depends on purchase order.
+- 9% of purchases report the player's final net worth as `net_worth_at_buy`,
+  mostly early in the game. The code never reads that field and rebuilds net
+  worth from the stats series, which is sampled every 180 seconds.
+- The metadata endpoint has no per-player `won` field. Reading it returns
+  None, which would silently become a 0% win rate.
 
-The net-worth reconstruction recovers **rank, not absolute souls** (rank
-correlation 0.987; median relative error ~21%). Use it for relative position
-only, bucketed no finer than quintiles.
+The rebuilt net worth gets the order of players right, with rank correlation
+0.987, but the amounts are off by a median of 21%. Use it to compare players,
+and bucket it no finer than quintiles.
 
-## Measured game constants
+## Game facts the code checks
 
-Each of these contradicted an obvious assumption, and each is asserted rather
-than trusted, so a patch change fails loudly:
+Each of these went against an obvious assumption. The code asserts them, so a
+patch that changes one fails loudly:
 
-- **Tier 5 items are never purchased** — 0 rows out of 5.1M. They exist in the
-  asset file (17 items at 9999 souls) but are not in the shop this patch. The
-  real vocabulary is 156 items.
-- **The inventory cap is 12 items held**, and there is no per-slot-type cap —
-  83.5% of players hold more than four of some one type.
-- **The component DAG cannot be a hard constraint.** Only 79% of players who
-  buy a composite item ever bought its component separately.
-- **No item is ever bought twice** by the same player.
-- **Median player makes 17 purchases but holds 11–12 items**; 37.3% are sold.
-  A build is a purchase sequence, not an inventory.
-- **Most selling is component absorption, not a change of mind.** Sold rate is
-  70.6% for items that are a component of something against 6.4% for items
-  that are not (86.6% at tier 1, 1.1% at tier 4). Only ~6% of purchases are a
-  genuine strategic sell. This is the mechanism that fits 17 purchases into 12
-  slots — and the reason membership checks run over the purchase sequence, not
-  held items: Mystic Burst is bought by 96% of one archetype and sold by 95%.
-- **Buy time is linear in buy index**, about 110s per purchase. Timing is a
-  lookup, not a model.
-- **Item ids exceed int32.** 73 of the 173 shopable ids do. Stored narrower
-  they wrap negative, still sort, still aggregate, and still win an argmax —
-  so the failure is silent and looks like a merely mediocre model.
+- Nobody buys tier 5 items: 0 of 5.1M purchases. The asset file has 17 of
+  them at 9999 souls, but they aren't in the shop this patch. The real shop
+  has 156 items.
+- A player holds at most 12 items. There is no cap per slot type: 83.5% of
+  players hold more than four items of one type.
+- The component tree can't be a hard rule. Only 79% of players who buy a
+  composite item bought its component first.
+- No player buys the same item twice.
+- The median player makes 17 purchases but ends with 11 or 12 items. About
+  37% of purchases are sold. A build is a purchase sequence, not an inventory.
+- Most selling is a component making room for the item it builds into. 70.6%
+  of items that are a component get sold, against 6.4% of items that aren't.
+  By tier it is 86.6% at tier 1 and 1.1% at tier 4. Only about 6% of purchases
+  are sold because the player changed plans. So the staple check reads the
+  purchase sequence, not held items: one archetype buys Mystic Burst 96% of
+  the time and sells it 95% of the time.
+- Buy time rises in a straight line with purchase number, about 110 seconds per
+  purchase, so timing is a lookup, not a model.
+- Item ids don't fit in int32: 73 of the 173 shop ids are larger. Stored as
+  int32 they wrap negative and everything still runs, so the only symptom is a
+  worse model.
+
+## Layout
+
+| Path | What it does |
+|---|---|
+| `src/deadlock/api.py` | HTTP client with rate limiting and a disk cache |
+| `src/deadlock/ingest.py` | Pages through match metadata |
+| `src/deadlock/assets.py` | Item, hero, and ability lookups |
+| `src/deadlock/features.py` | Cleans purchases and rebuilds net worth |
+| `src/deadlock/abilities.py` | Reads ability points out of the `items` list |
+| `src/deadlock/economy.py` | Purchase tempo and tier features; only tests use it |
+| `src/deadlock/dataset.py` | Builds the purchase table |
+| `src/deadlock/splits.py` | Train and test splits that don't leak |
+| `src/deadlock/state.py` | A buy decision and the items that can be bought |
+| `src/deadlock/semantics.py` | What items do, read from their tooltips |
+| `src/deadlock/kits.py` | What abilities do, read from their descriptions |
+| `src/deadlock/archetype.py` | Fits archetypes per hero and guesses one mid-match |
+| `src/deadlock/evaluate.py` | The staple check and order metrics |
+| `src/deadlock/sequence.py` | The backoff model |
+| `src/deadlock/build.py` | Generates builds, including component absorption |
+| `src/deadlock/counters.py` | Items bought against specific enemy heroes |
+| `src/deadlock/abilityorder.py` | Models the order ability points are spent in |
+| `src/deadlock/imbue.py` | Which ability each imbued item targets |
+| `src/deadlock/buildfmt.py` | Build format and in-game export |
+| `src/deadlock/cli.py` | The `deadlock` command |
+| `scripts/refit.py` | Rebuilds every derived file in order |
+| `tests/` | Unit tests, plus `data` tests that run against the real tables |

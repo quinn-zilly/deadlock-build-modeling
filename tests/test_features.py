@@ -1,7 +1,7 @@
-"""Regression tests for the three source-data defects.
+"""The per-player helpers in features.py, including fixes for three defects in the source data.
 
-Each test encodes a defect measured on live API data (2026-09-03). If any of
-these fail, the wealth controls downstream are silently wrong.
+The defects were measured on live API data on 2026-09-03 (see the features.py
+docstring).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ def _player(items, stats, net_worth=50_000, slot=1, team="Team0"):
 
 
 class TestAbilityFiltering:
-    """Defect 1: ~46% of `items` entries are ability points, not purchases."""
+    """Defect 1: about 46% of `items` entries are ability points, not purchases."""
 
     def test_drops_non_upgrade_ids(self):
         player = _player(
@@ -66,11 +66,11 @@ class TestPurchaseOrdering:
 
 
 class TestNetWorthReconstruction:
-    """Defect 3: net_worth_at_buy is corrupt; reconstruct from the series."""
+    """Defect 3: net_worth_at_buy is sometimes wrong, so net worth is rebuilt from the series."""
 
     def test_never_reads_corrupt_field(self):
-        # net_worth_at_buy carries the final net worth on an early buy, the
-        # exact corruption seen in 9% of live records. It must be ignored.
+        # net_worth_at_buy holds the final net worth on an early purchase, as
+        # in 9% of live records. It must be ignored.
         player = _player(
             items=[{"item_id": 100, "game_time_s": 23, "net_worth_at_buy": 19_982}],
             stats=[(180, 1732), (360, 3623)],
@@ -80,8 +80,8 @@ class TestNetWorthReconstruction:
         assert got[0] < 1000, "must not echo the corrupt final net worth"
 
     def test_origin_anchor_prevents_flat_extrapolation(self):
-        # 8.8% of purchases precede the first 180s snapshot. Without a (0,0)
-        # anchor np.interp would return 1732 for a 13-second purchase.
+        # 8.8% of purchases come before the first sample at 180s. Without the
+        # (0, 0) point, np.interp would return 1732 for a purchase at 13s.
         player = _player(items=[], stats=[(180, 1732), (360, 3623)])
         got = features.networth_at(player, np.array([13.0]))
         assert got[0] == pytest.approx(1732 * 13 / 180, rel=0.01)
@@ -117,7 +117,7 @@ class TestPhase:
 
 
 class TestWithinMatchPosition:
-    """The more reliable wealth measure: same-snapshot, so bias cancels."""
+    """Net worth relative to the other players in the match."""
 
     def test_ratios_and_rank(self):
         match = {
@@ -141,11 +141,10 @@ class TestWithinMatchPosition:
 
 
 class TestPlayerWon:
-    """The metadata endpoint has no per-player `won` field.
+    """player_won reads player_match_outcome, falling back to the winning team.
 
-    Only the SQL table carries one. Reading `player.get("won")` returns None
-    for every metadata row, which silently becomes a 0% win rate and destroys
-    the label. Resolve from player_match_outcome, falling back to the team.
+    The metadata endpoint has no `won` field. Reading `player.get("won")`
+    gives None for every player, which would count as a 0% win rate.
     """
 
     def test_reads_player_match_outcome(self):
@@ -176,16 +175,15 @@ class TestPlayerWon:
         assert features.player_won({}, {}) is None
 
     def test_never_silently_false(self):
-        # The original bug: absent data must not read as a loss.
+        # Missing outcome data is None, not a loss.
         assert features.player_won({}, {"winning_team": "Team0"}) is not False
 
 
 class TestInScope:
-    """One rule for which players any per-player table may hold.
+    """in_scope decides which players every per-player table holds.
 
-    The purchase table dropped abandons and draws while the imbue table kept
-    them, so three heroes showed an imbue rate above 1.0 (#41). Every builder
-    asks this function.
+    When the purchase table dropped abandons and draws and the imbue table
+    kept them, three heroes showed imbue rates above 1.0 (#41).
     """
 
     MATCH = {"winning_team": "Team0", "match_outcome": "TeamWin"}

@@ -1,19 +1,13 @@
 #!/usr/bin/env python
-"""Convert cached match pages into the imbue Parquet table.
+"""Convert cached match pages into the imbue table (imbues.parquet).
 
-A third pass over the same pages, alongside `build_features.py` (purchases) and
-`build_abilities.py` (ability points), and a separate one for the same reason:
-`purchases.parquet` is a known-good artifact the regression tests are
-calibrated against, and regenerating it to add a column would risk that for no
-gain.
+A separate pass from `build_features.py` and `build_abilities.py`, so adding
+this table didn't mean regenerating purchases.parquet, which the tests are
+calibrated against. Only purchases of the 9 imbueable items produce rows, so
+the table is small.
 
-Only imbueable items produce rows -- 9 of 173 shopable items in practice -- so
-this table is small even though it reads every page.
-
-**Item and ability ids are int64.** 73 of 173 item ids exceed int32 and wrap
-silently to negative numbers if stored narrower; the wrapped id still sorts,
-still groups and still wins an argmax, so nothing raises and the model just
-gets quietly worse.
+Item and ability ids must be int64. 73 of 173 item ids don't fit in int32,
+and would wrap to negative numbers without an error.
 
 Usage:  python scripts/build_imbues.py [out_path] [--limit N]
 """
@@ -42,6 +36,7 @@ COLUMNS = [
 
 
 def build(pages: list[Path], limit: int | None = None) -> tuple[pd.DataFrame, dict]:
+    """Read imbued purchases from cached pages. Returns the table and counts."""
     imbueable = imbue.imbueable_items()
     slots = assets.signature_slots()
     upgrade_ids = assets.upgrade_ids()
@@ -55,8 +50,8 @@ def build(pages: list[Path], limit: int | None = None) -> tuple[pd.DataFrame, di
         tally["matches"] += 1
         match_id = match.get("match_id")
         for player in match.get("players") or []:
-            # The purchase table's population, so a rate that divides one
-            # table by the other cannot exceed 1.0 (#41).
+            # Same players as the purchase table, so imbue rates can't exceed
+            # 1.0 (#41).
             if not features.in_scope(player, match, upgrade_ids):
                 continue
             tally["players"] += 1
@@ -105,9 +100,8 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out, index=False)
 
-    # Every imbueable purchase must carry a target. If this ever drops below
-    # 100% the game has changed, and the "never missing" claim that the whole
-    # feature design rests on has stopped holding.
+    # Every imbueable purchase should have a target. If coverage drops, the
+    # game has changed and the imbue code's assumption no longer holds.
     covered = 100 * len(df) / max(tally["imbueable_bought"], 1)
     unmapped = int((df["signature_slot"] < 1).sum())
     logging.info(

@@ -1,430 +1,188 @@
 # Context
 
-The vocabulary this project uses. Terms are defined as the domain uses them —
-what a Deadlock player means — not as the code happens to implement them.
-
-## Build
-
-An ordered sequence of item purchases for one hero in one match. Roughly 17
-buys, of which 11–12 survive to the end; 37% are sold along the way.
-
-A build is a **sequence**, not an inventory. "Buy Extra Regen early, sell it
-around 20 minutes" is a real piece of advice, and only the sequence view can
-express it. When the final inventory is meant specifically, say **held items**.
-
-## Build order
-
-The sequence in which a build's items are bought. Distinct from the build
-itself: two players can own the same twelve items and have played the match
-very differently. Build order and purchase timing are what this project models
-— item win rates and pick rates are already easy to look up.
-
-## Archetype
-
-A recognizably different way of playing one hero, expressed as a distinct
-build. Ivy is played as a gun carry or as a spirit support; those two builds
-share few items, and advice averaged across them serves neither.
-
-An archetype has to be a playstyle a real minority actually plays, not one item
-pattern. Melee Sinclair at 15% is niche but genuine; a 3% Calico cluster
-separating on Lifestrike and Spirit Snatch is not, because she buys those in
-every build. The point of the project is to recommend how players actually
-build, so a cluster too small to represent a playstyle is discarded.
-
-An archetype belongs to a hero. There is no global "gun build" — there is Gun
-Ivy and Gun Lash, and they have different items. Not every hero has more than
-one: Wraith, Pocket and eight others have a single archetype, and that is a
-finding, not a failure to split.
-
-Archetypes are discovered by clustering on [[build family]] shares -- how a
-player's souls divided across gun, spirit, melee, support, tank, sustain,
-control and mobility -- and named by what the build *does*.
-The label is a claim about playstyle a player would recognize, not a summary of
-the clustering.
-
-**Nothing about abilities is in the clustering.** Ability state at a fixed
-instant was measured and degrades every hero tried; [[imbue]] was tried in two
-forms and rejected, because it splits heroes on whether they bought one of the
-nine imbueable items rather than on what they aimed it at. Ability
-*order* is a third feature, measured separately and rejected too: it loses more
-heroes a split than it gains, 4 to 15 depending on the form, even though it is
-defined for every player and concentrates on no small set of items. All three
-still name clusters, which is a different job -- see [[ability focus]],
-`docs/adr/0001-imbue-out-of-the-clustering.md` and
-`docs/adr/0003-ability-order-out-of-the-clustering.md`.
-
-Two clusters are only two archetypes if a player would call them different
-builds. Differing by [[counter-pick]]s alone does not qualify: Kelvin's two
-"spirit" clusters have identical ability investment and no item differing by
-more than 23 points, which is one build on a gradient. Every *pair* of a hero's
-archetypes must be distinguishable, not merely the most distinct pair.
-
-## Slot type
-
-Which of the three shop tabs an item is sold in: **weapon**, **vitality**, or
-**spirit**. A shop category, and nothing more.
-
-**Slot type is not playstyle.** The two correlate but diverge often enough to
-break any naming rule built on slot type alone:
-
-- **Siphon Bullets** is vitality-slotted and belongs to gun builds.
-- **Melee Charge** and **Crushing Fists** are weapon-slotted and belong to
-  melee builds, which are not gun builds.
-- **Rescue Beam** and **Healing Tempo** are vitality-slotted and belong to
-  support builds, which are not tank builds.
-
-Because slot shares are weighted by souls, a couple of expensive off-category
-items outweigh many cheap on-category ones. Lash's gun archetype reads as 40%
-vitality souls purely because Siphon Bullets costs 6400.
-
-See [[build family]] for the concept that does carry playstyle.
-
-**Where the rule stops.** "Not playstyle" governs *naming and clustering*. It
-does not mean slot type is inert: an [[investment bonus]] accumulates per slot
-type, so slot type is mechanically load-bearing for spending thresholds and for
-[[build order]]. Use build family to name and to cluster; use slot type to
-reason about thresholds. See `docs/game-mechanics.md`.
-
-## Build family
-
-What a build is actually trying to do, inferred from what its items do rather
-than where they are sold. The vocabulary players use:
-
-- **gun** (also "weapon", "carry") — bullet damage, fire rate, clip size,
-  headshots. Signature: Sharpshooter, Headhunter, Crippling Headshot,
-  Siphon Bullets.
-- **spirit** — spirit power, cooldown reduction, ability range and duration.
-  Signature: Improved Spirit, Boundless Spirit, Mystic Expansion,
-  Superior Cooldown.
-- **melee** — heavy melee damage and charge. Signature: Melee Charge,
-  Crushing Fists.
-- **support** — healing and shielding allies. Signature: Rescue Beam,
-  Healing Tempo, Divine Ward.
-- **tank** — health, resistances, sustain on oneself.
-
-Build families are also what the archetype clustering runs on. Clustering on
-shop-tab shares instead found 19 splits at mean separation 0.321; clustering on
-families finds 28 at 0.429, and recovers builds the tabs could not see --
-Dynamo's ult build (Refresher, Warp Stone, Duration Extender) among them.
-
-A hero's archetype is named for its dominant family: "Gun Lash", "Melee
-Sinclair", "Support Kelvin". Two archetypes of the same hero can share a
-family — Kelvin has two spirit builds taking different paths — so a family
-label alone is not a name.
-
-**Names are decided per hero, not per cluster**, because two clusters sharing
-a name is only visible across the hero. Lady Geist had two clusters both called
-"Spirit Lady Geist", and the 35% of her players on the second one were silently
-handed the first when they asked for it. A name that does not select is not a
-name.
-
-Where the family collides, the name takes a second term, in the order a player
-finds informative: what the build is aimed at (its [[ability focus]]), then its
-top [[discriminative item]], then a bare numeric suffix. The suffix is a last
-resort and reads as a warning — a cluster that needs one may not be a second
-build at all. Every archetype of every hero is uniquely named, and the tests
-assert it.
-
-## Counter-pick
-
-An item bought because of who is on the enemy team, rather than because of how
-you are playing your hero. Counterspell against Lash, Slowing Hex against
-Apollo, Dispel Magic against Shiv, Healbane against Victor.
-
-Measured over 25k matches, facing the named hero raises the item's pick rate by
-5–8 points; facing Lash nearly doubles Counterspell (16.0% vs 8.5%).
-
-**A counter-pick is not an archetype.** It varies by matchup, not by playstyle,
-so a clustering that picks it up manufactures archetypes out of who you
-happened to face. Two clusters of one hero that differ only in counter-picks
-are one archetype, and the fit should refuse to split them. Counter-picks
-belong in the sequence model as a conditioning variable — given this enemy
-roster, what do people buy — never as an archetype dimension.
-
-## Kit tag
-
-What one of a hero's four signature abilities *does*, in the vocabulary players
-use for kits. Distinct from [[build family]], which describes items: an ability
-is `burst`, `dot`, `cc`, `support`, `melee`, `gun`, `mobility`, `sustain` or
-`summon`.
-
-- **burst** \x97 a large hit delivered in one moment. Lash's Ground Strike,
-  Dynamo's Kinetic Pulse. Not merely "deals damage", which every hero does.
-- **dot** \x97 damage over a duration. Shiv's Serrated Knives bleeds; Holliday's
-  Powder Keg burns. An ability can be both: Powder Keg bursts *then* burns.
-- **cc** \x97 taking control away from the enemy: stun, knockup, immobilize,
-  tether, silence, pull. Vindicta's Stake tethers; Dynamo's Singularity stuns
-  and pulls. Slow alone does not count \x97 35 of 152 abilities slow something.
-- **support** \x97 helping someone else. Viscous' The Cube encases an ally in
-  restorative goo; Kelvin's Frost Grenade heals allies.
-- **summon** \x97 something that fights for you. Graves, McGinnis, Sinclair. The
-  item vocabulary has no word for this.
-
-Kit tags come from each ability's **description**, not its stats. Abilities
-keep that text in a different field from items (`description`, not
-`tooltip_sections`), and a stat-only reading misses most of what an ability
-does \x97 Calico's Leaping Slash deals melee damage but carries no melee stat.
-
-A kit says which builds are *plausible* on a hero, not which build a player is
-running. Measured against fitted archetypes, kit predicts build family only for
-melee \x97 the one family whose items are useless without a melee ability.
-
-## Ability focus
-
-Which of a hero's four signature abilities a build is built around. The way
-players name spirit builds, where the family label alone is uninformative
-because every candidate is "spirit": Dynamo players say **ult build**
-(Singularity — Expansion and Cooldown) or **stomp build** (Kinetic Pulse —
-Rapid Recharge and Tankbuster).
-
-Ability focus is not universal. Some builds invest across several abilities or
-all four, and by match end investment saturates — every Kelvin ends with all
-four near maximum. Where it discriminates at all, it does so mid-match; read it
-around 480s, never at the end.
-
-## Ultimate
-
-A hero's fourth signature ability. Colloquially the **ult**. Builds oriented
-around it are **ult builds**. See [[ability focus]].
-
-## Imbue
-
-Pointing an item at one of a hero's four signature abilities, chosen at the
-shop counter when the item is bought. Nine shopable items can be imbued — two
-more exist at tier 5, and nothing buys tier 5. Mystic Reverb aimed at
-Singularity is not the same purchase as Mystic Reverb aimed at Kinetic Pulse,
-so an item recommendation without a target is half an instruction.
-
-**An imbue is never missing.** The game makes the choice at the counter, so all
-462,517 imbues carry a target. A hero with a low imbue rate is a hero that
-rarely buys imbueable items, not a hero with missing data: Silver buys one on
-20.2% of matches and imbues on 20.2%, Wraith on 99.8% and 99.8%. Those are the
-same number, and imputing anything for a player who imbued nothing would invent
-a statement they never made.
-
-Three kinds exist in the shop, grouped as two:
-
-- **active** — the item empowers or copies the ability itself
-  (`imbue_active`), or does so but cannot target the [[ultimate]]
-  (`imbue_active_non_ult`, which is Echo Shard alone). The restriction is
-  itself a signal: choosing Echo Shard over Mystic Reverb says the build is
-  not about the ult.
-- **modifier** — the item buffs the ability's numbers
-  (`imbue_modifier_value`).
-
-"I want a second Singularity" and "I want my Singularity to last longer" are
-different builds, which is why the two groups are kept apart.
-
-## Imbue target
-
-The ability one build points an imbueable item at. A property of the
-[[archetype]], not of the item: Dynamo's ult build imbues Singularity 3.6x
-more than its stomp build, and its stomp build imbues Kinetic Pulse 3.0x more.
-Reported as the most common target in that hero-and-archetype's population,
-with the count behind it.
-
-Two qualifications are marked rather than hidden, as [[thin evidence]] is:
-
-- **split** — the most common target is below 50%, so it is the mode and still
-  not what most players do. Spirit Ivy points Compress Cooldown at Air Drop
-  39% of the time.
-- **thin** — fewer than 30 imbues stand behind it.
-
-A population that never imbued an item has no target for it, and says so. That
-is a different statement from a weak preference: because an imbue is never
-missing, no rows means the population is too small to speak.
-
-See [[ability focus]], which is the same question asked of a whole build rather
-than of one item.
-
-## Staple
-
-An item bought by at least 70% of a hero-and-archetype's players. A generated
-build that omits one is wrong regardless of any aggregate metric, which is what
-the prevalence gate asserts.
-
-Staples are archetype-specific. Pooled across her two archetypes Ivy has one
-staple; split, they have three and four. Averaging two builds hides the staples
-of both.
-
-## Discriminative item
-
-An item one archetype buys far more than the hero's other archetypes. The
-readout used to check whether a cluster is a real build: "Active Reload, 39%
-here versus 1% elsewhere" is checkable by a player.
-
-Discriminative items are the honest signal about what a cluster *is* — more so
-than its centroid, which measures only where souls went.
-
-## Prevalence
-
-The fraction of player-matches in a population that ever bought a given item.
-Computed over players, not purchase rows, since no item is ever bought twice.
-
-## Component
-
-An item required to build a composite item. Sharpshooter takes High-Velocity
-Mag and Long Range.
-
-A **soft** ordering prior, never a hard constraint: only 79% of players who buy
-a composite ever bought its component separately, so forbidding the parent
-before the component would make a fifth of real builds unreachable.
-
-## Absorption
-
+The words this project uses, defined the way a Deadlock player means them.
+Measurements and the reasons behind decisions live in the code, the ADRs in
+`docs/adr/`, and `docs/`. This file only says what each term means.
+
+## Builds
+
+**Build**:
+The items one player buys in one match, in the order bought. About 17
+purchases, of which 11 or 12 are still held at the end.
+_Avoid_: loadout, inventory (when the whole sequence is meant)
+
+**Held items**:
+The items a player still owns at the end of a match. Use this, not "build",
+when the final inventory is meant.
+
+**Build order**:
+The order in which a build's items are bought. Two players can end with the
+same twelve items and have bought them in very different orders. Build order
+and timing are what this project models.
+
+**Staple**:
+An item bought by at least 70% of one hero-and-archetype's players. A
+generated build must contain every staple. Staples belong to an archetype, not
+a hero: all Ivy players together have one staple, but each Ivy archetype has
+three or four.
+
+**Component**:
+An item that is part of a bigger item, the **composite**. Sharpshooter's
+components are High-Velocity Mag and Long Range. Players usually buy the
+component first, but about a fifth don't, so buying the composite first is
+allowed.
+
+**Absorption**:
 What happens to a component when its composite is bought: it leaves the
-inventory and frees its slot. This is the mechanism that reconciles ~17
-purchases with 12 held slots, and it is most of what "selling" means in this
-game — sold rate is 70.6% for items that are a component of something against
-6.4% for items that are not, and 86.6% for tier 1 against 1.1% for tier 4.
+inventory and frees its slot. Most items that show as "sold" were absorbed,
+not sold. Because a staple can be absorbed, staple checks look at the purchase
+sequence, never at held items.
+_Avoid_: selling (for absorption)
 
-Only about 6% of purchases are a genuine strategic sell.
+**Active item**:
+An item the player triggers, as opposed to one that works on its own. A player
+can hold at most four. Identify active items by item id, never by name: two
+catalogue entries are both called Silencer and disagree on whether they are
+active.
 
-The consequence: a [[staple]] can be absorbed, and so be absent from the final
-inventory, while still being bought by nearly everyone. Mystic Burst is bought
-by 96% of one archetype's players and sold by 95%. So membership checks run
-over the purchase sequence, never over held items.
+## Archetypes
 
-## Backoff level
+**Archetype**:
+A distinct way of building one hero that a real share of players use. Ivy is
+built either as a gun carry or as a spirit support. Archetypes belong to a
+hero: there is Gun Ivy and Gun Lash, but no global "gun build". Some heroes
+have only one.
+_Avoid_: playstyle (as a data term), cluster (outside the fitting code)
 
-Which table in the model's chain supplied a recommendation, from `L0` (this
-hero, archetype, last two items and time bucket) down to `L5` (this hero's
-overall pick rates). Reported with every recommendation alongside the raw
-observation count, so any number the tool prints traces to a literal table row
-and can be checked by hand.
+**Cell**:
+One hero and one archetype, and the players in it. Builds, staples, and imbue
+targets are all per cell.
 
-A deep level firing means this specific situation has been seen before; a
-shallow one means the tool is falling back on something more general.
+**Build family**:
+What an item is for, as players would put it: **gun**, **spirit**, **melee**,
+**support**, or **tank**, plus **sustain** (healing yourself), **control**,
+and **mobility**, which describe items but never name a build. An item can
+belong to several. Archetypes are found and named from build families.
+_Avoid_: slot type, category (for this)
 
-## Thin evidence
+**Slot type**:
+The shop tab an item is sold in: weapon, vitality, or spirit. It often doesn't
+match the build family: Siphon Bullets is in the vitality tab and is a gun
+item. Slot type still matters for the game's rules, because the
+investment bonus is counted per slot type.
+_Avoid_: build family, playstyle (for this)
 
-A recommendation backed by fewer than 30 observations. Marked rather than
-hidden — the item may still be right, but a probability computed from 2
-observations is not the same claim as one computed from 1,635, and printing
-them identically is how a model earns confidence it has not measured.
+**Discriminative item**:
+An item one archetype buys far more than the hero's other archetypes, such as
+"Active Reload, 39% here against 1% in the others". This is how a person
+checks that an archetype is a real build.
 
-## Tempo
+**Separation**:
+How different two archetypes of a hero are: the largest gap in any item's
+pick rate between them. A hero's split counts only if every pair of its
+archetypes is separated enough.
 
-How fast a player spends. Measured as the median gap between purchases, and the
-strongest single feature in every model built on this data so far. Souls in the
-bank are strength not on the board.
+**Counter-pick**:
+An item bought because of who is on the enemy team, not because of how the
+hero is built: Counterspell against Lash, Healbane against Victor. A
+counter-pick is never an archetype. The tool shows counter-picks beside its
+recommendations and never lets them change the order.
 
-## Badge
+**Prevalence**:
+The share of players in a group who bought an item at least once.
+_Avoid_: pick rate (in code and docs; fine when talking to players)
 
-The rank control, `average_badge`, on a 0–116 scale. A property of the *match*,
-not the player, and only populated for Ranked matches.
+## Abilities
 
-The scale is twelve named tiers of six subranks, so `badge // 10` is the tier
-and `badge % 10` the subrank within it. The names come from the assets API
-(`/v1/assets/ranks`) and are the form to use in anything a player reads,
-since the number means nothing in game: Obscurus, Initiate, Seeker, Acolyte,
-Sentinel, Mystic, Ritualist, Emissary, **Oracle** (tier 8), Phantom,
-Ascendant, Eternus.
-Badge 80 is Oracle; the population median of 56 is Mystic.
+**Signature ability**:
+One of the four abilities each hero levels. The fourth is the **ultimate**, or
+**ult**.
 
-The tool weights its tables toward badge 80 by default — the top 29.6% of a
-distribution whose median is 56, measured over all 296,478 player-matches — so
-the advice imitates strong play rather
-than median play. It is a soft Gaussian kernel and not a filter: filtering to
-the same bracket costs about nine times the data, and the thin
-hero-and-archetype cells are exactly the ones that cannot afford it. `--badge`
-asks for another bracket, `--badge all` for none.
+**Ability point**:
+What a player spends to unlock or level an ability. Levels 2, 3, and 4 cost
+1, 2, and 5 points.
 
-Badge enters as a **weight, never as a key**. Keying on it would split every
-cell three ways against a median cell of 3,232 player-matches. Weights are
-computed on the training split alone, and the weighted model is judged on
-high-badge held-out accuracy — never on general-population accuracy, which it
-makes worse by design, and never on win rate, which is an outcome downstream of
-every decision the build makes. See `docs/adr/0002-badge-weighting-on-by-default.md`.
+**Ability order**:
+The order in which a player spends ability points. Final levels say little,
+because by match end everyone has maxed everything. The order says which
+ability was maxed first and so spent most of the match at full strength.
 
-## Investment bonus
+**Ability focus**:
+The one signature ability a build is centered on. It is how players tell
+apart two builds of the same family: Dynamo's **ult build** against its
+**stomp build** (Kinetic Pulse). Many builds have no single focus.
 
-A stat bonus earned for souls spent within one [[slot type]], granted in
-cumulative steps rather than continuously. The step at **4,800 souls** is the
-one that shows in behaviour: players spend up to it and then change category.
-P(next purchase is the same slot type) is 0.563 approaching it, 0.427 landing
-exactly on it, and 0.275 just past it, and 67.4% of players land exactly on
-4,800 in some slot type. Often called the **4.8k spike**.
+**Kit tag**:
+What one signature ability does, in players' words: burst, dot, cc, support,
+melee, gun, mobility, sustain, or summon. Read from the ability's description
+text. A hero's kit says which builds make sense on them, not which one a
+player is using.
 
-A mechanic of [[build order]], not only of stats — it is why a build's category
-ordering is not arbitrary. The model does not currently see it.
+**Imbue**:
+Choosing one of a hero's signature abilities for an imbueable item to affect,
+done at the shop when buying it. Nine shop items can be imbued in practice.
+The game requires the choice, so an imbue is never missing: a player with no
+imbues bought no imbueable item. Imbues come in two groups: **active** (the
+item empowers or copies the ability) and **modifier** (it raises the
+ability's numbers).
 
-## Active item
+**Imbue target**:
+The ability a cell most often imbues a given item into. It belongs to the
+archetype, not the item: Dynamo's ult and stomp builds aim the same item at
+different abilities. Marked **split** when under half the cell agrees and
+**thin** when fewer than 30 imbues back it.
 
-An item the player triggers, as opposed to one that works on its own. **No more
-than four can be held at once**, a hard game rule that generation does not
-enforce.
+## The model
 
-Read it from the `is_active_item` field, and **resolve it by item id, never by
-name**: the catalogue holds two entries called Silencer that disagree on this
-field, so a name match invents active items that cannot be bought.
+**Backoff level**:
+Which table in the model's chain a recommendation came from, `L0` (hero,
+archetype, last two items, and time) down to `L5` (the hero's overall pick
+rates). Every recommendation prints its level and raw count, so it can be
+checked by hand.
 
-## Boon
+**Thin evidence**:
+A recommendation backed by fewer than 30 observations. It is shown, marked
+`[thin]`.
 
-The hero's level, bought with souls. Souls are spent on items *and* count
-toward boons at the same time, so buying an item costs no levels: there is no
-budget tradeoff between items and abilities to model.
+**Badge**:
+The average rank of the players in a match, from 0 to 116. It is recorded for
+Ranked matches only. The tens digit is the tier and the ones digit the
+subrank. Use tier names in anything a player reads: Obscurus, Initiate,
+Seeker, Acolyte, Sentinel, Mystic, Ritualist, Emissary, Oracle (80),
+Phantom, Ascendant, Eternus. The tool weights its data toward Oracle by
+default (ADR 0002).
+_Avoid_: rank, MMR (for this field)
 
-## Ability point
+**In scope**:
+A player who belongs in the per-player tables: the match outcome is known and
+they bought at least one item. Every table holds the same in-scope players.
 
-The currency for upgrading one ability, earned from [[boon]] levels. Levels 2,
-3 and 4 of an ability cost 1, 2 and 5 points; level 1 is free once its unlock
-gate is met. A player accumulates at most 32 over a match.
+**Tempo**:
+How fast a player spends, measured as the median time between purchases.
 
-Distinct from the *order* points are spent in, which is what
-[[ability focus]] and the ability model describe.
+## The game
 
-## Walker
+**Boon**:
+A hero level, earned by gaining souls. Spending souls on items doesn't cost
+boons, so items and levels don't compete for souls.
 
-The second lane tower. Destroying an enemy Walker unlocks one extra item slot
-for the destroying team, taking it from 9 slots to 10, 11 and then 12. So the
-cap on how many items a [[build]] can hold is won on the map, not reached on a
-clock.
+**Investment bonus**:
+A stat bonus for spending souls within one slot type, given in steps. Players
+visibly spend up to the 4,800-soul step and then switch slot type, the
+**4.8k spike**. The model doesn't account for it yet.
 
-The purchase table carries the three unlock times per player as
-`slot10_unlock_s`, `slot11_unlock_s` and `slot12_unlock_s`, null where that
-Walker never fell.
+**Walker**:
+The second tower in a lane. Destroying an enemy Walker gives your team one
+more item slot, from 9 up to 12, so the item cap is won on the map.
 
-## Mid-Boss
+**Mid-Boss**:
+A neutral objective that gives the claiming team a lump of souls. The team
+that claims it isn't always the team that killed it.
 
-The neutral objective whose death pays the claiming team a lump of souls. Its
-kill time is `midboss_kill_s` on the purchase table — the soul injection that
-can precede an otherwise unaffordable purchase.
-
-Killing and claiming are different acts: the team that lands the last hit is
-not always the team that takes the reward.
-
-## Intended build
-
-The community [[build]] a player had selected when the match started, recorded
-as `hero_build_id`. It states what a player *planned* to buy, which the
-purchase sequence alone never shows.
-
-Only demo-analyzed matches carry one, and coverage is all-or-nothing per
-**match**: once analysis has caught up, a match carries a build id for all 12
-players or for none. Null means "unknown", never "no build selected".
-
-About **14% of matches** are analyzed once a window has caught up, and it takes
-**four to six weeks** to get there. So a window is usable only once its rate has
-reached ~14%, and that is the check to run before pulling. The newest weeks,
-the current patch among them, are almost empty.
-
-**Analyzed matches are not a random sample: they skew about a full tier high.**
-A population drawn from intended builds is a different population from the one
-the rest of the model is measured on, and it does not compare with it.
-
-A published build is a menu rather than a shopping list: one sampled build
-listed 38 shopable items against a 12-slot cap, with categories named
-`Optional`. So "followed N of M" is not a meaningful metric.
-
-## In scope
-
-A player who belongs in any per-player table: the match outcome is known and
-they bought at least one item. Abandons, draws and unscored matches are out,
-and so is a player who only ever spent ability points. `features.in_scope` is
-the one place this is decided, and every table builder asks it.
-
-When each table decided for itself, the imbue and ability tables kept abandon
-and draw players that the purchase table dropped, and dividing one table by the
-other put three heroes' imbue rates above 1.0. A rate across two tables is only
-a rate when both hold the same players.
+**Intended build**:
+The community build a player selected before the match (`hero_build_id`).
+Only analyzed matches have it: about 14% of matches, once analysis catches up
+four to six weeks later. Those matches skew about a tier higher than the rest,
+so results from them don't compare with results from everyone. A published
+build lists more items than a player can hold, so "followed N of M items"
+isn't meaningful.

@@ -1,8 +1,7 @@
-"""The review sheet is the hard stop a person reads before Stage 4.
+"""The review sheet marks percentages that come from too few players.
 
-A share printed without its weight is the failure these tests exist for: the
-sheet once put a share over 24 rows next to one over 5,110 and made them read
-as the same claim.
+The sheet once printed a share from 24 rows next to one from 5,110, and they
+looked equally solid.
 """
 
 from __future__ import annotations
@@ -61,21 +60,21 @@ def meta_for(*clusters: dict) -> dict:
 
 class TestThinShares:
     def test_a_share_from_too_few_players_is_marked(self):
-        """24 rows is not a finding, and the sheet has to say so."""
+        """A cluster of 24 players is marked thin."""
         import pandas as pd
 
         text = review.sheet(meta_for(cluster(24), cluster(5000)), pd.DataFrame())
         assert "[thin: 24 players]" in text
 
     def test_a_well_populated_share_is_not_marked(self):
-        """The mark has to mean something, so it cannot be on everything."""
+        """A large cluster is not marked thin."""
         import pandas as pd
 
         text = review.sheet(meta_for(cluster(5000), cluster(4000)), pd.DataFrame())
         assert "thin" not in text
 
     def test_the_item_shares_of_a_thin_cluster_are_marked_too(self):
-        """96% of 24 players is the number that misled, not the cluster size."""
+        """Each item percentage in a thin cluster is marked, not just the cluster line."""
         import pandas as pd
 
         text = review.sheet(meta_for(cluster(24), cluster(5000)), pd.DataFrame())
@@ -84,6 +83,6 @@ class TestThinShares:
 
     @pytest.mark.parametrize("n", [29, 30])
     def test_the_threshold_is_thirty(self, n):
-        """Stated once, in the module, so the sheet and the namer agree."""
+        """The review sheet and the archetype namer use the same threshold, 30."""
         assert bool(review.thin_note(n)) is (n < review.MIN_ROWS)
         assert review.MIN_ROWS == 30

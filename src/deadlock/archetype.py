@@ -1,62 +1,40 @@
-"""Build archetypes: the different ways one hero gets played.
+"""Archetypes: the different ways players build one hero.
 
-Ivy is either a gun carry or a spirit support. Those builds share few items,
-and a recommendation averaged across both serves neither -- the same error as
-the discarded paired design smearing a niche item across 38 heroes, one level
-down. So archetype is a conditioning variable, fitted per hero.
+Ivy is built either as a gun carry or as a spirit support. The two builds share
+few items, and a recommendation averaged over both fits neither. So the model
+conditions on archetype, fitted separately for each hero.
 
-Not every hero has one. Haze and Dynamo do not split: their k=2 partitions are
-arbitrary slices of a single population. Forcing k=2 everywhere would invent
-distinctions that do not exist, so k is selected per hero and 1 is an allowed
-answer.
+Some heroes have only one. Haze and Dynamo's k=2 splits are arbitrary cuts
+through one group of players, so k is chosen per hero and k=1 is allowed.
 
-**The feature vector is souls-weighted BUILD FAMILY shares** -- how a player's
-souls divided across gun, spirit, melee, support, tank, sustain, control and
-mobility. Never item identities: clustering on those finds "who bought item X"
-groups that are tautological with what the model then predicts. Keeping the
-input coarse is what makes the readout ("these two clusters differ by 53 points
-on Extra Charge") a falsifiable claim rather than a restatement of the input.
+Clustering runs on each player's build family shares: how their souls divide
+across gun, spirit, melee, support, tank, sustain, control, and mobility (see
+`semantics.py`). Not on item ids. Clusters of "who bought item X" would just
+repeat what the model then predicts. With coarse inputs, a finding like "these
+two clusters differ by 53 points on Extra Charge" is real information.
 
-It used to be slot-type shares -- which shop tab the souls went to. That was
-wrong for the same reason it was wrong for naming: half the items sit in a tab
-that does not match what they do. Switching to families raised mean cluster
-separation from 0.321 to 0.429 across 38 heroes and found real splits on six
-heroes where slot shares found none, Dynamo among them.
+Shop-tab shares were used before. Build families raised mean separation from
+0.321 to 0.429 over 38 heroes and found real splits on six heroes that shop
+tabs missed, including Dynamo.
 
-**Abilities are deliberately excluded, against the original design.** Measured
-on every hero tried, adding ability levels monotonically degrades the
-clustering -- Ivy falls 0.508 -> 0.421 -> 0.361 -> 0.274 as ability weight goes
-0 -> 0.25 -> 0.5 -> 1.0, and the same holds for Haze, Dynamo, Bebop and Wraith.
-The reason is visible directly: between Ivy's two item clusters the largest
-mean ability-level gap is 0.48 of 4. Abilities do vary with archetype, but far
-too weakly to carry four extra dimensions, so they add noise. They remain
-available in `abilities.py` for the sequence model.
+Three other inputs were tested and left out:
 
-**Imbue was tried in the fit and rejected too**, under a rule fixed before the
-numbers. It splits heroes on *whether* they bought one of the nine imbueable
-items rather than on what they aimed it at: with the conditional block the
-separating item is imbueable for 24 of 29 split heroes, against 2 of 28 under
-families alone, and nine heroes lose a split. Imbue names clusters and tells
-the player what to imbue; it does not find clusters.
-`docs/adr/0001-imbue-out-of-the-clustering.md` is the decision, and every other
-statement of it in this repo points there rather than repeating the numbers.
+- Ability levels. Adding them made clustering worse on every hero tried. Ivy's
+  separation fell 0.508, 0.421, 0.361, 0.274 as the ability weight went 0,
+  0.25, 0.5, 1.0. Between Ivy's two clusters, the biggest gap in mean level at
+  480s is 0.48 out of 4.
+- Imbue targets. They split heroes on whether players bought an imbueable
+  item, not on what they aimed it at. See ADR 0001.
+- Ability order, in three forms (raw, minus the hero mean, as a percentile).
+  Each lost splits on 4, 14, and 15 of 31 heroes and gained back fewer. See
+  ADR 0003.
 
-**Ability order was tried and rejected too**, in three forms: raw, minus the
-hero's own mean, and as a within-hero percentile. Every one loses heroes a
-split that build families alone found -- 4, 14 and 15 of 31 -- and gains fewer
-back. It is not the imbue failure repeated: order is defined for all 296,478
-players and its separating items concentrate no more than the families control
-does. It fails on its merits.
-`docs/adr/0003-ability-order-out-of-the-clustering.md` is the decision.
+The shares are not standardized. They already sum to 1, and z-scoring would
+blow up whichever family has low variance for that hero.
 
-Shares are left unstandardized. They already sum to 1, so they are commensurate;
-z-scoring inflates whichever family happens to have low variance for that hero
-and distorts the geometry.
-
-**Acceptance is not silhouette alone.** A silhouette score is exactly the kind
-of aggregate that passed while the old pipeline was wrong, so a split must also
-reproduce itself on held-out data, separate some item by a visible margin, and
-leave both sides large enough to model. All four, or k=1.
+A split must pass four checks: silhouette, replication on held-out data,
+separation (some item's pick rate differs by a visible margin), and a minimum
+cluster size. If it fails any, the hero gets k=1.
 """
 
 from __future__ import annotations
@@ -83,44 +61,35 @@ log = logging.getLogger(__name__)
 ARCHETYPE_SEED = 0
 CANDIDATE_K = (2, 3)
 
-# Acceptance criteria. A split must clear every one of them.
+# The four checks a split must pass.
 #
-# Separation leads, and silhouette is only a secondary guard, because
-# separation is the criterion that matches judgement: it ranks Lady Geist
-# (0.85), Ivy (0.63) and Bebop (0.62) above Dynamo (0.35), Haze (0.23) and
-# Wraith (0.22), while silhouette puts Dynamo (0.42) above Ivy-like heroes and
-# would split it. Separation is also the criterion a player can check by eye --
-# "these two builds differ by 63 points on Extra Charge" is a claim about the
-# game, where a silhouette coefficient is a claim about geometry.
+# Separation is the main one. It ranks heroes the way a person does: Lady
+# Geist (0.85), Ivy (0.63), and Bebop (0.62) above Dynamo (0.35), Haze (0.23),
+# and Wraith (0.22). Silhouette put Dynamo (0.42) above heroes like Ivy. A
+# player can also check separation by eye: "these two builds differ by 63
+# points on Extra Charge".
 MIN_SEPARATION = 0.45
-# A floor, not a criterion. Silhouette degrades with dimensionality, and the
-# family space has eight dimensions where the old slot space had three:
-# splits that scored 0.4-0.7 there score 0.19-0.61 here for the same data. A
-# 0.35 bar would reject 21 of the 25 heroes that clear separation and size.
-# Separation is what matches judgement, so silhouette only catches fits with
-# no geometric structure at all.
+# Only catches fits with no cluster structure at all. Silhouette falls as
+# dimensions are added: splits that scored 0.4-0.7 on the three shop tabs
+# score 0.19-0.61 on the eight families. A 0.35 bar would reject 21 of the 25
+# heroes that pass separation and size.
 MIN_SILHOUETTE = 0.15
 MIN_REPLICATION = 0.90
-# A build nobody plays is not a build. The point of the project is to
-# recommend how players -- especially good ones -- actually build, so a
-# cluster has to be a real minority playstyle rather than one item pattern.
-#
-# 12% admits melee Sinclair (14.6%), a niche but genuine playstyle. It excludes
-# Calico's 3.1% cluster, which separates at 0.92 purely on Lifestrike and
-# Spirit Snatch -- items she buys in every build, which does not make those
-# builds melee.
+# Every cluster must hold at least this share of the hero's players. At 12%,
+# melee Sinclair (14.6%) passes. Several heroes have smaller clusters that pass
+# every other check, such as a 3.1% gun Calico build, and this rejects them.
+# Whether that removes false splits or real rare builds is issue #38.
 MIN_CLUSTER_SHARE = 0.12
 
-# Below this a hero cannot support the fit at all.
+# Heroes with fewer players than this aren't clustered.
 MIN_HERO_PLAYERS = 600
 
-# Human-accepted names, checked in so they survive a refit.
+# Archetype names a person has accepted. Checked in so they survive a refit.
 NAMES_PATH = Path("data/archetype_names.json")
 
 SLOT_TYPES = ("weapon", "vitality", "spirit")
 
-# Clustering runs on build families, not slot types. `slot_shares` is kept
-# because the review sheet still reports souls-by-shop-tab for reference.
+# Clustering uses build families. `slot_shares` is only for the review sheet.
 def _feature_columns() -> list[str]:
     from . import semantics
 
@@ -129,7 +98,7 @@ def _feature_columns() -> list[str]:
 
 @dataclass
 class ArchetypeFit:
-    """The outcome of fitting one hero, and why it was accepted or refused."""
+    """The result of fitting one hero, and why the split was accepted or rejected."""
 
     hero_id: int
     hero_name: str
@@ -160,11 +129,10 @@ class ArchetypeFit:
 
 
 def slot_shares(purchases: pd.DataFrame, items: dict[int, assets.Item] | None = None) -> pd.DataFrame:
-    """Souls-weighted share of each slot type in a player's purchases.
+    """Each player's spending share per shop tab, weighted by cost.
 
-    Weighted by cost rather than counted, because a build's character is set by
-    where its souls went. Counting would let six cheap vitality items outvote
-    three expensive spirit ones.
+    Weighted by cost so six cheap vitality items don't outweigh three
+    expensive spirit items.
     """
     items = assets.load_items() if items is None else items
     df = purchases.assign(
@@ -184,16 +152,15 @@ def slot_shares(purchases: pd.DataFrame, items: dict[int, assets.Item] | None = 
 def player_index(purchases: pd.DataFrame) -> pd.MultiIndex:
     """Every (match_id, player_slot) in a purchase table, once each.
 
-    An extra feature block has to be reindexed over the whole population or the
-    players it says nothing about vanish from the join instead of reading as
-    silent. Every caller that builds a block needs this, so it lives here.
+    Reindex extra feature blocks on this, so players the block has no data
+    for still get a row.
     """
     keys = ["match_id", "player_slot"]
     return purchases[keys].drop_duplicates().set_index(keys).index
 
 
 def hero_of(purchases: pd.DataFrame) -> pd.Series:
-    """Which hero each player played, indexed like `player_index`."""
+    """The hero each player played, indexed by (match_id, player_slot)."""
     keys = ["match_id", "player_slot"]
     return purchases[keys + ["hero_id"]].drop_duplicates().set_index(keys)["hero_id"]
 
@@ -201,18 +168,11 @@ def hero_of(purchases: pd.DataFrame) -> pd.Series:
 def family_shares(
     purchases: pd.DataFrame, items: dict[int, assets.Item] | None = None
 ) -> pd.DataFrame:
-    """Souls-weighted share of each BUILD FAMILY in a player's purchases.
+    """Each player's spending share per build family, weighted by cost.
 
-    The semantic replacement for `slot_shares`. Slot type is a shop tab, and
-    half the items sit in a tab that does not match what they do; a build
-    family is what the item is for. Each item divides its cost across the
-    families it feeds, so Crushing Fists contributes mostly to melee and a
-    little to gun and tank.
-
-    Measured against slot shares over 38 heroes, this raises mean cluster
-    separation from 0.321 to 0.429 and finds real splits on six heroes where
-    slot shares found none -- Dynamo among them, which a player had named as
-    having distinct builds.
+    Each item's cost is divided across its families in proportion to its
+    family scores, so Crushing Fists counts mostly as melee and a little as
+    gun and tank. These are the clustering features.
     """
     from . import semantics
 
@@ -239,7 +199,7 @@ def family_shares(
 def _family_weight(
     families: dict[int, dict[str, int]], item_id: int, family: str
 ) -> float:
-    """What fraction of one item's cost belongs to a family."""
+    """The share of one item's cost that goes to a family."""
     scores = families.get(item_id)
     if not scores:
         return 0.0
@@ -250,12 +210,7 @@ def _family_weight(
 def partial_family_shares(
     item_ids: Iterable[int], items: dict[int, assets.Item] | None = None
 ) -> pd.Series:
-    """Build-family shares for an in-progress build.
-
-    The same arithmetic as `family_shares`, over a bare list of items rather
-    than a purchase frame -- the clustering is fit on finished builds, but
-    inference has to work on partial ones.
-    """
+    """`family_shares` for one unfinished build, given as a list of item ids."""
     from . import semantics
 
     items = assets.load_items() if items is None else items
@@ -283,22 +238,20 @@ def archetype_posterior(
     *,
     temperature: float = 0.10,
 ) -> dict[int, float]:
-    """How likely each archetype is, given the items bought so far.
+    """Probability of each archetype, given the items bought so far.
 
-    Soft nearest-centroid rather than a hard assignment, because early in a
-    match the evidence genuinely does not identify the build. Measured on Ivy
-    (k=3, so a 33% floor), assignment accuracy runs 55% after 3 buys, 57% after
-    5, 64% after 8 and 79% after 12. Committing to one archetype at buy 3 would
-    be wrong nearly half the time, so the posterior stays spread and the
-    advisor shows the split.
+    Each archetype's share of players, times exp(-distance / temperature),
+    where distance is the squared distance from the build's family shares to
+    the archetype's centroid. With nothing bought, it is just the shares.
 
-    With nothing bought, the honest answer is the population share of each
-    archetype -- how often people play it -- not a flat prior.
+    Probabilities, not a single pick, because early purchases don't identify
+    the build. On Ivy (k=3, so 33% by chance), the nearest centroid is right
+    55% of the time after 3 purchases, 57% after 5, 64% after 8, and 79% after
+    12.
 
-    The default temperature is calibrated: accuracy is flat across 0.05-0.40
-    (the ranking barely moves), so it is chosen by log-loss at 8 buys, which
-    is minimised at 0.10. That matters because the posterior is displayed and
-    marginalised over, not just argmaxed.
+    The temperature barely changes accuracy between 0.05 and 0.40. 0.10 gives
+    the lowest log-loss at 8 purchases, which matters because the
+    probabilities are shown to the player and averaged over.
     """
     hero_meta = (meta.get("heroes") or {}).get(str(int(hero_id)))
     if not hero_meta:
@@ -332,17 +285,14 @@ def archetype_posterior(
 
 
 def scale_block(block: pd.DataFrame, weight: float) -> pd.DataFrame | None:
-    """Put an extra feature block on the same footing as the family shares.
+    """Scale an extra feature block to match the family shares, times `weight`.
 
-    Family shares sum to 1 for every player, so their mean row L1 norm is
-    exactly 1. A block is divided by its own mean row L1 and multiplied by
-    `weight`, which makes `weight=1.0` mean "this block carries as much total
-    mass as the families do" and makes a sweep over weights comparable across
-    blocks of different widths.
+    Family shares sum to 1 per player. The block is divided by its mean row
+    sum of absolute values and multiplied by `weight`, so `weight=1.0` gives
+    the block as much total weight as the families, whatever its width.
 
-    Scaled, never z-scored. Z-scoring inflates whichever column happens to have
-    low variance for a hero, which is the same reason the family shares are
-    left unstandardized -- see the module docstring.
+    Scaled, never z-scored, for the same reason the family shares aren't
+    standardized (see the module docstring).
     """
     if block is None or weight <= 0 or not len(block):
         return None
@@ -355,14 +305,10 @@ def scale_block(block: pd.DataFrame, weight: float) -> pd.DataFrame | None:
 def feature_matrix(
     purchases: pd.DataFrame, extra: pd.DataFrame | None = None
 ) -> pd.DataFrame:
-    """Per-player archetype features: souls-weighted build-family shares.
+    """Clustering features per player: build family shares, plus `extra` if given.
 
-    Left unstandardized on purpose -- see the module docstring. The shares
-    already sum to 1, and z-scoring them measurably degrades every hero tried.
-
-    `extra` carries already-scaled ability blocks. Pass them through
-    `scale_block` first; joining a raw block would let its width rather than
-    its content decide how much it moves the fit.
+    Pass `extra` through `scale_block` first. Otherwise a wider block gets
+    more weight just for having more columns.
     """
     features = family_shares(purchases).fillna(0.0)
     if extra is None or not len(extra):
@@ -371,7 +317,7 @@ def feature_matrix(
 
 
 def _silhouette(features: pd.DataFrame, labels: np.ndarray) -> float:
-    """Silhouette over the full matrix is O(n^2); sample for large heroes."""
+    """Silhouette score, on a 4,000-player sample for large heroes since it is O(n^2)."""
     if len(set(labels)) < 2:
         return float("nan")
     n = len(features)
@@ -385,18 +331,18 @@ def _silhouette(features: pd.DataFrame, labels: np.ndarray) -> float:
 def _fit_k(features: pd.DataFrame, k: int) -> tuple[np.ndarray, float]:
     model = KMeans(n_clusters=k, n_init=10, random_state=ARCHETYPE_SEED)
     with warnings.catch_warnings():
-        # A population too uniform to split is a valid answer here, not a
-        # problem to warn about -- fit_hero reads it off the nan silhouette.
+        # Players too uniform to split is a normal result. fit_hero sees it
+        # as a NaN silhouette.
         warnings.simplefilter("ignore", ConvergenceWarning)
         labels = model.fit_predict(features.values)
     return labels, _silhouette(features, labels)
 
 
 def _canonical_order(features: pd.DataFrame, labels: np.ndarray) -> np.ndarray:
-    """Relabel clusters by descending spirit share.
+    """Renumber clusters from highest to lowest mean spirit share.
 
-    KMeans label indices are arbitrary across runs, so without this every
-    downstream artifact silently permutes whenever the fit is repeated.
+    KMeans numbers clusters arbitrarily, so without this the ids could change
+    between refits.
     """
     spirit = features["spirit"] if "spirit" in features else None
     if spirit is None:
@@ -413,7 +359,7 @@ def _canonical_order(features: pd.DataFrame, labels: np.ndarray) -> np.ndarray:
 
 
 def cluster_prevalence(purchases: pd.DataFrame, labels: pd.Series) -> pd.DataFrame:
-    """Item pick rate within each cluster, as a cluster x item table."""
+    """Each item's pick rate in each cluster, as a cluster x item table."""
     keys = ["match_id", "player_slot"]
     tagged = purchases.join(labels.rename("archetype"), on=keys, how="inner")
     sizes = labels.groupby(labels).size()
@@ -432,11 +378,11 @@ def cluster_prevalence(purchases: pd.DataFrame, labels: pd.Series) -> pd.DataFra
 def _replication(
     purchases: pd.DataFrame, features: pd.DataFrame, k: int
 ) -> float:
-    """Do these clusters mean the same thing on data they were not fitted on?
+    """Whether the clusters mean the same thing on data they weren't fitted on.
 
-    Fit on one half, assign the other by nearest centroid, then correlate the
-    per-cluster item prevalence vectors. A partition that does not reproduce
-    itself is a slice of noise.
+    Fits on half the matches, assigns the other half to the nearest centroid,
+    and returns the mean correlation of each cluster's item pick rates between
+    the halves.
     """
     players = features.index.to_frame(index=False)
     train_players, test_players = splits.split_by_match(players, test_frac=0.5)
@@ -461,8 +407,8 @@ def _replication(
     if not shared:
         return float("nan")
     with warnings.catch_warnings():
-        # A constant prevalence vector correlates with nothing; that is a
-        # failed replication, which the caller reads as nan, not an error.
+        # A constant pick-rate vector gives a NaN correlation, which counts
+        # as failing replication.
         warnings.simplefilter("ignore", RuntimeWarning)
         scores = [splits.replication_corr(a[[c]], b[[c]], c) for c in shared]
     scores = [s for s in scores if not np.isnan(s)]
@@ -470,19 +416,16 @@ def _replication(
 
 
 def _separation(prevalence: pd.DataFrame) -> float:
-    """How distinguishable the LEAST distinct pair of clusters is.
+    """Separation of the least distinct pair of clusters.
 
-    For each pair, the largest pick-rate gap on any item -- the criterion a
-    player can check, since "these two builds differ by 60 points on Extra
-    Charge" is a claim about the game. The score is then the WEAKEST pair.
+    For each pair of clusters, takes the largest pick-rate gap on any item.
+    Returns the smallest of those.
 
-    Taking the weakest pair rather than the strongest is load-bearing. Under a
-    max, one genuinely distinct cluster drags near-duplicates through with it:
-    Kelvin's support build carried two spirit clusters that share identical
-    ability investment and differ on no item by more than 23 points. Every k=3
-    hero had a pair below threshold that way -- Kelvin 0.226, Infernus 0.222,
-    Sinclair 0.233. Two clusters are two archetypes only if a player would call
-    them different builds, so every pair must qualify.
+    Using the least distinct pair means every pair must be different builds.
+    With the most distinct pair, one real cluster would let two
+    near-duplicates through. Kelvin's k=3 fit had two spirit clusters that
+    differed on no item by more than 23 points (0.226), and Infernus (0.222)
+    and Sinclair (0.233) had the same problem.
     """
     if len(prevalence) < 2:
         return float("nan")
@@ -495,13 +438,10 @@ def _separation(prevalence: pd.DataFrame) -> float:
 
 
 def separating_item(prevalence: pd.DataFrame) -> tuple[int, float] | None:
-    """The item carrying the weakest pair's separation, and by how much.
+    """(item id, gap) for the item that separates the least distinct pair.
 
-    `_separation` returns the score; this returns the claim behind it. Which
-    item does the work is what says whether a feature block found a playstyle
-    or found ownership of the items the block itself was built from, and no
-    score reports that. It is how the imbue block was judged; see
-    `docs/adr/0001-imbue-out-of-the-clustering.md` for the figures.
+    Shows which item a split rests on. That is how the imbue experiment was
+    judged: the splits rested on the imbueable items themselves (ADR 0001).
     """
     if len(prevalence) < 2:
         return None
@@ -519,17 +459,15 @@ def separating_item(prevalence: pd.DataFrame) -> tuple[int, float] | None:
 def merge_indistinct(
     purchases: pd.DataFrame, labels: pd.Series, *, threshold: float = MIN_SEPARATION
 ) -> pd.Series:
-    """Fold together cluster pairs no player would call different builds.
+    """Merge cluster pairs whose separation is below `threshold`.
 
-    Repeatedly merges the weakest pair while any pair sits below `threshold`,
-    relabelling to stay contiguous. This recovers real archetypes that a
-    whole-fit rejection would throw away: Kelvin's k=3 has two spirit clusters
-    differing on no item by more than 23 points, but the third is a genuine
-    support build (Rescue Beam 46%, Healing Tempo 42%). Merging the first two
-    keeps the support build; rejecting k=3 outright loses it.
+    Merges the least distinct pair until every pair passes, renumbering
+    clusters from 0. This keeps real archetypes that rejecting the whole fit
+    would lose. Kelvin's k=3 fit has two spirit clusters that barely differ
+    and a real support build (Rescue Beam 46%, Healing Tempo 42%). Merging the
+    two spirit clusters keeps the support build.
 
-    Infernus and Silver merge all the way down to one, which is the right
-    answer for them -- their k=3 was noise throughout.
+    Infernus and Silver merge down to one cluster.
     """
     labels = labels.copy()
     while labels.nunique() > 1:
@@ -556,12 +494,13 @@ def fit_hero(
     candidate_k: tuple[int, ...] = CANDIDATE_K,
     extra: pd.DataFrame | None = None,
 ) -> ArchetypeFit:
-    """Select k for one hero, accepting a split only on all four criteria.
+    """Cluster one hero's players, keeping a split only if it passes all four checks.
 
-    Tries the largest k first and merges indistinguishable clusters back
-    together, rather than trying the smallest and stopping. Both orders land on
-    k=2 for Ivy, but only this one finds Kelvin's support build -- it lives in a
-    k=3 fit whose other two clusters are one archetype on a gradient.
+    Tries the largest k first and merges clusters that are too similar.
+    Starting from the smallest k would also give Ivy k=2, but would miss
+    Kelvin's support build, which only appears in a k=3 fit.
+
+    If no split passes, returns k=1 with the scores of the best rejected split.
     """
     features = feature_matrix(purchases, extra)
     n = len(features)
@@ -583,12 +522,10 @@ def fit_hero(
         labels = _canonical_order(features, labels)
         series = pd.Series(labels, index=features.index, name="archetype")
 
-        # Fold away pairs that are one build on a gradient, then re-score what
-        # survives. A k=3 fit carrying one real cluster becomes a k=2 fit.
+        # Merge clusters that are too similar, then score what's left.
         series = merge_indistinct(purchases, series)
         if series.nunique() < 2:
-            # Everything folded into one: the clusters were a gradient, not
-            # builds. Record it so the review sheet says why.
+            # Everything merged into one. Record why for the review sheet.
             if best_rejected is None:
                 best_rejected = ArchetypeFit(
                     hero_id=hero_id, hero_name=hero_name, k=1, n=n,
@@ -641,10 +578,9 @@ def fit_hero(
 def discriminative_items(
     prevalence: pd.DataFrame, cluster: int, *, top: int = 15
 ) -> pd.DataFrame:
-    """Items most over-picked by one cluster relative to the others.
+    """The items one cluster picks most above the mean of the hero's other clusters.
 
-    The readout a human checks. Reported as both rates, not a ratio, because
-    "81% versus 30%" is checkable by eye and "2.7x" is not.
+    Gives both rates, not a ratio: "81% vs 30%" is easier to check than "2.7x".
     """
     if len(prevalence) < 2:
         return pd.DataFrame(columns=["item_id", "in_cluster", "elsewhere", "lift"])
@@ -664,21 +600,13 @@ def discriminative_items(
 def propose_name(
     centroid: pd.Series, hero_name: str, prevalence: pd.DataFrame, cluster: int
 ) -> tuple[str, float]:
-    """Auto-label a cluster from what its distinguishing items DO.
+    """Propose a name for a cluster from the build families of its distinctive items.
 
-    Not from the centroid. Slot shares measure which shop tab the souls went
-    into, and 84 of 170 shopable items sit in a tab that does not match their
-    role -- so centroid naming called Lash's gun build "Tank" (Siphon Bullets
-    is vitality-slotted), Abrams' melee build "Tank" (melee items are
-    weapon-slotted), and Kelvin's support build "Tank" too. It also produced
-    duplicate names: three clusters of one hero all reading "Spirit X".
+    Returns (name, margin). If the margin is too small, the name is just the
+    hero name. A person can override the result in NAMES_PATH.
 
-    The label comes from the cluster's discriminative items, scored into build
-    families and weighted by how rare each family's evidence is. Returns the
-    name and the margin over the runner-up; a thin margin means the rule
-    declined to assert a family and the bare hero name came back.
-
-    A proposal for a human to accept or overrule, not an answer.
+    `centroid` is unused. Naming from shop-tab centroids called Lash's gun
+    build, Abrams' melee build, and Kelvin's support build all "Tank".
     """
     if len(prevalence) < 2 or cluster not in prevalence.index:
         return hero_name, 0.0
@@ -689,9 +617,9 @@ def propose_name(
     return name, margin
 
 
-# A cluster's ability focus has to be its own, not the hero's. Every Dynamo
-# imbues something; only one of Dynamo's clusters imbues Singularity 95% of the
-# time against 8% elsewhere.
+# Thresholds for `ability_focus`. The ability must stand out against the
+# hero's other clusters, not just be common. One Dynamo cluster imbues
+# Singularity 95% of the time, against 8% in the others.
 MIN_FOCUS_SHARE = 0.50
 MIN_FOCUS_LIFT = 0.20
 MIN_FOCUS_ROWS = 30
@@ -703,22 +631,16 @@ def ability_focus(
     imbues: pd.DataFrame | None,
     first_maxed: pd.Series | None,
 ) -> tuple[int, float] | None:
-    """Which signature slot a cluster is built around, if any.
+    """The signature slot this cluster focuses on, or None.
 
-    Returns (slot, share) for the ability this cluster points at far more than
-    the hero's other clusters do, or None when no ability stands out.
+    Returns (slot, lift) for an ability the cluster favors far more than the
+    hero's other clusters. Checks imbue targets first, then the ability maxed
+    first, since clusters that buy no imbueable items have no imbue data.
 
-    Imbue leads, and the ability levelled first is the fallback. Imbue is the
-    sharper statement -- a player spends 6,400 souls to put Mystic Reverb on
-    one ability -- but only builds that buy imbueable items make it, so a
-    cluster that buys none is read from its levelling instead.
-
-    Two guards, both learned the hard way. `MIN_FOCUS_ROWS` because a share
-    over 24 rows is not a finding: a Bebop cluster of 5,110 players had 24
-    imbues, and 23 of them agreeing looked like a 96% signal. And a *lift*
-    requirement, not just a share, because "every Wraith imbues Card Trick"
-    describes the hero, not the build, and would name both of its clusters the
-    same thing.
+    Needs at least MIN_FOCUS_ROWS rows: a Bebop cluster of 5,110 players had
+    only 24 imbues, and 23 agreeing looked like a 96% signal. Also needs a
+    lift over the other clusters, not only a high share. Every Wraith imbues
+    Card Trick, so that says nothing about which Wraith build it is.
     """
     for source, dominant in (
         ("imbue", _dominant_imbue(members, others, imbues)),
@@ -771,11 +693,10 @@ def _dominant_first_maxed(
 
 
 def focus_label(slot: int, signatures: dict) -> str:
-    """What a player calls a build aimed at this ability.
+    """The name word for a build focused on this slot.
 
-    Slot 4 is the ultimate, and `CONTEXT.md` records that players say "ult
-    build" rather than naming the ability. Every other slot is called by the
-    ability's own name.
+    Slot 4 (the ultimate) is "Ult", because players say "ult build" (see
+    CONTEXT.md). Other slots use the ability's name.
     """
     if slot == 4:
         return "Ult"
@@ -784,12 +705,9 @@ def focus_label(slot: int, signatures: dict) -> str:
 
 
 def item_label(prevalence: pd.DataFrame, cluster: int, item_names: dict[int, str]) -> str | None:
-    """The one item that most separates this cluster, in a form a player says.
+    """The last word of this cluster's most distinctive item's name, or None.
 
-    The last word of the item name: a player says "the Reverb build", not "the
-    Mystic Reverb build". Discriminative items are the honest signal about what
-    a cluster is -- more so than its centroid, which measures only where souls
-    went.
+    Players say "the Reverb build", not "the Mystic Reverb build".
     """
     top = discriminative_items(prevalence, cluster, top=1)
     if not len(top):
@@ -806,31 +724,25 @@ def make_unique(
     items: dict[int, str] | None = None,
     fixed: dict[int, str] | None = None,
 ) -> dict[int, str]:
-    """Give every cluster of one hero a name that selects only it.
+    """Make every cluster name for one hero unique.
 
-    Two clusters sharing a name is a user-visible defect, not an aesthetic
-    one: `--archetype Spirit` silently picks the first, so a third of Lady
-    Geist players had a build they could not reach. Uniqueness is the floor.
+    With two clusters sharing a name, `--archetype Spirit` picks the first,
+    and a third of Lady Geist players couldn't select their build.
 
-    Disambiguation runs in the order a player would find informative:
-    the build family first, then what the build is aimed at, then the item that
-    most sets it apart. A trailing number is the last resort and means the rule
-    ran out of things to say -- which is a signal the clusters may not be two
-    builds at all.
+    Duplicates get a prefix from `focus` (the ability the build centers on),
+    or failing that from `items` (its most distinctive item). If neither
+    gives distinct names, a number is appended. Needing a number suggests the
+    clusters may not be different builds.
 
-    `fixed` holds names a person accepted. They are decided here rather than
-    substituted afterwards, because a human name equal to a sibling's generated
-    name puts two archetypes back on one string -- the Lady Geist defect
-    arriving through the hook that exists to prevent it. A fixed name is never
-    rewritten; the generated names move around it.
+    `fixed` holds names a person accepted. They are never changed, and
+    generated names are adjusted so they don't collide with them.
     """
     focus = focus or {}
     items = items or {}
     fixed = fixed or {}
 
-    # Two accepted names that are equal cannot be told apart by moving one --
-    # both are a person's. Returning them unchanged would ship the original
-    # defect hand-written, so the refit stops where a person can still fix it.
+    # Two accepted names that are the same can't be fixed automatically, so
+    # stop the refit and let a person fix the names file.
     claimed: dict[str, list[int]] = {}
     for cluster, chosen in sorted(fixed.items()):
         claimed.setdefault(chosen, []).append(cluster)
@@ -870,9 +782,8 @@ def make_unique(
             for index, cluster in enumerate(sorted(movable), start=1):
                 out[cluster] = f"{name} {index}"
 
-    # Disambiguating one group can collide with another group's name. Fixed
-    # names are claimed first so a generated name yields to a human one
-    # regardless of cluster order.
+    # Renaming one group can collide with another group's name. Count fixed
+    # names first so a generated name always gives way to an accepted one.
     seen: dict[str, int] = {}
     for cluster in sorted(out):
         if cluster in fixed:
@@ -889,14 +800,10 @@ def make_unique(
 
 
 def load_name_overrides(path: Path = NAMES_PATH) -> dict[str, str]:
-    """Human-accepted archetype names, keyed "<hero_id>:<archetype_id>".
+    """Accepted archetype names from NAMES_PATH, keyed "<hero_id>:<archetype_id>".
 
-    The auto-labels are a proposal. This file is where a person overrules them,
-    and it is checked in so the naming survives a refit.
-
-    Keys beginning with an underscore are notes rather than names, so the file
-    can carry its own explanation -- including that cluster ids are only stable
-    while the fit is.
+    Keys starting with an underscore are notes and are skipped. Cluster ids
+    only stay the same while the fit does, so check this file after a refit.
     """
     if not Path(path).exists():
         return {}
@@ -913,7 +820,7 @@ def fit_all(
     imbues: pd.DataFrame | None = None,
     first_maxed: pd.Series | None = None,
 ) -> tuple[pd.DataFrame, list[ArchetypeFit], dict]:
-    """Fit every hero, returning labels, per-hero fits, and reviewable metadata."""
+    """Fit every hero. Returns (labels, per-hero fits, metadata for the review sheet)."""
     hero_names = hero_names or {h: v.name for h, v in assets.load_heroes().items()}
     overrides = load_name_overrides() if overrides is None else overrides
     item_names = {i: it.name for i, it in assets.load_items().items()}
@@ -935,9 +842,8 @@ def fit_all(
         prevalence = cluster_prevalence(group, fit.labels) if fit.split else pd.DataFrame()
         signatures = all_signatures.get(int(hero_id), {})
 
-        # Name every cluster of this hero together, not one at a time. Two
-        # clusters sharing a name is only visible across the hero, and it is
-        # what made a third of Lady Geist players unable to select their build.
+        # Name all of this hero's clusters together, so duplicates can be
+        # found and fixed.
         proposed_names: dict[int, str] = {}
         margins: dict[int, float] = {}
         focus_labels: dict[int, str] = {}
@@ -960,8 +866,7 @@ def fit_all(
             if label:
                 item_labels[cluster] = label
 
-        # The accepted names for THIS hero, keyed by cluster, so uniqueness is
-        # decided with them in place rather than around them.
+        # This hero's accepted names, by cluster.
         fixed = {
             cluster: overrides[f"{hero_id}:{cluster}"]
             for cluster in proposed_names
@@ -974,8 +879,8 @@ def fit_all(
             items=item_labels,
             fixed=fixed,
         )
-        # What the rule would have said on its own, so a reviewer can see what
-        # an accepted name overruled. Only worth recomputing when one was used.
+        # The names without overrides, so a reviewer can see what an accepted
+        # name replaced.
         rule_names = (
             make_unique(proposed_names, name, focus=focus_labels, items=item_labels)
             if fixed
@@ -1031,7 +936,7 @@ def fit_all(
 
 
 def _clean(value: float) -> float | None:
-    """JSON has no NaN; a criterion that could not be computed is null."""
+    """NaN to None, since JSON has no NaN."""
     return None if value is None or np.isnan(value) else float(value)
 
 

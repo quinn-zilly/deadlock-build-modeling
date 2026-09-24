@@ -1,40 +1,33 @@
-"""Which ability a build points its imbueable items at.
+"""Imbues: which ability a player points each imbueable item at.
 
-Every purchase record has carried `imbued_ability_id` since the first pull and
-nothing read it. What it says is narrow but sharp, and it is not what the item
-features already say.
+Each purchase row has an `imbued_ability_id`. An imbue is an (item, ability)
+pair.
 
-**Imbue is a property of an (item, ability) pair, and it is never missing.**
-Only 11 of 173 shopable items can be imbued -- 9 in practice, since two are
-tier 5 and nothing buys tier 5 -- and all 9 carry a target on **100%** of
-purchases, because the game makes the player choose at the counter. So a hero
-with a low imbue rate is not a hero with missing data:
+An imbue is never missing. Only 9 shop items can be imbued in practice (11
+are marked imbueable, but two are tier 5, which nobody buys). The game makes
+the player pick a target when buying, so all 9 have a target on 100% of
+purchases. A hero's imbue rate is just how often its players buy those items:
 
     Silver  buys an imbueable item 20.2%   imbue rate 20.2%
     Billy                          24.8%              24.8%
-    Wraith                          99.8%              99.8%
+    Wraith                         99.8%              99.8%
 
-Those are the same number. Whether a build buys imbueable items is already in
-the item features; what is new here is only the **conditional target** -- given
-it bought one, which ability did it point at. Imputing a hero mean for a player
-who imbued nothing would invent a statement they never made.
+The item features already capture whether a player bought an imbueable item.
+The new information here is only which ability they chose.
 
-The three imbue types are different statements about the build:
+There are three imbue types:
 
-    imbue_active            empowers or copies the ability itself
-    imbue_modifier_value    buffs the ability's numbers
-    imbue_active_non_ult    the same as active, but cannot target the ultimate
+    imbue_active            empowers or copies the ability
+    imbue_modifier_value    raises the ability's numbers
+    imbue_active_non_ult    like active, but can't target the ultimate
 
-Grouped as active and modifier, because "I want a second Singularity" and "I
-want my Singularity to last longer" are different builds while Echo Shard is
-just an active imbue with a restriction. That restriction is still a signal:
-buying Echo Shard over Mystic Reverb says the build is not about the ult.
+We group them into active and modifier. "A second Singularity" and "a longer
+Singularity" are different builds, while Echo Shard (the non-ult one) is an
+active imbue with a restriction.
 
-Measured, this separates exactly one hero -- and it is the one items cannot
-name. Dynamo's ult cluster imbues Singularity 3.6x more than its stomp cluster;
-its stomp cluster imbues Kinetic Pulse 3.0x more. Dynamo is also the only hero
-whose item lifts are too weak to name a cluster at all, so imbue and items
-cover each other's blind spots rather than repeating each other.
+Imbue separates the archetypes of one hero that items can't: Dynamo. Dynamo's
+ult archetype imbues Singularity 3.6x more than its stomp archetype, and the
+stomp archetype imbues Kinetic Pulse 3.0x more.
 """
 
 from __future__ import annotations
@@ -52,7 +45,7 @@ from .state import THIN_EVIDENCE
 
 log = logging.getLogger(__name__)
 
-# The two feature groups. `imbue_active_non_ult` joins "active"; see above.
+# The two imbue groups. `imbue_active_non_ult` counts as active.
 ACTIVE = "active"
 MODIFIER = "modifier"
 GROUPS = (ACTIVE, MODIFIER)
@@ -64,24 +57,21 @@ TYPE_GROUP = {
 
 N_SIGNATURE_SLOTS = 4
 
-# A build that imbues four items is making a firmer statement than one that
-# imbues a single Mystic Expansion, and shares alone flatten that. Scaled by
-# this so the count lands in roughly the same range as a share.
+# `imb_depth` is the imbue count divided by this, capped at 1, so it falls in
+# the same 0-1 range as the share columns.
 MAX_EXPECTED_IMBUES = 4.0
 
-# Below this, the most common target is not what most players pick. Ivy's
-# spirit build aims Compress Cooldown at Air Drop 39% of the time -- still the
-# mode, still a minority, and a build that printed it like Wraith's 100% Card
-# Trick would be overstating what the population agrees on.
+# A most-common target chosen by less than this share of players is marked
+# [split]. For example, Ivy's spirit build aims Compress Cooldown at Air Drop
+# 39% of the time. That is the most common target, but it is not most players.
 MAJORITY = 0.5
 
 
 def imbueable_items(shopable_only: bool = True) -> dict[int, str]:
-    """Item id -> imbue type, for every item that can be imbued.
+    """Map item id to imbue type, for every item that can be imbued.
 
-    Tier 5 items are included when asked for, but nothing buys them: zero rows
-    in 5,095,598 purchases, so Frostbite Charm and Omnicharge Signet never
-    appear in practice.
+    With `shopable_only=False` this includes the tier 5 items Frostbite Charm
+    and Omnicharge Signet, which nobody buys.
     """
     items = assets.shopable_items() if shopable_only else assets.load_items()
     return {i: item.imbue for i, item in items.items() if item.imbueable}
@@ -94,10 +84,9 @@ def imbue_rows(
 ) -> list[dict[str, Any]]:
     """One row per imbued purchase for a player.
 
-    Reads only entries whose item is imbueable *and* carries a target. Both
-    conditions rather than either: a zero target on an imbueable item would
-    mean the game recorded a choice that was never made, and if that ever
-    starts happening it should show up as missing rows rather than as slot 0.
+    Keeps entries whose item is imbueable and whose target is nonzero. If the
+    game ever records an imbueable purchase with no target, it shows up as a
+    missing row, not as slot 0.
     """
     slots = assets.signature_slots() if slots is None else slots
     rows = []
@@ -121,34 +110,24 @@ def imbue_rows(
 def conditional_features(
     df: pd.DataFrame, players: pd.MultiIndex, hero_of: pd.Series
 ) -> pd.DataFrame:
-    """Imbue direction only, and silence from builds that bought no imbueable item.
+    """Which slot each player aimed their imbues at, with non-imbuers at the hero mean.
 
-    The question this answers is *given the build bought an imbueable item,
-    which ability did it point at* -- and nothing else. Eight columns, the
-    share of each group's imbues aimed at each signature slot.
+    Not used by the shipped model. Kept so `scripts/compare_imbue_fits.py` can
+    rerun the experiment in `docs/adr/0001-imbue-out-of-the-clustering.md`.
 
-    **A player who imbued nothing is placed at their hero's mean, not at zero.**
-    Zero is not neutral: it is a distinct point in the feature space, so every
-    non-imbuer on a hero lands on the same coordinates and k-means finds them
-    as a group. Measured, that is exactly what happened -- with zeros, 27 of 33
-    separating items were imbueable items, so the block was splitting heroes by
-    *whether* they bought Mystic Reverb rather than by what they aimed it at.
-    The item features already carry whether. Placing non-imbuers at the mean
-    makes them say nothing, which is the truth about them.
+    Eight columns: for each group (active, modifier), the share of imbues aimed
+    at each signature slot.
 
-    `has_imbue` and a depth count are deliberately absent for the same reason:
-    both encode ownership, which is not what imbue is being asked about here.
+    Players who imbued nothing get their hero's mean, not zeros. With zeros,
+    every non-imbuer sat on the same point and k-means grouped them, so the
+    clusters split on whether players bought an imbueable item (27 of 33
+    separating items were imbueable). `has_imbue` and `imb_depth` are left out
+    for the same reason.
 
-    **Measured, and it did not work.** Removing the ownership columns did not
-    remove the effect: 24 of 29 split heroes still separate on one of the nine
-    imbueable items, against 2 of 28 under build families alone, and nine
-    heroes lose a split they had without the block. Direction is only defined
-    for builds that buy those items, so the block still moves exactly those
-    players while everyone else sits at a per-hero constant carrying no
-    within-hero signal. Kept because the experiment is reproducible from it --
-    see `scripts/compare_imbue_fits.py` and
-    `docs/adr/0001-imbue-out-of-the-clustering.md`. Not used by the shipped
-    fit, which clusters on build family shares alone.
+    It still didn't work. With this block, 24 of 29 split heroes separated on
+    an imbueable item, against 2 of 28 with build families alone, and nine
+    heroes lost a split. Only players who buy imbueable items can differ from
+    the mean, so the block still groups them apart from everyone else.
     """
     base = imbue_features(df, players=players)
     shares = base[[c for c in base.columns if c.startswith("imb_")
@@ -157,7 +136,7 @@ def conditional_features(
 
     hero = hero_of.reindex(shares.index)
     out = shares.copy()
-    # Per hero, the average direction among that hero's imbuers.
+    # Each hero's mean shares, over the players who imbued.
     means = shares[imbued.to_numpy()].groupby(hero[imbued.to_numpy()]).mean()
     for hero_id, row in means.iterrows():
         mask = (hero == hero_id).to_numpy() & (~imbued).to_numpy()
@@ -169,17 +148,13 @@ def conditional_features(
 def imbue_features(df: pd.DataFrame, players: pd.MultiIndex | None = None) -> pd.DataFrame:
     """Per-player imbue features, indexed by (match_id, player_slot).
 
-    Ten columns: `imb_active_1..4` and `imb_mod_1..4` are the share of that
-    group's imbues pointed at each signature slot, `imb_depth` is how many
-    imbues the build made, and `has_imbue` flags whether it made any.
+    Ten columns. `imb_active_1` to `imb_active_4` and `imb_mod_1` to
+    `imb_mod_4` are the share of that group's imbues aimed at each signature
+    slot. `imb_depth` is the imbue count scaled by MAX_EXPECTED_IMBUES, and
+    `has_imbue` is 1 if the player imbued anything.
 
-    A player who imbued nothing reads all zeros with `has_imbue` 0. That is the
-    honest encoding: the value is structurally undefined rather than missing,
-    and the flag says so explicitly instead of leaving every non-imbuer sitting
-    together at the origin looking like a playstyle.
-
-    `players` supplies the full population to reindex over, so players who
-    never imbued still get a row instead of vanishing from a later join.
+    A player who imbued nothing gets all zeros. Pass `players` to give a row
+    to every player, including those with no imbues.
     """
     keys = ["match_id", "player_slot"]
     columns = [
@@ -224,12 +199,7 @@ def imbue_features(df: pd.DataFrame, players: pd.MultiIndex | None = None) -> pd
 
 
 def target_for_item(df: pd.DataFrame, item_id: int) -> int | None:
-    """The ability a population most often imbues one item into.
-
-    What a build should say when it recommends an imbueable item. The mode
-    rather than a distribution, because the export schema has one field and a
-    player makes one choice.
-    """
+    """The ability players most often imbue this item into, or None if nobody did."""
     rows = df[df["item_id"] == item_id]
     if not len(rows):
         return None
@@ -237,12 +207,11 @@ def target_for_item(df: pd.DataFrame, item_id: int) -> int | None:
 
 
 def dominant_targets(df: pd.DataFrame) -> dict[int, int]:
-    """item id -> the ability that population imbues it into most often.
+    """Map item id to the ability players most often imbue it into.
 
-    The export's view of `targets_for_build`, and deliberately the same code
-    underneath: two mode implementations break ties differently, so the same
-    (hero, archetype) exported from the CLI and from `generate_builds.py`
-    could carry different targets for the same item.
+    Built on `targets_for_build` so ties break the same way everywhere. With
+    two separate implementations, the CLI and `generate_builds.py` could
+    export different targets for the same build.
     """
     if not len(df):
         return {}
@@ -255,12 +224,12 @@ def dominant_targets(df: pd.DataFrame) -> dict[int, int]:
 
 @dataclass(frozen=True)
 class ImbueTarget:
-    """The ability a build points one imbueable item at, named and evidenced.
+    """The most common imbue target for one item, with its share and count.
 
-    `ability_id` is None when the population made no imbue of this item at all.
-    That is not the same as a weak preference and is not printed as one: every
-    imbueable purchase carries a target, so no rows means the cell is too thin
-    to speak rather than a build that declined to choose.
+    `ability_id` is None when no player in the table passed to
+    `targets_for_build` bought this item. Every
+    purchase of an imbueable item has a target, so None means no data, not
+    that players chose nothing.
     """
 
     item_id: int
@@ -272,17 +241,12 @@ class ImbueTarget:
 
     @property
     def split(self) -> bool:
-        """Most-common but not most players -- a preference, not a rule."""
+        """True when the most common target has less than MAJORITY of imbues."""
         return self.ability_id is not None and self.share < MAJORITY
 
     @property
     def thin(self) -> bool:
-        """Too few imbues behind this to state plainly.
-
-        The same bar every other recommendation in the tool is held to, and
-        marked the same way rather than hidden: a target from four imbues may
-        still be the right ability, and there is nothing to put in its place.
-        """
+        """True when fewer than THIN_EVIDENCE imbues back this target."""
         return self.ability_id is not None and self.n < THIN_EVIDENCE
 
     def __str__(self) -> str:
@@ -307,10 +271,9 @@ def targets_for_build(
     ability_names: dict[int, str] | None = None,
     imbueable: dict[int, str] | None = None,
 ) -> list[ImbueTarget]:
-    """What to imbue each imbueable item in a build into, in build order.
+    """The imbue target for each imbueable item in a build, in build order.
 
-    Non-imbueable items are left out entirely: two thirds of a build cannot be
-    imbued and a line saying so for each of them would bury the nine that can.
+    Items that can't be imbued are left out.
     """
     imbueable = imbueable_items() if imbueable is None else imbueable
     if item_names is None:
