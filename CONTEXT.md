@@ -60,9 +60,13 @@ targets are all per cell.
 
 **Build family**:
 What an item is for, as players would put it: **gun**, **spirit**, **melee**,
-**support**, or **tank**, plus **sustain** (healing yourself), **control**,
-and **mobility**, which describe items but never name a build. An item can
-belong to several. Archetypes are found and named from build families.
+**support**, **tank**, or **ult** (items bought to cast the ultimate again or
+without being interrupted, such as Refresher and Unstoppable), plus
+**sustain** (healing yourself), **control**, and **mobility**, which describe
+items but never name a build. An item can belong to several. A component
+bought only to build into one item, like Debuff Reducer into Unstoppable,
+belongs to that item's family. Archetypes are found and named from build
+families.
 _Avoid_: slot type, category (for this)
 
 **Slot type**:
