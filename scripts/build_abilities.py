@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from deadlock import abilities, assets, ingest
+from deadlock import abilities, assets, features, ingest
 
 COLUMNS = [
     "match_id",
@@ -49,6 +49,10 @@ def build(pages: list[Path], limit: int | None = None) -> tuple[pd.DataFrame, di
         tally["matches"] += 1
         match_id = match.get("match_id")
         for player in match.get("players") or []:
+            # The purchase table's players, so every per-player table
+            # holds the same set; see features.in_scope.
+            if not features.in_scope(player, match, upgrade_ids):
+                continue
             tally["players"] += 1
             raw = player.get("items") or []
             tally["raw_entries"] += len(raw)

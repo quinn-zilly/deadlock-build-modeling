@@ -391,3 +391,35 @@ class TestConditionalFeatures:
         hero_of = self.heroes([0, 1])
         got = imbue.conditional_features(frame([]), hero_of.index, hero_of)
         assert (got == 0.0).all().all()
+
+
+PURCHASES = Path("data/processed/purchases.parquet")
+PLAYER_KEY = ["match_id", "player_slot"]
+
+
+@pytest.fixture(scope="module")
+def players():
+    """(purchase players, imbuing players), one row per (match, slot)."""
+    if not IMBUES.exists() or not PURCHASES.exists():
+        pytest.skip("requires the imbue and purchase tables")
+    bought = pd.read_parquet(PURCHASES, columns=[*PLAYER_KEY, "hero_id"])
+    imbued = pd.read_parquet(IMBUES, columns=[*PLAYER_KEY, "hero_id"])
+    return bought.drop_duplicates(PLAYER_KEY), imbued.drop_duplicates(PLAYER_KEY)
+
+
+class TestSamePlayersAsPurchases:
+    """The imbue table once held abandon and draw players that the purchase
+    table dropped (#41), and a rate that divided one table by the other put
+    Wraith, Warden and Mina above 1.0. `features.in_scope` is now the one
+    rule every builder asks.
+    """
+
+    def test_every_imbuing_player_is_in_the_purchase_table(self, players):
+        bought, imbued = players
+        missing = imbued.merge(bought[PLAYER_KEY], on=PLAYER_KEY, how="left", indicator=True)
+        assert (missing["_merge"] == "both").all()
+
+    def test_no_hero_imbues_more_players_than_it_has(self, players):
+        bought, imbued = players
+        rate = imbued.groupby("hero_id").size() / bought.groupby("hero_id").size()
+        assert (rate.dropna() <= 1.0).all()

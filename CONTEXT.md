@@ -416,3 +416,15 @@ the rest of the model is measured on, and it does not compare with it.
 A published build is a menu rather than a shopping list: one sampled build
 listed 38 shopable items against a 12-slot cap, with categories named
 `Optional`. So "followed N of M" is not a meaningful metric.
+
+## In scope
+
+A player who belongs in any per-player table: the match outcome is known and
+they bought at least one item. Abandons, draws and unscored matches are out,
+and so is a player who only ever spent ability points. `features.in_scope` is
+the one place this is decided, and every table builder asks it.
+
+When each table decided for itself, the imbue and ability tables kept abandon
+and draw players that the purchase table dropped, and dividing one table by the
+other put three heroes' imbue rates above 1.0. A rate across two tables is only
+a rate when both hold the same players.

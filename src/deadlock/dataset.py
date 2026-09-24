@@ -210,12 +210,10 @@ def match_to_rows(
     rows: list[dict[str, Any]] = []
     for player in players:
         slot = player["player_slot"]
+        if not features.in_scope(player, match, upgrade_ids):
+            continue  # abandon/draw/unscored, or bought nothing
         won = features.player_won(player, match)
-        if won is None:
-            continue  # abandon/draw/unscored: no usable label
         purchases = features.clean_purchases(player, upgrade_ids)
-        if not purchases:
-            continue
 
         player_state = state.get(teams[slot], empty_state)
         build_state = {

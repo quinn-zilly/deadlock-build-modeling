@@ -422,3 +422,19 @@ class TestAgainstRealData:
         """Zero players had no ability spends when this was measured."""
         df = self.load()
         assert df.groupby(["match_id", "player_slot"]).ngroups > 290_000
+
+
+class TestSamePlayersAsPurchases:
+    """The ability table kept the same abandon and draw players as the imbue
+    table did (#41); `features.in_scope` now filters both."""
+
+    PURCHASES = Path("data/processed/purchases.parquet")
+    KEY = ["match_id", "player_slot"]
+
+    def test_every_leveling_player_is_in_the_purchase_table(self):
+        if not ABILITIES.exists() or not self.PURCHASES.exists():
+            pytest.skip("requires the ability and purchase tables")
+        bought = pd.read_parquet(self.PURCHASES, columns=self.KEY).drop_duplicates()
+        leveled = pd.read_parquet(ABILITIES, columns=self.KEY).drop_duplicates()
+        missing = leveled.merge(bought, on=self.KEY, how="left", indicator=True)
+        assert (missing["_merge"] == "both").all()

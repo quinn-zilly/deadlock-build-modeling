@@ -61,6 +61,22 @@ def player_won(player: dict[str, Any], match: dict[str, Any]) -> bool | None:
     return team == winner
 
 
+def in_scope(
+    player: dict[str, Any], match: dict[str, Any], upgrade_ids: frozenset[int]
+) -> bool:
+    """Whether this player belongs in any per-player table.
+
+    The one definition of scope, shared by every builder: the outcome is known
+    and the player bought at least one item. Each table used to decide for
+    itself, and the imbue and ability tables kept abandon and draw players
+    that the purchase table dropped, so dividing one by the other put three
+    heroes' imbue rates above 1.0 (#41). CONTEXT.md calls this "In scope".
+    """
+    if player_won(player, match) is None:
+        return False
+    return any(item.get("item_id") in upgrade_ids for item in player.get("items") or [])
+
+
 def clean_purchases(
     player: dict[str, Any], upgrade_ids: frozenset[int]
 ) -> list[dict[str, Any]]:

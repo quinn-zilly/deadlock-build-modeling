@@ -178,3 +178,34 @@ class TestPlayerWon:
     def test_never_silently_false(self):
         # The original bug: absent data must not read as a loss.
         assert features.player_won({}, {"winning_team": "Team0"}) is not False
+
+
+class TestInScope:
+    """One rule for which players any per-player table may hold.
+
+    The purchase table dropped abandons and draws while the imbue table kept
+    them, so three heroes showed an imbue rate above 1.0 (#41). Every builder
+    asks this function.
+    """
+
+    MATCH = {"winning_team": "Team0", "match_outcome": "TeamWin"}
+
+    def test_a_scored_player_with_a_purchase_is_in(self):
+        player = {"team": "Team0", "items": [{"item_id": 100, "game_time_s": 10}]}
+        assert features.in_scope(player, self.MATCH, UPGRADES)
+
+    def test_an_unscored_player_is_out_even_with_purchases(self):
+        player = {
+            "player_match_outcome": "NotScored",
+            "items": [{"item_id": 100, "game_time_s": 10}],
+        }
+        assert not features.in_scope(player, self.MATCH, UPGRADES)
+
+    def test_a_draw_is_out(self):
+        match = {"winning_team": "Team0", "match_outcome": "Draw"}
+        player = {"team": "Team0", "items": [{"item_id": 100, "game_time_s": 10}]}
+        assert not features.in_scope(player, match, UPGRADES)
+
+    def test_a_player_who_only_spent_ability_points_is_out(self):
+        player = {"team": "Team0", "items": [{"item_id": 999, "game_time_s": 10}]}
+        assert not features.in_scope(player, self.MATCH, UPGRADES)

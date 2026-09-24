@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from deadlock import assets, imbue, ingest
+from deadlock import assets, features, imbue, ingest
 
 COLUMNS = [
     "match_id",
@@ -44,6 +44,7 @@ COLUMNS = [
 def build(pages: list[Path], limit: int | None = None) -> tuple[pd.DataFrame, dict]:
     imbueable = imbue.imbueable_items()
     slots = assets.signature_slots()
+    upgrade_ids = assets.upgrade_ids()
 
     rows: list[dict] = []
     tally = {"matches": 0, "players": 0, "imbueable_bought": 0}
@@ -54,6 +55,10 @@ def build(pages: list[Path], limit: int | None = None) -> tuple[pd.DataFrame, di
         tally["matches"] += 1
         match_id = match.get("match_id")
         for player in match.get("players") or []:
+            # The purchase table's population, so a rate that divides one
+            # table by the other cannot exceed 1.0 (#41).
+            if not features.in_scope(player, match, upgrade_ids):
+                continue
             tally["players"] += 1
             tally["imbueable_bought"] += sum(
                 1 for e in (player.get("items") or []) if e.get("item_id") in imbueable
