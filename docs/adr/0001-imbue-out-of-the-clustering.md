@@ -4,7 +4,9 @@ Date: 2026-09-07
 
 ## Status
 
-Accepted. Re-measured on 2026-09-23 and still holds (see the end).
+Accepted. Re-measured on 2026-09-23 and still holds. A per-hero gate was
+measured on 2026-09-24 and also rejected; that run corrects the explanation
+given under Decision (see the end).
 
 ## Context
 
@@ -146,3 +148,84 @@ split.
 
 The decision stands: the conditional form fails both parts of the rule again.
 `docs/IMBUE-FIT-COMPARISON.md` and its `.csv` were regenerated from this run.
+
+## Gated per hero, 2026-09-24
+
+#40 argued that this ADR's explanation of the failure is wrong, so the
+rejection might not cover a per-hero form. The explanation says target shares
+exist only for players who bought an imbueable item. But 79.6% of players
+imbue, and more than 88% on 22 of 38 heroes, so for most heroes the
+mean-imputed rows are not the majority. The actual structure is direction
+entropy, which varies about 20 times across heroes: Paige's players split
+across slots, and Wraith's aim Quicksilver Reload at slot 1 99.8% of the
+time. #40 proposed giving the block only to heroes where players disagree on
+where to aim an item.
+
+The gate and the rule were posted on #40 before the run.
+
+- **Gate.** Direction is measured per item. Pooling items would count two
+  items with fixed but different targets as a contested choice. An item is
+  contested on a hero when it has at least 300 imbued purchases, is bought by
+  at least 20% of the hero's players, and its aim has at least 0.8 bits of
+  entropy. A hero gets the block if it has a contested item and at least half
+  its players imbue. The gate is binary at weight 1.0. Heroes outside it get
+  no block, and the script checks that their fit is identical to families
+  alone. `imbue.gated_heroes` implements it.
+- **R1.** No hero loses a split it had with families alone.
+- **R2.** This replaces the concentration test, since a block given only to
+  heroes where these items are contested is expected to split on them. At
+  least one gated hero's split must change (k differs, or adjusted Rand index
+  below 0.80). More than half the changed heroes must separate on aim rather
+  than on purchase: the largest gap between clusters in how often they aim a
+  contested item at its usual slot (D) must exceed the largest gap in how
+  often they buy it (P).
+- **R3.** Held-out top-1 in the same run may not fall more than two standard
+  errors below families.
+
+The gate picked 24 heroes, not the nine #40 named. Compress Cooldown's target
+is contested on almost every hero once direction is measured per item.
+`scripts/compare_imbue_fits.py` ran five fits in one run. Its families,
+first-form and conditional numbers match the 2026-09-23 run exactly.
+
+| | families | conditional | gated (24 heroes) | #40's nine heroes |
+|---|---|---|---|---|
+| heroes that split | 31 | 28 | 34 | 32 |
+| splits lost | -- | 8 | **1** (Paradox) | 0 |
+| changed gated heroes split on aim | -- | -- | 19 of 23 | 8 of 9 |
+
+Held-out next-item accuracy (`scripts/score_archetype_fits.py`, 20,000
+matches, the same 20,000 decisions for both fits, bigram 0.2647):
+
+| fit | top-1 | top-3 | cells in the sample |
+|---|---|---|---|
+| build families | 0.3732 | 0.5790 | 79 |
+| gated imbue | 0.3741 | 0.5829 | 85 |
+
+**The gated block stays out.** It passes R2 and R3 and fails R1 on one hero.
+Families alone give Paradox three builds separated by Spirit Burn, a
+non-imbueable item with a 0.66 gap. The block merges them into two, split on
+Mystic Expansion. That is the conflict #40 described, where the block fights
+the item features, and it happened on a hero the gate selected. The rule was
+applied as written.
+
+What this settles about the mechanism:
+
+- **Most of the ungated block's failure came from heroes the gate excludes.**
+  Six of its eight lost splits are on heroes outside the gate. Billy and
+  Drifter have low imbue rates, which is where the explanation above does
+  apply. Haze, Venator, Vyper and Warden aim at a fixed slot, so the block
+  added dimensions with nothing to separate. Within the gate, Holliday keeps
+  its split and Paradox does not.
+- **On contested heroes the block splits on aim, not purchase**, for 19 of
+  the 23 heroes whose split it changed. The first form's failure, splitting
+  on whether a player bought the item, is not what the gated block does.
+- **But it redraws the whole split, not just the part that is about aim.**
+  Adjusted Rand index against families is below 0.3 on 20 of the 23 changed
+  heroes, including heroes whose k did not move (Grey Talon 0.07, Mina 0.02,
+  Holliday 0.02). The block does not refine the item-based builds. It
+  replaces them.
+
+#40's nine heroes pass R1 and R2 in the same run. That fit was declared a
+comparison before the run, so it doesn't decide anything here. Choosing it
+after seeing that the wider gate failed would be picking the gate on the
+result. Promoting it needs its own run.

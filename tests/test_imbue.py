@@ -371,6 +371,61 @@ class TestConditionalFeatures:
         assert (got == 0.0).all().all()
 
 
+class TestDirectionGate:
+    """`item_direction` and `gated_heroes`: which heroes' players disagree on where an item goes.
+
+    Direction is measured per item. Two items that each go to a fixed but
+    different slot are two constants, not a contested choice.
+    """
+
+    def heroes(self, n: int, hero_id: int = 11) -> pd.Series:
+        index = pd.MultiIndex.from_tuples(
+            [(1, s) for s in range(n)], names=["match_id", "player_slot"]
+        )
+        return pd.Series(hero_id, index=index)
+
+    def test_a_fifty_fifty_item_carries_one_bit(self):
+        got = imbue.item_direction(
+            frame([(0, 1, MYSTIC_REVERB, "active"), (1, 2, MYSTIC_REVERB, "active")]),
+            self.heroes(2),
+        )
+        row = got.iloc[0]
+        assert row["entropy"] == pytest.approx(1.0)
+        assert row["top_share"] == pytest.approx(0.5)
+        assert row["buy_rate"] == pytest.approx(1.0)
+
+    def test_two_fixed_items_are_not_contested(self):
+        """Pooled over items this would be one bit. Per item it is zero."""
+        got = imbue.item_direction(
+            frame([(0, 1, MYSTIC_REVERB, "active"), (1, 2, DURATION_EXTENDER, "modifier")]),
+            self.heroes(2),
+        )
+        assert (got["entropy"] == 0.0).all()
+
+    def test_buy_rate_counts_players_not_purchases(self):
+        got = imbue.item_direction(
+            frame([(0, 1, MYSTIC_REVERB, "active"), (0, 1, MYSTIC_REVERB, "active")]),
+            self.heroes(4),
+        )
+        assert got.iloc[0]["buyers"] == 1
+        assert got.iloc[0]["buy_rate"] == pytest.approx(0.25)
+
+    def test_a_contested_item_gates_its_hero_in(self):
+        rows = [(s, 1 + s % 2, MYSTIC_REVERB, "active") for s in range(10)]
+        got = imbue.gated_heroes(frame(rows), self.heroes(10), min_purchases=5)
+        assert got == {11}
+
+    def test_a_constant_item_leaves_its_hero_out(self):
+        rows = [(s, 1, MYSTIC_REVERB, "active") for s in range(10)]
+        assert imbue.gated_heroes(frame(rows), self.heroes(10), min_purchases=5) == set()
+
+    def test_a_hero_most_players_do_not_imbue_is_left_out(self):
+        """Below MIN_GATE_IMBUE_RATE the mean-imputed rows are the majority."""
+        rows = [(s, 1 + s % 2, MYSTIC_REVERB, "active") for s in range(10)]
+        got = imbue.gated_heroes(frame(rows), self.heroes(30), min_purchases=5, min_buy_rate=0.0)
+        assert got == set()
+
+
 PURCHASES = Path("data/processed/purchases.parquet")
 PLAYER_KEY = ["match_id", "player_slot"]
 
