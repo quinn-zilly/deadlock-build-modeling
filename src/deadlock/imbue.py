@@ -126,8 +126,12 @@ def conditional_features(
 
     It still didn't work. With this block, 24 of 29 split heroes separated on
     an imbueable item, against 2 of 28 with build families alone, and nine
-    heroes lost a split. Only players who buy imbueable items can differ from
-    the mean, so the block still groups them apart from everyone else.
+    heroes lost a split. The reason is not that most players sit at the mean:
+    79.6% of players imbue. Six of the eight lost splits (2026-09-23 run) are
+    on heroes whose players rarely imbue or all aim at the same slot, where
+    the block has nothing to separate. Given only to `gated_heroes`, it loses
+    one split (Paradox) and splits on aim rather than purchase, but it still
+    fails ADR 0001's rule (#40).
     """
     base = imbue_features(df, players=players)
     shares = base[[c for c in base.columns if c.startswith("imb_")
@@ -143,6 +147,113 @@ def conditional_features(
         if mask.any():
             out.loc[mask, row.index] = row.to_numpy()
     return out
+
+
+# The per-hero gate for #40, fixed before any split outcome was computed. An
+# item is contested on a hero when players split on where to aim it: at least
+# MIN_GATE_PURCHASES imbued purchases, bought by at least MIN_GATE_BUY_RATE of
+# the hero's players, with direction entropy at least MIN_GATE_ENTROPY bits
+# (about a 75/25 split). A hero is gated in when it has a contested item and
+# at least MIN_GATE_IMBUE_RATE of its players imbue anything.
+MIN_GATE_PURCHASES = 300
+MIN_GATE_BUY_RATE = 0.20
+MIN_GATE_ENTROPY = 0.8
+MIN_GATE_IMBUE_RATE = 0.50
+
+
+def item_direction(df: pd.DataFrame, hero_of: pd.Series) -> pd.DataFrame:
+    """Where each hero's players aim each imbueable item, one row per (hero, item).
+
+    `hero_of` maps (match_id, player_slot) to hero id for every player, imbuing
+    or not. Columns: `purchases`, `buyers` (distinct players), `buy_rate`
+    (buyers over the hero's players), `top_slot`, `top_share`, and `entropy`,
+    the Shannon entropy in bits of the signature slot over the purchases.
+
+    Measured per item because pooling hides the difference that matters: two
+    items each aimed at a fixed but different slot pool to one bit, yet
+    neither is a choice anyone disagrees on.
+    """
+    keys = ["match_id", "player_slot"]
+    columns = ["hero_id", "item_id", "purchases", "buyers", "buy_rate",
+               "top_slot", "top_share", "entropy"]
+    valid = df[df["signature_slot"].between(1, N_SIGNATURE_SLOTS)] if len(df) else df
+    if not len(valid):
+        return pd.DataFrame(columns=columns)
+    valid = valid.assign(hero_id=hero_of.reindex(
+        pd.MultiIndex.from_frame(valid[keys])).to_numpy())
+    players = hero_of.value_counts()
+
+    counts = valid.groupby(["hero_id", "item_id", "signature_slot"]).size()
+    rows = []
+    for (hero_id, item_id), slots in counts.groupby(level=[0, 1]):
+        n = int(slots.sum())
+        p = slots.to_numpy(float) / n
+        buyers = int(
+            valid.loc[(valid["hero_id"] == hero_id) & (valid["item_id"] == item_id), keys]
+            .drop_duplicates().shape[0]
+        )
+        rows.append({
+            "hero_id": int(hero_id),
+            "item_id": int(item_id),
+            "purchases": n,
+            "buyers": buyers,
+            "buy_rate": buyers / int(players.get(hero_id, buyers)),
+            "top_slot": int(slots.idxmax()[2]),
+            "top_share": float(p.max()),
+            "entropy": float(-(p * np.log2(p)).sum()) + 0.0,
+        })
+    return pd.DataFrame(rows, columns=columns)
+
+
+def imbue_rate(df: pd.DataFrame, hero_of: pd.Series) -> pd.Series:
+    """Share of each hero's players with at least one imbue, by hero id."""
+    keys = ["match_id", "player_slot"]
+    imbuers = df[keys].drop_duplicates() if len(df) else pd.DataFrame(columns=keys)
+    heroes = hero_of.reindex(pd.MultiIndex.from_frame(imbuers))
+    return (heroes.value_counts() / hero_of.value_counts()).reindex(
+        hero_of.unique()).fillna(0.0)
+
+
+def contested_items(
+    df: pd.DataFrame,
+    hero_of: pd.Series,
+    *,
+    min_purchases: int = MIN_GATE_PURCHASES,
+    min_buy_rate: float = MIN_GATE_BUY_RATE,
+    min_entropy: float = MIN_GATE_ENTROPY,
+) -> pd.DataFrame:
+    """The (hero, item) rows of `item_direction` that clear the contested-item bar."""
+    table = item_direction(df, hero_of)
+    return table[
+        (table["purchases"] >= min_purchases)
+        & (table["buy_rate"] >= min_buy_rate)
+        & (table["entropy"] >= min_entropy)
+    ]
+
+
+def gated_heroes(
+    df: pd.DataFrame,
+    hero_of: pd.Series,
+    *,
+    min_purchases: int = MIN_GATE_PURCHASES,
+    min_buy_rate: float = MIN_GATE_BUY_RATE,
+    min_entropy: float = MIN_GATE_ENTROPY,
+    min_imbue_rate: float = MIN_GATE_IMBUE_RATE,
+) -> set[int]:
+    """Heroes whose players disagree on where to aim an item they mostly buy.
+
+    Not used by the shipped model. The experiment in #40 gives these heroes
+    the `conditional_features` block and every other hero none.
+    """
+    contested = contested_items(
+        df, hero_of, min_purchases=min_purchases,
+        min_buy_rate=min_buy_rate, min_entropy=min_entropy,
+    )
+    rates = imbue_rate(df, hero_of)
+    return {
+        int(h) for h in contested["hero_id"].unique()
+        if rates.get(h, 0.0) >= min_imbue_rate
+    }
 
 
 def imbue_features(df: pd.DataFrame, players: pd.MultiIndex | None = None) -> pd.DataFrame:

@@ -64,3 +64,81 @@ hero's split compared with build families alone.
 **No hero loses a split: NO. Share drops by at least half: NO.**
 
 By the rule set before the results, imbue stays out of the clustering and is used only for naming and advice.
+
+## Gated per hero (#40)
+
+The conditional block given only to heroes whose players disagree on
+where to aim an item (`imbue.gated_heroes`). Every other hero gets no
+block and an identical fit, which the script checks. `gated` uses the
+gate posted on #40 before the run and carries the verdict. `gated9` is
+the nine heroes #40's text named, reported for comparison only.
+
+D is the largest gap between two clusters in how often they aim a
+contested item at its usual slot. P is the largest gap in how often
+they buy it. A split on aim has D > P.
+
+### gated
+
+- Heroes given the block: 24 (Abrams, Apollo, Bebop, Dynamo, Graves, Grey Talon, Holliday, Ivy, Kelvin, Lash, McGinnis, Mina, Mirage, Mo & Krill, Paige, Paradox, Pocket, Rem, Seven, Sinclair, The Doorman, Victor, Viscous, Yamato)
+- Splits gained: Abrams, Apollo, Dynamo, McGinnis, Mo & Krill, Rem, Sinclair, The Doorman, Victor, Viscous
+- Splits **lost**: Paradox
+- Gated heroes whose split changed (k differs, or ARI below 0.8): 23 (Abrams, Apollo, Bebop, Dynamo, Graves, Grey Talon, Holliday, Ivy, Kelvin, Lash, McGinnis, Mina, Mirage, Mo & Krill, Paige, Paradox, Rem, Seven, Sinclair, The Doorman, Victor, Viscous, Yamato)
+- Of those still split, separating on aim (D > P): Abrams, Dynamo, Graves, Grey Talon, Holliday, Ivy, Kelvin, Lash, Mina, Mirage, Mo & Krill, Paige, Paradox, Rem, Seven, Sinclair, The Doorman, Viscous, Yamato. On purchase: Apollo, Bebop, McGinnis, Victor.
+
+**R1, no hero loses a split: NO. R2a, a gated split changes: yes. R2b, most changes are on aim: yes.**
+
+By the rule set before the results, the gated block stays out of the clustering.
+
+### gated9
+
+- Heroes given the block: 9 (Graves, Ivy, Kelvin, Paige, Seven, Sinclair, The Doorman, Victor, Viscous)
+- Splits gained: Sinclair, The Doorman, Victor, Viscous
+- Splits **lost**: none
+- Gated heroes whose split changed (k differs, or ARI below 0.8): 9 (Graves, Ivy, Kelvin, Paige, Seven, Sinclair, The Doorman, Victor, Viscous)
+- Of those still split, separating on aim (D > P): Graves, Ivy, Kelvin, Paige, Seven, Sinclair, The Doorman, Viscous. On purchase: Victor.
+
+**R1, no hero loses a split: yes. R2a, a gated split changes: yes. R2b, most changes are on aim: yes.**
+
+#### gated, per gated hero
+
+| hero | k families | k gated | ARI | D (aim) | P (buy) |
+|---|---|---|---|---|---|
+| Abrams | 2 | 3 | 0.24 | 1.00 | 0.89 |
+| Apollo | 1 | 2 | 0.00 | 0.08 | 0.19 |
+| Bebop | 2 | 2 | 0.14 | 0.54 | 0.61 |
+| Dynamo | 2 | 3 | 0.20 | 0.88 | 0.57 |
+| Graves | 3 | 3 | 0.24 | 0.95 | 0.87 |
+| Grey Talon | 3 | 3 | 0.07 | 1.00 | 0.61 |
+| Holliday | 3 | 3 | 0.02 | 0.94 | 0.65 |
+| Ivy | 3 | 3 | 0.16 | 0.93 | 0.62 |
+| Kelvin | 2 | 2 | 0.05 | 0.28 | 0.19 |
+| Lash | 3 | 3 | 0.25 | 0.89 | 0.65 |
+| McGinnis | 2 | 3 | 0.45 | 0.88 | 0.90 |
+| Mina | 3 | 3 | 0.02 | 0.99 | 0.72 |
+| Mirage | 2 | 2 | 0.13 | 0.93 | 0.73 |
+| Mo & Krill | 1 | 2 | 0.00 | 0.64 | 0.52 |
+| Paige | 2 | 2 | 0.13 | 0.40 | 0.16 |
+| Paradox | 3 | 2 | 0.28 | 0.75 | 0.12 |
+| Pocket | 1 | 1 | 1.00 | -- | -- |
+| Rem | 2 | 3 | 0.02 | 0.48 | 0.35 |
+| Seven | 3 | 3 | 0.14 | 0.57 | 0.29 |
+| Sinclair | 2 | 3 | 0.09 | 0.89 | 0.46 |
+| The Doorman | 1 | 2 | 0.00 | 0.72 | 0.12 |
+| Victor | 2 | 3 | 0.42 | 0.31 | 0.39 |
+| Viscous | 2 | 3 | 0.31 | 0.97 | 0.43 |
+| Yamato | 2 | 2 | -0.01 | 0.97 | 0.90 |
+
+#### gated9, per gated hero
+
+| hero | k families | k gated9 | ARI | D (aim) | P (buy) |
+|---|---|---|---|---|---|
+| Graves | 3 | 3 | 0.24 | 0.95 | 0.87 |
+| Ivy | 3 | 3 | 0.16 | 0.94 | 0.62 |
+| Kelvin | 2 | 2 | 0.05 | 0.28 | 0.19 |
+| Paige | 2 | 2 | 0.13 | 0.40 | 0.16 |
+| Seven | 3 | 3 | 0.14 | 0.57 | 0.29 |
+| Sinclair | 2 | 3 | 0.09 | 0.89 | 0.46 |
+| The Doorman | 1 | 2 | 0.00 | 0.72 | 0.12 |
+| Victor | 2 | 3 | 0.42 | 0.31 | 0.39 |
+| Viscous | 2 | 3 | 0.38 | 0.94 | 0.53 |
+

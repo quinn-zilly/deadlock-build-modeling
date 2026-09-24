@@ -10,7 +10,8 @@ scored as the control. Used for #10 (imbue) and #39 (ability order).
     python scripts/score_archetype_fits.py [--matches N] [--limit N]
         [--blocks families,order_mean,...]
 
-Blocks: `families`, `conditional imbue`, `order` (raw point order),
+Blocks: `families`, `conditional imbue`, `gated imbue` (the conditional
+block on `imbue.gated_heroes` only, for #40), `order` (raw point order),
 `order_mean` (point order minus the hero's mean), and `order_rank` (point
 order as a percentile within the hero).
 """
@@ -88,6 +89,20 @@ def candidate_blocks(
                 pd.read_parquet(IMBUES), players, heroes
             )
             out[name] = archetype.scale_block(block, IMBUE_WEIGHT)
+        elif name == "gated imbue":
+            if not IMBUES.exists():
+                logging.warning("%s not found; skipping %s", IMBUES, name)
+                continue
+            rows = pd.read_parquet(IMBUES)
+            block = imbue.conditional_features(rows, players, heroes)
+            # The gate is chosen over the whole purchase table, not this run's
+            # sample, so it picks the same heroes `compare_imbue_fits.py` fits.
+            everyone = archetype.hero_of(
+                pd.read_parquet(PURCHASES, columns=["match_id", "player_slot", "hero_id"])
+            )
+            gate = imbue.gated_heroes(rows, everyone)
+            inside = heroes.reindex(block.index).isin(gate).to_numpy()
+            out[name] = archetype.scale_block(block[inside], IMBUE_WEIGHT)
         elif name.startswith("order"):
             if ability_rows is None:
                 continue
