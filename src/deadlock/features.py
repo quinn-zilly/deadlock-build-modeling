@@ -77,7 +77,7 @@ def clean_purchases(
     """One player's item purchases, sorted by game_time_s.
 
     Drops ability-point spends. Keeps sold items and their `sold_time_s`,
-    because about 33.6% of purchases are later sold and some callers want
+    because about 37% of purchases are later sold and some callers want
     everything bought while others want what was held at the end.
     """
     purchases = [
