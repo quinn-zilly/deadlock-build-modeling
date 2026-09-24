@@ -1,12 +1,10 @@
-"""Tests for the match-to-purchase-row conversion.
+"""Converting match JSON to purchase rows.
 
-The objective columns encode two traps that produce confident wrong answers
-rather than errors: `objectives.team` names the team that LOST the objective,
-and a `destroyed_time_s` of 0 or 1 means "never destroyed". Both are asserted
-directly here, because review has already missed one of them once.
+Two traps in the objective data give wrong numbers instead of errors, so both
+are tested directly: `objectives.team` is the team that lost the objective,
+and a `destroyed_time_s` of 0 or 1 means it was never destroyed.
 
-Match dicts are built by hand rather than loaded from `data/`, so these run
-without the ~5 GB raw cache and state their preconditions in the test body.
+The match dicts are built by hand, so these tests don't need the raw cache.
 """
 
 from __future__ import annotations
@@ -35,7 +33,7 @@ def _player(slot, team, **extra):
 
 
 def _walker(lane, destroyed_time_s, team):
-    """A Walker objective. `team` is the team that LOST it, per the API."""
+    """A Walker objective. As in the API, `team` is the team that lost it."""
     return {
         "team_objective": f"Tier2Lane{lane}",
         "destroyed_time_s": destroyed_time_s,
@@ -81,8 +79,7 @@ class TestSlotUnlockTimes:
         assert team0["slot12_unlock_s"] == 1_700
 
     def test_the_losing_team_gets_no_slot_from_its_own_walker(self):
-        # The inversion trap: an objective lost by Team0 unlocks a slot for
-        # Team1, never for Team0.
+        # An objective lost by Team0 unlocks a slot for Team1, not Team0.
         match = _match(objectives=[_walker(1, 900, "Team0")])
         rows = _rows_by_team(match)
         assert rows["Team1"]["slot10_unlock_s"] == 900
@@ -100,8 +97,7 @@ class TestSlotUnlockTimes:
 
     @pytest.mark.parametrize("sentinel", [0, 1])
     def test_sentinel_destruction_times_are_null_not_zero(self, sentinel):
-        # 0 and 1 both mean "never destroyed"; read as times they drag every
-        # percentile below the median into nonsense.
+        # 0 and 1 both mean "never destroyed", not a time.
         match = _match(
             objectives=[_walker(1, sentinel, "Team1"), _walker(2, 1_100, "Team1")]
         )
@@ -117,8 +113,7 @@ class TestSlotUnlockTimes:
         assert team0["slot12_unlock_s"] is None
 
     def test_an_unknown_losing_team_credits_nobody(self):
-        # "not the loser" is not the same as "the opponent": team can read
-        # Spectator, and a set difference would hand it every Walker.
+        # `team` can be "Spectator", which must not get the Walkers.
         match = _match(objectives=[_walker(1, 900, "Spectator")])
         rows = _rows_by_team(match)
         assert rows["Team0"]["slot10_unlock_s"] is None
@@ -153,8 +148,8 @@ class TestMidBoss:
         assert rows["Team1"]["midboss_kill_s"] is None
 
     def test_a_stolen_mid_boss_credits_the_claimant(self):
-        # team_killed and team_claimed disagree in ~13% of kills; the souls go
-        # to the claimant.
+        # team_killed and team_claimed differ in about 13% of kills. The souls
+        # go to team_claimed.
         match = _match(
             mid_boss=[{"team_killed": "Team0", "team_claimed": "Team1",
                        "destroyed_time_s": 1_200}]
@@ -173,7 +168,7 @@ class TestMidBoss:
 
 class TestPreChangePages:
     def test_a_match_with_no_objectives_key_converts_to_nulls(self):
-        # Pages cached before this change carry neither key.
+        # Pages cached before objectives were requested have neither key.
         rows = dataset.match_to_rows(_match(), UPGRADES)
         assert rows
         for row in rows:
@@ -183,8 +178,8 @@ class TestPreChangePages:
             assert row["midboss_kill_s"] is None
 
     def test_has_objectives_separates_not_requested_from_never_happened(self):
-        # Both cases put null in slot10_unlock_s. They are different claims,
-        # and a percentile computed over both mixes them.
+        # Both cases put null in slot10_unlock_s, but they mean different
+        # things. has_objectives tells them apart.
         stale = dataset.match_to_rows(_match(), UPGRADES)[0]
         fresh = dataset.match_to_rows(
             _match(objectives=[_walker(1, 0, "Team1")]), UPGRADES
@@ -225,8 +220,8 @@ class TestIntendedBuild:
         assert rows["Team1"]["hero_build_id"] == 126_856
 
     def test_missing_build_id_is_null_not_zero(self):
-        # ~90% of matches are not demo-analyzed. Null means "unknown", and the
-        # API also sends 0 for the same thing.
+        # Most matches are never analyzed. The API sends null or 0 for
+        # "unknown", and both become null.
         players = [_player(1, "Team0"), _player(7, "Team1", hero_build_id=0)]
         rows = _rows_by_team(_match(players=players))
         assert rows["Team0"]["hero_build_id"] is None

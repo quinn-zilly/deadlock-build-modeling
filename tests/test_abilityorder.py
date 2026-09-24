@@ -1,9 +1,8 @@
-"""Ability order: the sequence half of a build.
+"""The ability-order model.
 
-The load-bearing rules here are the two that differ from the item path. A slot
-takes four points, so the ownership mask that protects items would be wrong.
-And a slot at level 4 is illegal, which is the only hard constraint an ability
-order has.
+Two rules differ from items. A slot takes up to four points, so it must not
+be masked after the first like an owned item. And a slot at level 4 can't take
+another point.
 """
 
 from __future__ import annotations
@@ -38,7 +37,7 @@ def points(rows: list[tuple[int, int, int, int]], hero_id: int = 7) -> pd.DataFr
 
 
 def repeated(order: list[int], n_players: int = 40, hero_id: int = 7) -> pd.DataFrame:
-    """A population that always levels in the same order."""
+    """Players who all level in the same order."""
     rows = []
     for player in range(n_players):
         levels = {slot: 0 for slot in range(1, 5)}
@@ -67,7 +66,7 @@ class TestPointFrame:
         assert frame.sort_values("buy_index")["item_id"].tolist() == [1, 2]
 
     def test_unmapped_abilities_are_dropped_and_positions_stay_contiguous(self):
-        """A slot the assets cannot name is not advice, so it is not modelled."""
+        """Unmapped abilities are dropped, and positions are renumbered without gaps."""
         frame = abilityorder.point_frame(
             points([(0, abilities.UNMAPPED_SLOT, 1, 5), (0, 1, 1, 10), (0, 2, 1, 20)])
         )
@@ -86,7 +85,7 @@ class TestGenerateOrder:
         assert [point.slot for point in got] == order
 
     def test_a_slot_stops_at_level_four(self):
-        """The only hard constraint. A fifth point in one slot is not a build."""
+        """A slot at level 4 is never recommended again."""
         population = repeated([1] * 4 + [2, 3, 4] * 4)
         model = abilityorder.fit(population)
         got = abilityorder.generate_order(
@@ -133,13 +132,11 @@ class TestGenerateOrder:
 
 
     def test_a_cell_with_no_timings_raises(self):
-        """Silence would be a confident wrong answer, so it fails loudly.
+        """generate_order raises when it has no timings for the cell.
 
-        Three of the six levels key on `time_bucket`. A roll-forward with a
-        frozen clock asks every one of them for the first five minutes of the
-        match: measured, that diverged at the seventh point and reported
-        p=0.892 for the wrong slot. A miss is recoverable, a confident wrong
-        answer is not.
+        Three backoff levels key on the time bucket. With the clock stuck at
+        zero, a measured order went wrong at the seventh point with p=0.892,
+        so an error is better than a guess.
         """
         population = repeated([1, 2, 3, 4] * 4)
         model = abilityorder.fit(population)
@@ -157,11 +154,10 @@ class TestRecommend:
         assert all(point.slot != 1 for point in ranked)
 
     def test_a_repeated_slot_is_still_offered(self):
-        """Unlike items, a slot is taken four times -- masking it would be wrong.
+        """A slot that already has points is still recommended.
 
-        This is the bug the item path's `mask_owned` would introduce here: the
-        first point into slot 1 would make every later point into slot 1
-        invisible, and no hero could ever max an ability.
+        With `mask_owned`, the first point in slot 1 would hide slot 1 for the
+        rest of the order, and no ability could reach level 4.
         """
         model = abilityorder.fit(repeated([1, 1, 1, 1, 2, 3, 4] + [2, 3, 4] * 3))
         state = GameState(hero_id=7, game_time_s=60.0, souls_available=0,
@@ -186,13 +182,13 @@ class TestFormatOrder:
 
 
 class TestAgainstRealData:
-    """The claim the ability reversal rests on, pinned on real players."""
+    """On real players, archetypes of one hero level abilities in different orders."""
 
     def test_holliday_gun_rushes_crackshot_and_spirit_does_not(self):
-        """Measured: the gun archetype maxes Crackshot 38% against 1%.
+        """Holliday's gun archetype maxes Crackshot first and the spirit one doesn't.
 
-        If a refit ever makes these two orders agree, the ability features have
-        stopped separating the archetypes they were added to separate.
+        Measured at 38% against 1%. If a refit makes the two orders agree, the
+        ability order no longer tells these archetypes apart.
         """
         if not ABILITIES.exists():
             pytest.skip("requires the processed ability table")
@@ -213,9 +209,8 @@ class TestAgainstRealData:
         labels = pd.read_parquet("data/processed/archetypes.parquet")
         model = abilityorder.fit(df[df.hero_id == hero_id], labels)
 
-        # Keyed on the family half of the name, not the shipped name: two of
-        # Holliday's clusters are spirit builds and are told apart by what they
-        # imbue, so "the spirit one" is not a single archetype any more.
+        # Match on family_name, not name. Holliday has two spirit archetypes,
+        # named apart by what they imbue.
         families = {
             entry["archetype_id"]: entry["family_name"]
             for entry in meta["heroes"][str(hero_id)]["archetypes"]
@@ -244,17 +239,16 @@ class TestAgainstRealData:
         )
 
     def test_the_model_is_a_sequence_model_not_a_new_one(self):
-        """Reuse is the design: no second model to keep in step with the first."""
+        """abilityorder.fit returns the same SequenceModel type as the item model."""
         model = abilityorder.fit(repeated([1, 2, 3, 4] * 4))
         assert isinstance(model, sequence.SequenceModel)
 
 
 class TestBadgeWeighting:
-    """Ability points are weighted toward strong play like purchases are.
+    """Ability points can be badge-weighted like purchases.
 
-    The abilities table has no badge column of its own -- badge is a property
-    of the match, recorded on the purchase rows -- so it has to be carried
-    across before the fit can see it.
+    The abilities table has no badge column, so `attach_badges` copies it from
+    the purchase table first.
     """
 
     def two_brackets(self) -> pd.DataFrame:
@@ -297,11 +291,10 @@ class TestBadgeWeighting:
         assert joined["average_badge"].tolist() == [91]
 
     def test_attach_badges_leaves_unmatched_rows_unweighted(self):
-        """A missing badge must read as neutral, not as badge zero.
+        """Rows with no matching purchase get a null badge, not 0.
 
-        `average_badge` is Ranked-only, so a chunk of matches have none. The
-        kernel already treats NaN as weight 1.0; filling a zero would push
-        those rows to the far tail and drop them from every table.
+        `row_weights` gives a null badge weight 1. A badge of 0 would get
+        almost no weight.
         """
         abilities_df = points([(0, 1, 1, 10)])
         purchases = pd.DataFrame(
@@ -312,18 +305,15 @@ class TestBadgeWeighting:
 
 
 class TestTimingsFollowTheBracket:
-    """The clock a build is generated against belongs to the same players.
+    """With a badge, ability timings come from that badge's players too.
 
-    Three of the six backoff levels key on a time bucket, so the timings are
-    not decoration -- they are half the context every deep level is asked
-    with. Weighting the tables toward a bracket while reading the clock off
-    the whole population conditions a strong player's build on a median
-    player's pace.
+    Three backoff levels key on the time bucket, so timings from all players
+    would give a strong player's build the average player's pace.
     """
 
     @staticmethod
     def frame_with_two_paces() -> pd.DataFrame:
-        """One bracket levels at a minute a point, the other at five."""
+        """High-badge players spend a point a minute; low-badge players, one every five."""
         rows = []
         for badge, step in ((100, 60), (40, 300)):
             for player in range(40):
@@ -356,13 +346,13 @@ class TestTimingsFollowTheBracket:
         assert slow[0] == pytest.approx(300.0)
 
     def test_a_frame_without_a_badge_column_still_answers(self):
-        """The abilities table has no badge of its own; degrade, do not raise."""
+        """Without a badge column, median_timings returns plain medians instead of raising."""
         frame = self.frame_with_two_paces().drop(columns=["average_badge"])
         timings = abilityorder.median_timings(frame, 7, 0, target_badge=100.0)
         assert timings[0] == pytest.approx(180.0)
 
     def test_generate_order_dates_its_points_by_the_bracket(self):
-        """End to end: the order a bracket gets carries that bracket's clock."""
+        """generate_order uses the timings of the badge it was given."""
         order = [1, 1, 2, 3, 1, 2, 4, 1, 2, 2, 3, 3, 3, 4, 4, 4]
         frames = []
         for badge, step in ((100, 30), (40, 240)):

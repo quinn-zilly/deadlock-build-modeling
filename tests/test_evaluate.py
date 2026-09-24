@@ -1,8 +1,7 @@
-"""The gate that would have caught the last failure, and the metrics behind it.
+"""The staple gate, order and overlap metrics, baselines, and next-item accuracy.
 
-Two tiers. The unit tier pins the gate logic on synthetic data and always
-runs. The data tier pins the actual Wraith outcome against the real table and
-skips when it is absent -- see `pytest.ini_options` markers in pyproject.
+Most tests use made-up data and always run. `TestAgainstRealData` checks
+Wraith's real staples and is skipped when the purchase table is missing.
 """
 
 from __future__ import annotations
@@ -17,16 +16,11 @@ from deadlock import evaluate
 
 PURCHASES = Path("data/processed/purchases.parquet")
 
-# The ten items >=70% of Wraith's 11,114 players buy, measured 2026-09-15 on
-# the post-re-pull population. docs/DIAGNOSIS.md records that the old planner
-# recommended none of them while every aggregate metric passed.
+# The ten items bought by at least 70% of Wraith's 11,114 players, measured
+# 2026-09-15. The old planner recommended none of them (docs/DIAGNOSIS.md).
 #
-# The list measured on 2026-09-04 held the first nine of these and no others.
-# That is a statement about which item names each run put over the line, not a
-# comparison of the two runs' numbers, which are measured on populations this
-# repo no longer holds side by side. Spirit Lifesteal sits 0.0013 above the
-# threshold here, so expect it to cross back on the next window; the rest range
-# from 0.708 to 0.992.
+# Spirit Lifesteal is only 0.0013 above the threshold, so it may drop out
+# after the next data pull. The others are between 0.708 and 0.992.
 WRAITH_STAPLES = [
     "Quicksilver Reload",
     "Monster Rounds",
@@ -42,7 +36,7 @@ WRAITH_STAPLES = [
 
 
 def purchases(builds: dict[int, list[int]]) -> pd.DataFrame:
-    """A purchase table from {player -> ordered item ids}."""
+    """A purchase table from {player: ordered item ids}."""
     rows = []
     for player, items in builds.items():
         for position, item in enumerate(items):
@@ -60,7 +54,7 @@ def purchases(builds: dict[int, list[int]]) -> pd.DataFrame:
 
 
 def population(n: int = 400, staple: int = 1) -> pd.DataFrame:
-    """A population where `staple` is near-universal and item 99 is rare."""
+    """Players who nearly all buy `staple`, and rarely item 99."""
     builds = {p: [staple, 2, 3] for p in range(n)}
     builds[0] = [2, 3, 99]  # one player skips the staple
     return purchases(builds)
@@ -82,7 +76,7 @@ class TestItemPrevalence:
 
 class TestPrevalenceGate:
     def test_fails_and_names_a_missing_staple(self):
-        """The gate's whole purpose: say which item is missing, by name."""
+        """A build missing a staple fails, and the message names the item."""
         result = evaluate.prevalence_gate([2, 3], population(), hero_id=7)
         assert not result.passed
         assert 1 in result.missing
@@ -92,7 +86,7 @@ class TestPrevalenceGate:
         assert evaluate.prevalence_gate([1, 2, 3], population(), hero_id=7).passed
 
     def test_ignores_rare_items(self):
-        """A 0.25% item is a choice, not a staple; omitting it is not an error."""
+        """Leaving out an item 0.25% of players buy doesn't fail the gate."""
         result = evaluate.prevalence_gate([1, 2, 3], population(), hero_id=7)
         assert 99 not in result.staples
 
@@ -100,7 +94,7 @@ class TestPrevalenceGate:
         assert evaluate.prevalence_gate([1, 2, 3, 99, 77], population(), hero_id=7).passed
 
     def test_thin_cell_is_inconclusive_not_passing(self):
-        """A gate that passes on no evidence is how the last pipeline stayed green."""
+        """A cell with too few players is inconclusive, not a pass."""
         result = evaluate.prevalence_gate([], population(n=50), hero_id=7)
         assert result.inconclusive
         assert not result.passed
@@ -132,7 +126,7 @@ class TestOrderDistance:
         assert result.n_shared == 2
 
     def test_flags_unreliable_when_few_shared(self):
-        """Tau on three shared items is not evidence; callers must see that."""
+        """Tau over three shared items is marked unreliable."""
         assert not evaluate.order_distance([1, 2, 3], [1, 2, 3]).reliable
 
     def test_reliable_when_enough_shared(self):
@@ -182,7 +176,7 @@ class TestBaselines:
         assert np.isnan(evaluate.top_k_accuracy([], []))
 
     def test_score_baselines_excludes_owned(self):
-        """Re-buying is not a legal move, so an owned item is never a prediction."""
+        """Baselines never predict an item the player already owns."""
         df = purchases({p: [1, 2, 3] for p in range(80)})
         result = evaluate.score_baselines(df, df)
         assert set(result["baseline"]) == {"popularity", "positional", "bigram"}
@@ -192,21 +186,19 @@ class TestBaselines:
 @pytest.mark.data
 @pytest.mark.skipif(not PURCHASES.exists(), reason="needs purchases.parquet")
 class TestMembershipVsPlayers:
-    """Membership must be scored against players, not the median-order list."""
+    """Item overlap between a build and real players."""
 
     CORE = list(range(1, 9))
     TAIL = list(range(100, 108))
 
     @classmethod
     def cell(cls, n: int = 200) -> pd.DataFrame:
-        """Players sharing 8 core items and picking 4 tail items unevenly.
+        """Players who share 8 core items and pick 4 more from an uneven pool.
 
-        Two properties matter, and the first two versions of this fixture each
-        missed one. The disagreement must fall inside the Jaccard@12 window --
-        players who differ only from buy 13 onward are identical to this
-        metric. And the tail must be *skewed*: when every player draws tail
-        items uniformly, a consensus build and another player are equally close,
-        so the fixture cannot show the effect it exists to show.
+        The differences must be within the first 12 purchases, or Jaccard@12
+        can't see them. The pool must be uneven: if every player picked
+        uniformly, a consensus build would be no closer to players than they
+        are to each other.
         """
         rng = np.random.default_rng(1)
         weights = np.arange(len(cls.TAIL), 0, -1, dtype=float)
@@ -219,7 +211,7 @@ class TestMembershipVsPlayers:
 
     @staticmethod
     def consensus(cell: pd.DataFrame, k: int = 12) -> list[int]:
-        """The k most prevalent items -- what a good build should look like."""
+        """The k most commonly bought items."""
         return (
             cell.drop_duplicates(["match_id", "player_slot", "item_id"])
             .item_id.value_counts()
@@ -228,20 +220,14 @@ class TestMembershipVsPlayers:
         )
 
     def test_a_consensus_build_beats_the_ceiling(self):
-        """The point of the metric: a consensus build beats any one player.
-
-        Players agree on a core and disagree on a skewed tail, so two players
-        overlap less than the consensus overlaps either of them. A metric that
-        cannot show this cannot tell a good build from a bad one -- which is
-        exactly how J@12 0.143 went unquestioned.
-        """
+        """A consensus build overlaps players more than players overlap each other."""
         cell = self.cell()
         result = evaluate.membership_vs_players(self.consensus(cell), cell)
         assert result.generated > result.ceiling
         assert result.ratio > 1.0
 
     def test_identical_players_give_a_ceiling_of_one(self):
-        """A population with no disagreement has nothing above it to reach."""
+        """If every player buys the same items, the ceiling is 1.0."""
         builds = {p: list(range(1, 13)) for p in range(20)}
         result = evaluate.membership_vs_players(list(range(1, 13)), purchases(builds))
         assert result.ceiling == pytest.approx(1.0)
@@ -259,17 +245,17 @@ class TestMembershipVsPlayers:
         assert result.n_players == 1
 
     def test_short_sequences_are_dropped(self):
-        """Jaccard@12 over a 5-buy match measures match length, not the build."""
+        """Players with fewer than 12 purchases are left out."""
         builds = {p: list(range(1, 13)) for p in range(10)}
         builds.update({50 + p: [1, 2, 3] for p in range(10)})
         assert len(evaluate.player_sequences(purchases(builds))) == 10
 
     def test_median_order_reference_understates_membership(self):
-        """The bug this metric replaces, pinned on real data.
+        """On real data, comparing with the median order makes builds look worse than they are.
 
-        `population_order`'s top 12 are the items bought earliest -- cheap
-        components that are absorbed. Scoring against it reported J@12 0.143;
-        against real players the same builds beat the player-vs-player ceiling.
+        `population_order`'s top 12 are the cheap components bought first.
+        Against it, builds scored J@12 0.143. Against real players, the same
+        builds beat the player-vs-player ceiling.
         """
         if not PURCHASES.exists():
             pytest.skip("requires the processed purchase table")
@@ -300,7 +286,7 @@ class TestMembershipVsPlayers:
 
 
 class TestAgainstRealData:
-    """The regression the pivot exists to prevent."""
+    """The gate on Wraith's real data."""
 
     @staticmethod
     def wraith() -> tuple[pd.DataFrame, dict[int, str], dict[str, int]]:
@@ -317,10 +303,9 @@ class TestAgainstRealData:
         return df[df.hero_id == hero_id], names, {v: k for k, v in names.items()}
 
     def test_old_planner_build_fails_the_gate(self):
-        """docs/DIAGNOSIS.md: the old planner chose none of Wraith's staples.
+        """The gate fails the old planner's Wraith build, which had none of the staples.
 
-        If this ever passes, the gate has lost the sensitivity that motivated
-        the entire pivot.
+        See docs/DIAGNOSIS.md.
         """
         df, names, by_name = self.wraith()
         old_build = [
@@ -333,7 +318,7 @@ class TestAgainstRealData:
         assert len(result.missing) == len(WRAITH_STAPLES)
 
     def test_wraith_staples_are_stable(self):
-        """Pins the staple set itself, so a patch shift is visible."""
+        """Wraith's staples match the list above, so a patch that changes them shows up."""
         df, names, _ = self.wraith()
         result = evaluate.prevalence_gate([], df, hero_id=7)
         found = {names[i] for i in result.staples}
@@ -351,7 +336,7 @@ class TestAgainstRealData:
 
 
 class FakeModel:
-    """A model that always ranks `ranking`, so scoring is checkable by hand."""
+    """A fake model that always returns `ranking`, so scores are easy to work out by hand."""
 
     def __init__(self, ranking: list[int]):
         self.ranking = ranking
@@ -364,17 +349,12 @@ class FakeModel:
         return ids, probability
 
     def evidence(self, state, item_id):
-        """The backoff trace, which this stand-in has nothing to say about."""
+        """Always None: the fake model has no backoff trace."""
         return None
 
 
 class TestNextItemAccuracy:
-    """Teacher-forced next-item accuracy, shared by every script that scores.
-
-    Two archetype fits are only comparable when they are scored on the same
-    held-out decisions in the same run, so the loop lives here rather than in
-    whichever script measured it last.
-    """
+    """`next_item_accuracy`, which every scoring script uses."""
 
     @staticmethod
     def frame(items: list[int]) -> pd.DataFrame:
@@ -411,7 +391,7 @@ class TestNextItemAccuracy:
         assert got["top3"] == pytest.approx(1.0)
 
     def test_the_model_sees_what_the_player_already_owns(self):
-        """Teacher forcing: each decision is made from the real prefix."""
+        """Each prediction starts from the player's real purchases so far."""
         model = FakeModel([11, 22])
         evaluate.next_item_accuracy(model, self.frame([11, 22, 33]), self.labels())
         assert model.seen == [frozenset(), frozenset({11}), frozenset({11, 22})]
@@ -432,7 +412,7 @@ class TestNextItemAccuracy:
 
     @staticmethod
     def two_players(badges: tuple[int, int]) -> pd.DataFrame:
-        """Two held-out players of different brackets buying different items."""
+        """Two held-out players at different badges who buy different items."""
         rows = []
         for slot, (badge, item) in enumerate(zip(badges, (11, 22))):
             rows.append(
@@ -449,13 +429,7 @@ class TestNextItemAccuracy:
         return pd.DataFrame(rows)
 
     def test_min_badge_scores_only_the_bracket_asked_for(self):
-        """A badge-weighted model is judged on high-badge decisions only.
-
-        General-population accuracy gets worse by design when the tables are
-        weighted, so scoring on it would read a deliberate change as a
-        regression. Win rate is worse still: it is an outcome downstream of
-        every decision the build makes.
-        """
+        """With min_badge, only decisions at or above that badge are scored."""
         model = FakeModel([11])
         both = evaluate.next_item_accuracy(
             model, self.two_players((40, 100)), self.labels()
@@ -468,7 +442,7 @@ class TestNextItemAccuracy:
         assert high["top1"] == pytest.approx(0.0)
 
     def test_min_badge_on_a_frame_with_no_badge_column_scores_nothing(self):
-        """Better an empty score than a silent full-population one."""
+        """With min_badge and no badge column, nothing is scored, rather than everything."""
         model = FakeModel([11])
         got = evaluate.next_item_accuracy(
             model, self.frame([11]), self.labels(), min_badge=80

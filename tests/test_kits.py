@@ -1,9 +1,8 @@
-"""What a hero's abilities do, read from the game's own descriptions.
+"""Ability tags read from the ability descriptions.
 
-Nearly every test here encodes a claim a Deadlock player made and the
-description text confirmed. An earlier version scored abilities from stat keys
-alone and told the player that two of their six kit groupings were "not
-supported by the data" -- that was the tagger failing, not the groupings.
+Most tests check a claim a Deadlock player made about an ability. An earlier
+version read only stat keys and wrongly rejected two of the player's six
+groupings of heroes by kit.
 """
 
 from __future__ import annotations
@@ -40,11 +39,7 @@ def rank(tag: str, hero: str) -> int | None:
 
 class TestAbilityText:
     def test_descriptions_live_in_description_not_tooltip_sections(self):
-        """The mistake that started this: `tooltip_sections` is an ITEM field.
-
-        Looking for it on an ability returns nothing, which produced the false
-        claim that abilities carry no descriptive text.
-        """
+        """Ability text is in `description`. `tooltip_sections` is an item field."""
         entry = ability("Viscous", "The Cube")
         assert not entry.get("tooltip_sections")
         assert kits.ability_text(entry)
@@ -67,12 +62,10 @@ class TestAbilityText:
 
 
 class TestPlayerExamples:
-    """Each case is an ability a player named to correct the stat-based tagger."""
+    """Abilities a player named when correcting the stat-based tagger."""
 
     def test_the_cube_is_support(self):
-        """"Probably the single best support ability in the game." Its stat
-        block says nothing about that; its description says it encases the
-        target in restorative goo."""
+        """The Cube is support. Its stats don't say so; its description does."""
         assert "support" in tags("Viscous", "The Cube")
 
     def test_viscous_is_a_support_hero(self):
@@ -88,21 +81,19 @@ class TestPlayerExamples:
         ],
     )
     def test_crowd_control_examples(self, hero, name):
-        """Tethers, knockups, stuns and immobilizes -- none of which appear as
-        stat keys."""
+        """Tethers, knockups, stuns, and immobilizes are cc. None has a stat key."""
         assert "cc" in tags(hero, name)
 
     def test_serrated_knives_is_damage_over_time(self):
-        """"Literally just a spirit damage over time ability." It bleeds."""
+        """Serrated Knives is dot (it bleeds), not burst."""
         assert "dot" in tags("Shiv", "Serrated Knives")
 
     def test_powder_keg_is_burst_and_dot(self):
-        """"A burst of damage then spirit damage over time." Both, correctly."""
+        """Powder Keg is both burst and dot, since it explodes and then burns."""
         assert {"burst", "dot"} <= tags("Holliday", "Powder Keg")
 
     def test_leaping_slash_is_melee(self):
-        """The gap in the stat-based version: it carries only HealAmount, so a
-        stat scan could not see that it deals melee damage."""
+        """Leaping Slash is melee. Its only stat is HealAmount."""
         assert "melee" in tags("Calico", "Leaping Slash")
 
     @pytest.mark.parametrize("hero,name", [("Lash", "Ground Strike"), ("Viscous", "Goo Ball")])
@@ -111,7 +102,7 @@ class TestPlayerExamples:
 
 
 class TestClaimedGroupings:
-    """The six kit groupings a player named. All six must hold."""
+    """The six groupings of heroes by kit that a player named all hold."""
 
     @pytest.mark.parametrize(
         "tag,heroes",
@@ -139,18 +130,14 @@ class TestClaimedGroupings:
 
 
 class TestTagDiscrimination:
-    """A tag on every hero says nothing about any hero."""
+    """No tag applies to nearly every hero."""
 
     @pytest.mark.parametrize("tag", ["support", "melee", "dot", "summon"])
     def test_rare_tags_are_rare(self, tag):
         assert len(kits.heroes_by_tag(tag)) <= 15
 
     def test_burst_is_not_universal(self):
-        """"Deals damage" matched 33 of 38 heroes, which is meaningless.
-
-        Burst means damage delivered in one moment -- an explosion, an impact,
-        a slam -- so the pattern requires that wording.
-        """
+        """Burst needs words like explosion or impact. "Deals damage" matched 33 of 38 heroes."""
         assert len(kits.heroes_by_tag("burst")) <= 26
 
     def test_idf_ranks_rare_tags_higher(self):
@@ -164,12 +151,12 @@ class TestHeroKits:
         assert len(kits.hero_kits()) == 38
 
     def test_only_signature_abilities_count(self):
-        """69 of the 221 mapped abilities belong to disabled heroes."""
+        """Only playable heroes' abilities count. 69 of the 221 belong to disabled heroes."""
         assert all(hero in PLAYABLE for hero in kits.hero_kits())
 
     def test_every_hero_has_at_least_one_tag(self):
         assert all(tags for tags in kits.hero_kits().values())
 
     def test_summon_exists_as_a_kit_tag(self):
-        """A family the item vocabulary has no word for."""
+        """`summon` is a kit tag, though no build family matches it."""
         assert kits.heroes_by_tag("summon")

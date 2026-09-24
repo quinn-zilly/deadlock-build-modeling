@@ -1,10 +1,7 @@
-"""The backoff model: does the mixture behave, and can it be read back.
+"""The backoff model: how levels mix, and whether its numbers can be checked.
 
-The properties pinned here are the ones that make the chain trustworthy rather
-than merely accurate. A distribution that does not sum to 1, a level that
-silently swallows a thin context, or an `n` that reports a weighted
-pseudo-count instead of real matches would each reproduce the failure in
-`docs/DIAGNOSIS.md` -- a number with no recourse behind it.
+Checks that distributions sum to 1, that a thin context barely moves the
+result, and that `n` is a real count of matches, not a weighted one.
 """
 
 from __future__ import annotations
@@ -24,7 +21,7 @@ HERO = 7
 def purchases(
     n_players: int = 200, items: tuple[int, ...] = (101, 102, 103), hero: int = HERO
 ) -> pd.DataFrame:
-    """A population where everyone buys the same items in the same order."""
+    """Players who all buy the same items in the same order."""
     rows = [
         {
             "match_id": m,
@@ -50,7 +47,7 @@ def empty_state(**kwargs) -> GameState:
 
 class TestInterpolation:
     def test_lambda_is_one_half_at_kappa_observations(self):
-        """The one number that gives kappa its meaning."""
+        """A context with total weight equal to kappa gets lambda 0.5."""
         model = sequence.fit(purchases(n_players=20), kappa=60.0)
         # L5 sees 3 items x 20 players = 60 rows for the hero.
         _, weights, _ = model.levels[-1].lookup((HERO,))
@@ -59,7 +56,7 @@ class TestInterpolation:
         assert total / (total + model.kappa) == pytest.approx(0.5)
 
     def test_a_missing_context_falls_through_without_error(self):
-        """lambda = 0 for an unseen context, so the level is a no-op."""
+        """An unseen context gets lambda 0 and passes the level below through."""
         model = sequence.fit(purchases())
         # prev1 = 999 was never observed, so L0 and L1 have nothing.
         st = empty_state(purchased=(999,), owned_item_ids=frozenset({999}))
@@ -68,14 +65,14 @@ class TestInterpolation:
         assert probability.sum() == pytest.approx(1.0)
 
     def test_a_state_unknown_at_every_level_returns_no_distribution(self):
-        """An unseen hero has no evidence anywhere; say so rather than guess."""
+        """A hero with no data at any level gets an empty distribution, not a guess."""
         model = sequence.fit(purchases())
         ids, probability = model.distribution(empty_state(hero_id=999))
         assert not len(ids)
         assert not len(probability)
 
     def test_interpolated_probability_lies_between_the_mixed_levels(self):
-        """A convex combination cannot leave the interval it mixes over."""
+        """The mixed probability lies between the probabilities of the levels mixed."""
         # Two populations: one always buys 102 after 101, the other 103.
         first = purchases(n_players=100, items=(101, 102))
         second = purchases(n_players=100, items=(101, 103))
@@ -101,14 +98,14 @@ class TestDistribution:
         assert masked.sum() == pytest.approx(1.0)
 
     def test_owned_items_get_no_probability(self):
-        """No item is ever bought twice in the observed data."""
+        """Owned items get probability 0, since nobody buys an item twice."""
         model = sequence.fit(purchases())
         st = empty_state().with_purchase(101, game_time_s=180)
         ids, _ = model.distribution(st)
         assert 101 not in ids.tolist()
 
     def test_unseen_items_stay_at_zero(self):
-        """No uniform floor: an item nobody buys must never be recommended."""
+        """An item nobody buys gets probability 0. There is no smoothing floor."""
         model = sequence.fit(purchases())
         ids, _ = model.distribution(empty_state())
         assert set(ids.tolist()) <= {101, 102, 103}
@@ -119,11 +116,11 @@ class TestTimeBuckets:
         "seconds", [0, 1, 299, 300, 301, 599, 600, 899, 900, 1199, 1200, 1799, 1800, 10_000]
     )
     def test_digitize_agrees_with_time_bucket(self, seconds):
-        """The tables are built with np.digitize and read with time_bucket.
+        """np.digitize (used to build the tables) and time_bucket agree at every boundary.
 
-        They agree only because digitize defaults to right=False, matching the
-        strict `<` in time_bucket. Pin it, or a silent disagreement would
-        misfile every purchase near a boundary.
+        They agree because digitize's default right=False matches the strict
+        `<` in time_bucket. If they disagreed, purchases on a boundary would
+        land in the wrong bucket.
         """
         assert int(np.digitize(seconds, state.TIME_BUCKET_BOUNDS_S)) == time_bucket(seconds)
 
@@ -147,11 +144,7 @@ class TestRowWeights:
         assert high.mean() > low.mean()
 
     def test_reported_n_is_a_raw_count_not_a_weighted_one(self):
-        """`n` is what a person checks against the prevalence table.
-
-        If weighting inflated it, the number would no longer be a count of
-        matches and could not be verified by hand.
-        """
+        """`n` stays a raw count when rows are weighted, so a person can check it."""
         df = purchases()
         plain = sequence.fit(df)
         weighted = sequence.fit(df, weights=sequence.row_weights(df, win_weight=3.0))
@@ -178,8 +171,7 @@ class TestArchetypeMarginalisation:
         assert np.allclose(blended, single)
 
     def test_absent_posterior_falls_back_to_population_shares(self):
-        """Before any evidence, how often each archetype is played is the
-        honest prior -- not a flat one."""
+        """With no posterior given, archetypes are weighted by how often they're played."""
         df = purchases()
         df["archetype_id"] = (df["match_id"] < 150).astype(int)
         model = sequence.fit(df)
@@ -213,11 +205,10 @@ class TestEvidence:
         assert "lambda=" in text and "dominant" in text
 
     def test_recommendations_carry_their_provenance(self):
-        """`backoff_level` and `n` were dead fields until the model filled them.
+        """Each recommendation has its `backoff_level` and `n` filled in.
 
-        Uses real item ids because `predict` resolves names and costs through
-        the asset table -- a recommendation for an item that does not exist in
-        the shop is not a legal move.
+        Uses real item ids because `predict` looks up names and costs in the
+        shop assets and skips unknown items.
         """
         real_items = sorted(assets.shopable_items())[:3]
         model = sequence.fit(purchases(items=tuple(real_items)))
@@ -229,7 +220,7 @@ class TestEvidence:
 
 class TestPrepare:
     def test_sequence_start_is_a_real_context_not_a_dropped_row(self):
-        """The bigram baseline forfeits the first purchase; this must not."""
+        """The first purchase of a match gets a prediction (the bigram baseline can't make one)."""
         prepared = sequence.prepare(purchases())
         first = prepared[prepared["buy_index"] == 0]
         assert (first["prev1"] == sequence.NO_ITEM).all()
@@ -254,7 +245,7 @@ class TestPersistence:
         assert reloaded.kappa == model.kappa
 
     def test_saved_index_is_readable_json(self, tmp_path: Path):
-        """Not a pickle: a person can open the index and see the contexts."""
+        """The saved index is plain JSON a person can open."""
         import json
 
         model = sequence.fit(purchases())
@@ -270,16 +261,15 @@ class TestFitValidation:
             sequence.fit(df, weights=np.ones(3))
 
 class TestLargeItemIds:
-    """Deadlock item ids do not fit in int32, and a wrapped id ranks first.
+    """Item ids larger than int32 survive fitting, prediction, and saving.
 
-    73 of the 173 shopable ids exceed int32. When the tables stored ids
-    narrower, those wrapped to negative numbers that still sorted, still
-    aggregated, and still won the argmax -- so the model recommended items that
-    do not exist and scored 0.238 where a plain bigram scored 0.277. Nothing
-    raised; the only symptom was being quietly worse than the baseline.
+    73 of the 173 shop item ids don't fit in int32. When the tables stored
+    them as int32, they wrapped to negative numbers without an error and the
+    model recommended items that don't exist. The only symptom was scoring
+    below the bigram baseline.
     """
 
-    BIG = 4204808176  # the largest real shopable id
+    BIG = 4204808176  # the largest real shop item id
 
     def test_a_large_id_survives_the_round_trip(self):
         df = purchases(items=(self.BIG, 102))
@@ -300,7 +290,7 @@ class TestLargeItemIds:
         assert self.BIG in ids.tolist()
 
     def test_every_real_shopable_id_round_trips(self):
-        """Not just the max -- any of the 173 could be the one that wraps."""
+        """Every one of the 173 real shop ids comes back unchanged, not just the largest."""
         real = sorted(assets.shopable_items())
         model = sequence.fit(purchases(n_players=5, items=tuple(real)))
         stored = set()
@@ -310,15 +300,14 @@ class TestLargeItemIds:
 
 
 class TestBadgeWeightedFit:
-    """The badge kernel has to reach the tables, not merely exist.
+    """`fit(target_badge=...)` changes the tables.
 
-    `row_weights` was implemented and tested for a long time while no caller
-    ever passed `target_badge`, so every recommendation the tool made imitated
-    the median player. The wiring is what these tests pin.
+    For a long time `row_weights` existed but nothing passed it a badge, so
+    the tool imitated the average player.
     """
 
     def two_brackets(self) -> pd.DataFrame:
-        """Two populations of the same hero that buy opposite second items."""
+        """High- and low-badge players of one hero who buy different second items."""
         rows = []
         for m in range(200):
             high = m % 2 == 0
@@ -351,11 +340,7 @@ class TestBadgeWeightedFit:
         assert top(sequence.fit(df, target_badge=40.0, badge_halfwidth=20.0)) == 103
 
     def test_weights_are_computed_on_the_sorted_frame(self):
-        """`fit` sorts before building, so a caller's own weights misalign.
-
-        Passing `target_badge` is the only way to weight rows correctly, which
-        is why it exists alongside `weights` rather than being left to callers.
-        """
+        """Badge weights land on the right rows even when the input isn't in fit's sort order."""
         df = self.two_brackets().sort_values("item_id", kind="stable")
         after = empty_state().with_purchase(101, game_time_s=180)
         model = sequence.fit(df, target_badge=100.0, badge_halfwidth=20.0)
@@ -375,17 +360,12 @@ class TestBadgeWeightedFit:
         assert weighted.evidence(st, 101).n == plain.evidence(st, 101).n
 
     def test_the_default_target_is_above_the_median_badge(self):
-        """56 is the population median; the default aims at the top 29.6%."""
+        """The default badge is well above the median badge."""
         assert sequence.DEFAULT_TARGET_BADGE > 61
 
 
 class TestModelRecordsItsBracket:
-    """A cached model has to say which bracket it was fitted for.
-
-    Without it a cache fitted for the median player and one fitted for the top
-    30% are the same file on disk, and the tool would serve whichever it found
-    while claiming the bracket the caller asked for.
-    """
+    """A saved model records the badge it was fitted for, and keeps it after loading."""
 
     def test_target_badge_survives_a_round_trip(self, tmp_path):
         model = sequence.fit(purchases(), target_badge=80.0)
@@ -399,14 +379,7 @@ class TestModelRecordsItsBracket:
 
 
 class TestBadgeArgumentParsing:
-    """One parser and one phrasing for the bracket, shared by every entry point.
-
-    The CLI, the build generator, the scoring script and the page generator all
-    take a badge from the command line. Four copies of "None if it says all,
-    else float" is four places for the brackets to drift apart -- and a page
-    rendered from one bracket while claiming another is exactly the untraceable
-    number this project exists to avoid.
-    """
+    """`parse_target_badge` and `describe_badge`, which every command uses."""
 
     def test_a_number_is_a_bracket(self):
         assert sequence.parse_target_badge("55") == 55.0

@@ -1,8 +1,8 @@
-"""Build representation and the export schema the game accepts.
+"""The Build type and the JSON export the game imports.
 
-The load-bearing distinction is purchases vs. held items: a build is a
-sequence of ~17 buys, but only 11-12 survive to the end, and the export
-schema has no way to represent a sale.
+A build is about 17 purchases, but only 11 or 12 are still held at the end,
+and the export format can't express selling. Many tests here check that the
+two are kept apart.
 """
 
 from __future__ import annotations
@@ -38,11 +38,11 @@ def build(**kwargs) -> buildfmt.Build:
 
 class TestConstants:
     def test_tier_costs_stop_at_four(self):
-        """Tier 5 exists in assets but is never purchased -- 0 of 5.1M rows."""
+        """No tier 5: it is in the assets, but none of 5.1M purchases was tier 5."""
         assert buildfmt.TIER_COSTS == (800, 1600, 3200, 6400)
 
     def test_held_cap_is_twelve(self):
-        """Measured on items held at match end: max 12, mean 10.78."""
+        """The cap is 12, the most anyone held at match end (mean 10.78)."""
         assert buildfmt.MAX_HELD_ITEMS == 12
 
 
@@ -69,7 +69,7 @@ class TestBuild:
         assert [i.item_id for i in b.held_items()] == [10, 30]
 
     def test_total_cost_counts_sold_items(self):
-        """Souls spent on a sold item were still spent."""
+        """total_cost includes items later sold."""
         b = build(items=[item(10, 0), item(20, 1, cost=1600, sell=900.0)])
         assert b.total_cost == 2400
 
@@ -126,12 +126,7 @@ BUILDS = Path("data/builds")
 
 
 class TestAgainstRealData:
-    """The exported builds themselves, as a player would import them.
-
-    A build the game accepts but that says nothing about ability points or
-    imbue targets is half a build, and the half it drops is the half a player
-    cannot look up elsewhere.
-    """
+    """The exported build files include ability orders and imbue targets."""
 
     @staticmethod
     def exports() -> list[dict]:
@@ -149,7 +144,7 @@ class TestAgainstRealData:
             assert points, f"{hero_build['name']} exports no ability order"
 
     def test_an_ability_order_never_takes_a_slot_past_four(self):
-        """The one hard constraint an ability order has."""
+        """No ability gets more than four points."""
         for hero_build in self.exports():
             points = hero_build["details"]["ability_order"]["currency_changes"]
             taken: dict[int, int] = {}
@@ -158,11 +153,10 @@ class TestAgainstRealData:
             assert max(taken.values()) <= 4, hero_build["name"]
 
     def test_every_held_imbueable_item_names_its_target(self):
-        """An imbueable item with a null target is the advice half-given.
+        """Every imbueable item in an exported build has an imbue target.
 
-        Only held items are exported -- an imbueable item absorbed into a
-        composite is not in the file at all -- so the claim is about the ones
-        that survive to the end of the match.
+        Only held items are exported, so this covers imbueable items that
+        weren't absorbed.
         """
         imbueable = set(imbue.imbueable_items())
         checked = 0

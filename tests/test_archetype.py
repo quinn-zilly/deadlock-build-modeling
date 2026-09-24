@@ -1,8 +1,8 @@
-"""Archetype fitting: what must split, what must not, and what must be stable.
+"""Archetype fitting and naming.
 
-The design guards here are as important as the numeric ones. A fit that
-silently permutes its own labels on refit, or that splits a hero with one real
-build, poisons everything downstream.
+Checks which heroes split and which don't, that cluster ids stay the same
+across refits, and that names are unique. Everything downstream depends on
+the archetype labels.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from deadlock import archetype, assets, evaluate, semantics
 ARCHETYPES = Path("data/processed/archetypes.parquet")
 PURCHASES = Path("data/processed/purchases.parquet")
 
-# Real ids, so cost and slot_type come from the actual asset table.
+# Real item ids, so cost and slot type come from the real asset data.
 ITEMS = assets.load_items()
 WEAPON = [i for i, it in ITEMS.items() if it.slot_type == "weapon"][:6]
 SPIRIT = [i for i, it in ITEMS.items() if it.slot_type == "spirit"][:6]
@@ -27,7 +27,7 @@ SPIRIT = [i for i, it in ITEMS.items() if it.slot_type == "spirit"][:6]
 def build_population(
     n_per_group: int = 400, groups: list[list[int]] | None = None
 ) -> pd.DataFrame:
-    """Players drawn from distinct item pools, one pool per group."""
+    """Players in groups, each group buying from its own item pool."""
     groups = groups or [WEAPON[:4], SPIRIT[:4]]
     rows = []
     player = 0
@@ -48,13 +48,13 @@ def build_population(
 
 
 def one_population(n: int = 800) -> pd.DataFrame:
-    """Players who all buy the same mixed build -- no real split exists."""
+    """Players who all buy the same mixed build, so there is nothing to split."""
     mixed = WEAPON[:2] + SPIRIT[:2]
     return build_population(n_per_group=n, groups=[mixed])
 
 
 class TestFamilyShares:
-    """Clustering runs on what items DO, not which shop tab they sit in."""
+    """Clustering features are build family shares, not shop tab shares."""
 
     def test_shares_sum_to_one(self):
         shares = archetype.family_shares(build_population(10))
@@ -65,8 +65,7 @@ class TestFamilyShares:
         assert list(shares.columns) == list(semantics.FAMILIES)
 
     def test_an_item_splits_across_the_families_it_feeds(self):
-        """Crushing Fists is melee and gun and tank; forcing one family per
-        item would throw away that gun and melee builds share items."""
+        """Crushing Fists' cost is split across melee, gun, and tank."""
         crushing = next(
             i for i, it in ITEMS.items() if it.name == "Crushing Fists"
         )
@@ -90,7 +89,7 @@ class TestSlotShares:
         assert (shares["share_weapon"] > 0.9).all()
 
     def test_weighted_by_souls_not_count(self):
-        """A build's character is set by where its souls went."""
+        """Shares are weighted by item cost, not item count."""
         cheap = min(WEAPON, key=lambda i: ITEMS[i].cost)
         dear = max(SPIRIT, key=lambda i: ITEMS[i].cost)
         df = pd.DataFrame(
@@ -109,24 +108,22 @@ class TestSlotShares:
 
 class TestFeatureMatrix:
     def test_is_unstandardized(self):
-        """Z-scoring shares that already sum to 1 degrades every hero tried."""
+        """Shares are not standardized. Each player's shares still sum to 1."""
         features = archetype.feature_matrix(build_population(10))
         assert np.allclose(features.sum(axis=1), 1.0)
 
     def test_clusters_on_families_not_slot_types(self):
-        """Half the items sit in a shop tab that does not match their role."""
+        """The feature columns are the build families, not the shop tabs."""
         features = archetype.feature_matrix(build_population(10))
         assert list(features.columns) == list(semantics.FAMILIES)
         assert not any(c.startswith("share_") for c in features.columns)
 
     def test_excludes_ability_state(self):
-        """Ability *state* degrades the clustering and is not an input.
+        """Ability levels (`lvl_` columns) are not a clustering input.
 
-        Levels at a fixed instant were measured and rejected: Ivy fell 0.508 ->
-        0.274 as their weight went 0 -> 1.0. That verdict stands, and it is
-        specifically about state. Ability *order* is a different feature and
-        arrives through `extra`, so this asserts on the `lvl_` prefix rather
-        than on abilities in general.
+        They made clustering worse (Ivy fell from 0.508 to 0.274). Ability
+        order is a separate feature that can come in through `extra`, so this
+        checks only for `lvl_` columns.
         """
         features = archetype.feature_matrix(build_population(10))
         assert not any(c.startswith("lvl_") for c in features.columns)
@@ -139,7 +136,7 @@ class TestFeatureMatrix:
         assert len(joined) == len(base)
 
     def test_a_player_missing_from_an_extra_block_reads_zero(self):
-        """A block that does not cover everyone must not drop players."""
+        """A player missing from an extra block gets zeros, not dropped."""
         base = archetype.feature_matrix(build_population(10))
         extra = pd.DataFrame(0.5, index=base.index[:5], columns=["imb_active_1"])
         joined = archetype.feature_matrix(build_population(10), extra)
@@ -148,7 +145,7 @@ class TestFeatureMatrix:
 
 
 class TestScaleBlock:
-    """Blocks are scaled to the family block, never z-scored."""
+    """`scale_block` scales a block to match the family shares. It never z-scores."""
 
     def frame(self, value: float = 2.0, columns: int = 4) -> pd.DataFrame:
         return pd.DataFrame(
@@ -156,7 +153,7 @@ class TestScaleBlock:
         )
 
     def test_weight_one_matches_the_family_block_mass(self):
-        """Family shares sum to 1 per player, so their mean row L1 is 1.0."""
+        """At weight 1, the block's mean row sum of absolute values is 1.0, like the shares."""
         scaled = archetype.scale_block(self.frame(), 1.0)
         assert scaled.abs().sum(axis=1).mean() == pytest.approx(1.0)
 
@@ -165,7 +162,7 @@ class TestScaleBlock:
         assert half.abs().sum(axis=1).mean() == pytest.approx(0.5)
 
     def test_width_does_not_decide_influence(self):
-        """A 12-column block must not outweigh a 4-column one by being wider."""
+        """A 12-column block and a 4-column block get the same total weight."""
         narrow = archetype.scale_block(self.frame(columns=4), 1.0)
         wide = archetype.scale_block(self.frame(columns=12), 1.0)
         assert narrow.abs().sum(axis=1).mean() == pytest.approx(
@@ -186,7 +183,7 @@ class TestFitHero:
         assert fit.split
 
     def test_does_not_split_one_build(self):
-        """The failure that matters: inventing a distinction that is not there."""
+        """Players who all build the same way stay one archetype."""
         fit = archetype.fit_hero(one_population(), hero_id=1, hero_name="Test")
         assert fit.k == 1
         assert not fit.split
@@ -210,14 +207,14 @@ class TestFitHero:
         assert len(fit.labels) == len(df[["match_id", "player_slot"]].drop_duplicates())
 
     def test_separation_leads_over_silhouette(self):
-        """Separation is what matches judgement; silhouette would split Dynamo."""
+        """MIN_SEPARATION is 0.45. See its comment for why separation is the main check."""
         assert archetype.MIN_SEPARATION == 0.45
 
     def test_separation_is_the_weakest_pair(self):
-        """One distinct cluster must not drag near-duplicates through with it.
+        """Separation is the score of the least distinct pair of clusters.
 
-        Kelvin's support build carried two spirit clusters that share identical
-        ability investment and differ on no item by more than 23 points.
+        Otherwise one distinct cluster would let two near-duplicates through,
+        as happened with Kelvin's two spirit clusters.
         """
         prevalence = pd.DataFrame(
             {
@@ -229,11 +226,10 @@ class TestFitHero:
         assert archetype._separation(prevalence) == pytest.approx(0.05)
 
     def test_separating_item_names_what_carries_the_weakest_pair(self):
-        """The score is a number; the item behind it is the falsifiable claim.
+        """separating_item returns the item behind the least distinct pair's separation.
 
-        A block that splits heroes on nine imbueable items out of 173 shopable
-        is splitting them on ownership of those items, and only naming the
-        item shows that.
+        Seeing the item shows what a split rests on. For the imbue block it
+        was the imbueable items themselves.
         """
         prevalence = pd.DataFrame(
             {
@@ -258,10 +254,10 @@ class TestFitHero:
         assert gap == pytest.approx(fit.separation)
 
     def test_two_near_duplicate_clusters_do_not_split(self):
-        """Differing only slightly is one archetype on a gradient, not two.
+        """Two clusters that differ only slightly stay one archetype.
 
-        Both halves buy the same core; a tenth of one half adds one extra item,
-        so no item's prevalence differs by more than 10 points.
+        Both halves buy the same core, and a tenth of one half adds one item,
+        so no item's pick rate differs by more than 10 points.
         """
         core = WEAPON[:3]
         rows = []
@@ -283,7 +279,7 @@ class TestFitHero:
         assert fit.k == 1
 
     def test_prefers_smaller_k(self):
-        """Two real builds must not be cut into three."""
+        """Two real builds give k=2, not 3."""
         fit = archetype.fit_hero(build_population(), hero_id=1, hero_name="Test")
         assert fit.k == 2
 
@@ -296,8 +292,7 @@ class TestReproducibility:
         pd.testing.assert_series_equal(a, b)
 
     def test_cluster_zero_is_always_the_spirit_side(self):
-        """KMeans indices are arbitrary; without canonical order every
-        downstream artifact permutes silently on refit."""
+        """Cluster 0 is always the higher-spirit cluster, so ids don't change between refits."""
         fit = archetype.fit_hero(build_population(), hero_id=1, hero_name="T")
         spirit_by_cluster = fit.centroids["spirit"]
         assert spirit_by_cluster.loc[0] == spirit_by_cluster.max()
@@ -341,11 +336,11 @@ class TestDiscriminativeItems:
 
 
 class TestProposeName:
-    """Naming reads the cluster's distinguishing items, not its centroid."""
+    """Names come from a cluster's distinctive items, not its centroid."""
 
     @staticmethod
     def prevalence_favouring(item_ids: list[int]) -> pd.DataFrame:
-        """Cluster 0 buys `item_ids` heavily; cluster 1 barely touches them."""
+        """A pick-rate table where cluster 0 buys `item_ids` often and cluster 1 rarely."""
         columns = sorted(set(item_ids) | set(WEAPON) | set(SPIRIT))
         rows = []
         for cluster in (0, 1):
@@ -355,7 +350,7 @@ class TestProposeName:
         return pd.DataFrame(rows, index=[0, 1])
 
     def test_names_from_items_not_centroid(self):
-        """A tank-heavy centroid must not force "Tank" when items say gun."""
+        """A tank-heavy centroid with gun items is named gun, not tank."""
         gun = [i for i, fams in semantics.item_families().items() if "gun" in fams][:5]
         centroid = pd.Series({k: 0.1 for k in semantics.FAMILIES})
         centroid["tank"] = 0.8
@@ -365,7 +360,7 @@ class TestProposeName:
         assert name == "Gun Lash"
 
     def test_melee_is_reachable(self):
-        """Melee items are weapon-slotted, so slot type could never name this."""
+        """A cluster can be named melee, even though melee items are in the weapon tab."""
         melee = [i for i, fams in semantics.item_families().items() if fams.get("melee", 0) >= 6]
         name, _ = archetype.propose_name(
             pd.Series(dtype=float), "Abrams", self.prevalence_favouring(melee), 0
@@ -401,7 +396,7 @@ class TestFitAll:
         import json
 
         _, _, meta = archetype.fit_all(one_population(), hero_names={1: "T"}, overrides={})
-        json.dumps(meta)  # NaN criteria must serialize as null
+        json.dumps(meta)  # fails if a NaN criterion isn't converted to null
 
     def test_overrides_replace_proposed_names(self):
         _, _, meta = archetype.fit_all(
@@ -418,11 +413,9 @@ class TestFitAll:
         assert first["proposed_name"] != "My Name"
 
     def test_two_accepted_names_that_collide_are_an_error(self):
-        """A typo in the checked-in file must not ship as an unreachable build.
+        """Two identical accepted names for one hero raise an error.
 
-        Both names are a person's, so the rule cannot pick a winner by moving
-        one -- and returning them unchanged is the original defect, hand-written.
-        Failing loudly at the refit is the only place a person can still fix it.
+        Both came from a person, so the code can't choose which to change.
         """
         with pytest.raises(ValueError, match="Ivy"):
             archetype.make_unique(
@@ -432,12 +425,10 @@ class TestFitAll:
             )
 
     def test_an_override_cannot_collide_with_a_generated_sibling(self):
-        """The override hook must not reintroduce the defect it exists to fix.
+        """An accepted name equal to a sibling's generated name makes the sibling's name change.
 
-        Uniqueness is decided on the proposed names, then the override is
-        substituted -- so an override equal to a sibling's generated name puts
-        two reachable-by-one-string archetypes back on one hero. That is the
-        Lady Geist defect arriving through the hook meant to prevent it.
+        If overrides were applied after deduplication, they could bring back
+        duplicate names like Lady Geist's.
         """
         _, _, meta = archetype.fit_all(
             build_population(), hero_names={1: "Ivy"}, overrides={}
@@ -465,12 +456,11 @@ class TestRoundTrip:
 @pytest.mark.data
 @pytest.mark.skipif(not ARCHETYPES.exists(), reason="needs archetypes.parquet")
 def qualifier_words(name: str, hero_name: str) -> list[str]:
-    """The words an archetype name adds in front of the hero's own name.
+    """The words an archetype name puts before the hero name.
 
-    "Gun Ivy" -> ["Gun"], "Stalker's Mark Melee Drifter" -> ["Stalker's",
-    "Mark", "Melee"], "Ivy" -> []. Every archetype name ends in the hero name,
-    and that is asserted here rather than assumed, because silently mis-slicing
-    a name that does not would turn a family claim invisible.
+    "Gun Ivy" gives ["Gun"], "Stalker's Mark Melee Drifter" gives
+    ["Stalker's", "Mark", "Melee"], and "Ivy" gives []. Asserts that the name
+    ends with the hero name.
     """
     assert name.endswith(hero_name), f"{name!r} does not end in {hero_name!r}"
     return name[: -len(hero_name)].strip().split()
@@ -483,7 +473,7 @@ class TestAgainstRealData:
         return labels, meta, {v.name: k for k, v in assets.load_heroes().items()}
 
     def test_ivy_splits(self):
-        """The hero the whole design rests on."""
+        """Ivy, the original example of a hero with two builds, splits."""
         _, meta, heroes = self.load()
         assert meta["heroes"][str(heroes["Ivy"])]["k"] >= 2
 
@@ -503,20 +493,19 @@ class TestAgainstRealData:
         ],
     )
     def test_player_corrections_are_reproduced(self, hero, expected):
-        """Every name a Deadlock player supplied, back from the rule.
+        """The naming rule produces every name a Deadlock player gave.
 
-        Each of these was previously "Tank X" or a duplicate "Spirit X".
+        Each was once named "Tank X" or a duplicate "Spirit X".
         """
         _, meta, heroes = self.load()
         names = {a["name"] for a in meta["heroes"][str(heroes[hero])]["archetypes"]}
         assert expected in names
 
     def test_archetype_names_are_unique_within_a_hero(self):
-        """Two archetypes of one hero sharing a name is a build nobody can ask for.
+        """No two archetypes of one hero share a name.
 
-        Lady Geist had two clusters both called "Spirit Lady Geist", so the
-        35% of her players on the second one were silently handed the first.
-        A name that does not select is not a name.
+        Lady Geist once had two clusters called "Spirit Lady Geist", so the 35%
+        of players in the second one got the first one's build.
         """
         _, meta, _ = self.load()
         collisions = {}
@@ -527,11 +516,10 @@ class TestAgainstRealData:
         assert collisions == {}
 
     def test_every_archetype_of_a_split_hero_says_what_it_is(self):
-        """A name has to distinguish, and a numeric suffix does not.
+        """No archetype name ends in a number.
 
-        The suffix exists as a last resort, and a cluster that reaches it is a
-        signal the two clusters may not be two builds at all -- so it is worth
-        knowing when one appears rather than finding out from a player.
+        A number is the last resort in `make_unique`. Needing one suggests the
+        clusters may not be different builds, so this test flags it.
         """
         _, meta, _ = self.load()
         numbered = [
@@ -543,12 +531,10 @@ class TestAgainstRealData:
         assert numbered == []
 
     def test_no_hero_has_two_archetypes_sharing_a_name(self):
-        """Zero, not "rare" -- a tolerance here is the defect it was written for.
+        """No hero has a duplicate archetype name. Zero, with no tolerance.
 
-        This assertion once allowed three heroes to collide, which is what
-        `--archetype Spirit` silently resolving to the wrong Lady Geist build
-        looked like from the test suite. Uniqueness is the floor, so the only
-        acceptable count is none.
+        This test once allowed three heroes to have duplicates, which hid the
+        Lady Geist bug.
         """
         _, meta, _ = self.load()
         duplicated = {}
@@ -559,17 +545,11 @@ class TestAgainstRealData:
         assert duplicated == {}
 
     def test_thin_margins_decline_to_label(self):
-        """A near-tie is a coin flip, so no family is asserted.
+        """When the margin is too small, no word of the name is a family.
 
-        The shipped name may still carry a distinguishing word. Dynamo splits
-        into "Kinetic Pulse Dynamo" and "Ult Dynamo", naming an ability;
-        Celeste into "Grit Celeste" and "Spellslinger Celeste", naming the item
-        that most separates each cluster. `make_unique` reaches for the family
-        first, then the ability focus, then that item, so all three forms ship.
-        Neither of the last two claims a family.
-
-        The family half of the name is what has to stay bare, so that is what
-        this asserts: on a thin margin no word of the name may be a family.
+        The name can still have a distinguishing word from `make_unique`: an
+        ability ("Ult Dynamo", "Kinetic Pulse Dynamo") or an item ("Grit
+        Celeste", "Spellslinger Celeste"). Neither is a family.
         """
         _, meta, _ = self.load()
         families = set(semantics.DISPLAY.values())
@@ -587,11 +567,9 @@ class TestAgainstRealData:
                 )
 
     def test_venator_has_a_gun_build_and_a_hybrid(self):
-        """A player's naming: both are gun builds, one hybrid gun/spirit.
+        """Venator has two archetypes, one named "Gun Venator".
 
-        The hybrid cluster scores its families too closely to assert a label,
-        so it keeps the bare hero name -- which is the rule declining a coin
-        flip rather than guessing.
+        A player described them as a gun build and a gun/spirit hybrid.
         """
         _, meta, heroes = self.load()
         entry = meta["heroes"][str(heroes["Venator"])]
@@ -600,23 +578,22 @@ class TestAgainstRealData:
         assert entry["k"] == 2
 
     def test_venator_is_not_support(self):
-        """A player correction: Venator's healing items are self-sustain for a
-        gun carry -- Mystic/Radiant Regeneration heal you for dealing spirit
-        damage, and Healing Tempo grants fire rate. Reading them as support
-        made a hybrid gun build look like a support build."""
+        """No Venator archetype is named support.
+
+        Its healing items heal the buyer or give fire rate, as a player pointed
+        out.
+        """
         _, meta, heroes = self.load()
         names = {a["name"] for a in meta["heroes"][str(heroes["Venator"])]["archetypes"]}
         assert not any(n.startswith("Support") for n in names)
 
     def test_yamato_splits(self):
-        """A player confirmed Yamato has a melee build. Under family shares its
-        13% cluster scores melee and spirit too closely to label, so it splits
-        but stays unnamed."""
+        """Yamato splits in two. A player confirmed Yamato has a melee build."""
         _, meta, heroes = self.load()
         assert meta["heroes"][str(heroes["Yamato"])]["k"] == 2
 
     def test_hybrid_labels_are_rare(self):
-        """The word only means something if it is not on everything."""
+        """At most 8 archetypes are named "Hybrid-"."""
         _, meta, _ = self.load()
         hybrids = sum(
             1
@@ -627,18 +604,14 @@ class TestAgainstRealData:
         assert hybrids <= 8
 
     def test_tank_no_longer_dominates(self):
-        """Slot-share naming produced 10 "Tank" labels, most of them wrong.
+        """At most 3 names say Tank, and at least 4 say Melee.
 
-        A family is counted wherever it appears in the qualifier, not only as
-        the first word. `make_unique` prefixes a disambiguator when two
-        clusters of one hero would collide, so Drifter's two melee builds ship
-        as "Stalker's Mark Melee Drifter" and "Rend Melee Drifter" -- melee
-        claims that reading the first word alone cannot see. "Hybrid-Melee" is
-        a single token and is deliberately not counted: a hybrid claim is the
-        weaker one, and `test_hybrid_labels_are_rare` bounds it separately.
+        Naming from shop tabs gave 10 "Tank" names, most of them wrong.
 
-        Both counts are measured on the 2026-09-15 population, in one run:
-        Tank 3, Melee 5.
+        A family word counts anywhere before the hero name, so "Stalker's Mark
+        Melee Drifter" counts as Melee. "Hybrid-Melee" is one word and doesn't
+        count; `test_hybrid_labels_are_rare` covers hybrids. Measured
+        2026-09-15: Tank 3, Melee 5.
         """
         _, meta, _ = self.load()
         claimed: list[str] = []
@@ -653,16 +626,19 @@ class TestAgainstRealData:
 
     @pytest.mark.parametrize("hero", ["Wraith", "Calico"])
     def test_heroes_with_one_build_do_not_split(self, hero):
-        """Calico's only candidate split is 3% of players, separating on
-        Lifestrike and Spirit Snatch -- items she buys in every build, which
-        does not make those builds melee."""
+        """Wraith and Calico stay one archetype.
+
+        Calico's best split has a 3% cluster, below MIN_CLUSTER_SHARE. Whether
+        that cluster is a real rare build is issue #38.
+        """
         _, meta, heroes = self.load()
         assert meta["heroes"][str(heroes[hero])]["k"] == 1
 
     def test_dynamo_splits_on_families(self):
-        """Slot shares could not split Dynamo at all. Family shares find two
-        builds, and a player confirmed the larger one -- Refresher 76%, Warp
-        Stone 65%, Duration Extender 64% -- is the ult build.
+        """Dynamo splits in two with family shares (shop-tab shares didn't split it).
+
+        A player confirmed the larger cluster, with Refresher 76%, Warp Stone
+        65%, and Duration Extender 64%, is the ult build.
         """
         _, meta, heroes = self.load()
         assert meta["heroes"][str(heroes["Dynamo"])]["k"] == 2
@@ -678,10 +654,9 @@ class TestAgainstRealData:
 
     @pytest.mark.skipif(not PURCHASES.exists(), reason="needs purchases.parquet")
     def test_splitting_recovers_hidden_staples(self):
-        """Pooled, Ivy has one item over 70%; split, each build has several.
+        """All Ivy players together have one item above 70%; each archetype has several.
 
-        This is the concrete payoff of conditioning on archetype -- averaging
-        two builds hides the staples of both.
+        Averaging two builds hides the staples of both.
         """
         labels, _, heroes = self.load()
         hero_id = heroes["Ivy"]
@@ -704,10 +679,9 @@ class TestAgainstRealData:
 
 
 class TestNameOverridesFile:
-    """The checked-in file of human-accepted names.
+    """data/archetype_names.json, the checked-in names a person accepted.
 
-    A name a Deadlock player supplied is worth more than the rule's proposal,
-    and a refit must not silently discard it. The file is the record.
+    These override the proposed names and must survive a refit.
     """
 
     def test_the_shipped_file_is_valid_and_applied(self):
@@ -727,7 +701,7 @@ class TestNameOverridesFile:
             assert matching[0]["name"] == name
 
     def test_comment_keys_are_not_names(self, tmp_path):
-        """The file explains itself, and the explanation is not an override."""
+        """Keys starting with an underscore are notes, not names."""
         path = tmp_path / "names.json"
         path.write_text('{"_note": "why", "31:2": "Gun Lash"}')
         assert archetype.load_name_overrides(path) == {"31:2": "Gun Lash"}

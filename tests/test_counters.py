@@ -1,9 +1,7 @@
-"""Items bought because of who is on the other team.
+"""Counter-pick lifts: items bought more against particular enemy heroes.
 
-The four matchups a player named all replicate, at r=0.91 across splits. That
-number is the reason this module exists at all: the discarded counter/synergy
-work measured r=0.05 for the same kind of claim, which is noise, and shipping
-it anyway is the mistake this project is built to avoid repeating.
+The real-data tests check four matchups a player named, and that lifts
+replicate across splits (r=0.91; an earlier counter table scored 0.05).
 """
 
 from __future__ import annotations
@@ -66,18 +64,14 @@ class TestLifts:
         assert lifts.empty
 
     def test_negative_lifts_are_not_counters(self):
-        """An item bought *less* against a hero is not a counter-pick.
-
-        Reporting one as advice tells a player to buy something the population
-        buys less of in exactly that matchup.
-        """
+        """An item bought less against a hero is not reported as a counter-pick."""
         lifts = counters.counter_lifts(matches(), min_facing=50)
         assert (lifts["lift"] > 0).all()
 
 
 class TestAnnotation:
     def test_annotation_does_not_reorder(self):
-        """The probability stays the model's; the matchup is a separate claim."""
+        """annotate keeps the model's order and probabilities."""
         lifts = counters.counter_lifts(matches(), min_facing=50)
         recommendations = [
             Recommendation(1, "Countered", 0.1, 500, "L1", 800),
@@ -102,7 +96,7 @@ class TestAnnotation:
 @pytest.mark.data
 @pytest.mark.skipif(not PARQUET.exists(), reason="needs data/processed/*.parquet")
 class TestAgainstRealData:
-    """Each case is a matchup a Deadlock player named before it was measured."""
+    """Matchups a Deadlock player named before we measured them."""
 
     @staticmethod
     def _frame(n_matches: int = 25000) -> pd.DataFrame:
@@ -132,20 +126,14 @@ class TestAgainstRealData:
         assert found.iloc[0]["lift"] >= 0.04
 
     def test_lifts_replicate_across_a_split(self):
-        """r=0.05 is what the discarded counter work measured. This is 0.91."""
+        """Lifts measured on two halves of the data agree (r=0.91 when written)."""
         frame = self._frame(12000)
         train, test = splits.split_by_match(frame)
         assert counters.replicates(train, test, min_facing=200) > 0.5
 
 
 class TestForBuild:
-    """The counter-picks a finished build carries, with no enemy team named.
-
-    `counters_for` answers "given these five enemies, which of my items are
-    matchup picks". The site shows a build before a match exists, so the useful
-    question is the other way round: for the items this build buys, which
-    heroes make them a counter-pick.
-    """
+    """`for_build`: the counter-picks among a build's items, with no enemy team given."""
 
     @staticmethod
     def lifts() -> pd.DataFrame:
@@ -171,12 +159,12 @@ class TestForBuild:
         assert [c.item_id for c in found] == [7, 1]
 
     def test_one_matchup_per_item(self):
-        """Item 1 answers two heroes; only its strongest is worth the line."""
+        """Item 1 counters two heroes, but only its strongest counter is returned."""
         found = counters.for_build(self.lifts(), [1])
         assert [(c.item_id, c.enemy_hero_id) for c in found] == [(1, 99)]
 
     def test_a_weak_lift_is_not_a_counter_pick(self):
-        """Item 2 moves one point facing hero 99, which is not a matchup."""
+        """Item 2's lift against hero 99 is one point, below MIN_LIFT."""
         assert not any(c.item_id == 2 for c in counters.for_build(self.lifts(), [2]))
 
     def test_a_thin_matchup_is_dropped(self):

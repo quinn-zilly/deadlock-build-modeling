@@ -1,8 +1,7 @@
-"""Tests for the HTTP client's rate-limit pacing and optional API key.
+"""The HTTP client's rate limits and optional API key. No network calls.
 
-An API key lifts every documented limit, so the pacing table has two columns
-and the wrong one being read is a silent overrun rather than a failure. These
-tests pin the column choice and the header, and make no network calls.
+RATE_LIMITS has one column without a key and one with. Reading the wrong one
+would send requests too fast without any error.
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ from deadlock import api
 
 @pytest.fixture(autouse=True)
 def _no_ambient_key(monkeypatch):
-    """A key in the developer's own environment must not steer the tests."""
+    """Unset DEADLOCK_API_KEY so a key in your environment doesn't affect the tests."""
     monkeypatch.delenv(api.API_KEY_ENV, raising=False)
 
 
@@ -23,7 +22,7 @@ def test_api_key_is_none_when_unset():
 
 
 def test_api_key_reads_the_environment_at_call_time(monkeypatch):
-    # Set after import: a module-level constant would miss this.
+    # Set after import, to check the key is read at call time.
     monkeypatch.setenv(api.API_KEY_ENV, "secret")
     assert api.api_key() == "secret"
 
@@ -84,10 +83,9 @@ def test_get_sends_the_key_only_when_one_is_set(monkeypatch):
 
 
 def test_matches_pacing_stays_under_the_measured_ceiling():
-    """The per-IP ceiling on /v1/matches was measured at exactly 10/min.
+    """Anonymous pacing on /v1/matches stays below the measured limit of 10/min.
 
-    Pacing at or above it turns every pull into a 429-and-retry loop, so the
-    anonymous column must keep headroom under the measured number.
+    At or above it, every pull becomes a loop of 429s and retries.
     """
     _, anon = api._rate_key("/v1/matches/metadata", keyed=False)
     assert anon < 10.0

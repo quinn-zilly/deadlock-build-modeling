@@ -1,8 +1,7 @@
-"""Splits must not leak, and each must leak differently from the others.
+"""Train/test splits keep what they promise apart, and LEAKY_FEATURES is right.
 
-The account split is the one that matters for an imitation model: a player's
-build habits repeat across their own matches, so a match-level split lets a
-model score by recalling a person rather than learning a strategy.
+A match split keeps matches apart but not players. The account split keeps
+players apart, which matters because players repeat their builds.
 """
 
 from __future__ import annotations
@@ -56,11 +55,7 @@ class TestSplitByMatch:
         assert set(a["match_id"]) != set(b["match_id"])
 
     def test_leaves_accounts_on_both_sides(self):
-        """The reason split_by_account exists.
-
-        A match-level split does not separate players, so this overlap is
-        expected -- and is exactly the leak an imitation model can exploit.
-        """
+        """A match split puts some accounts on both sides. This is why split_by_account exists."""
         train, test = splits.split_by_match(frame())
         assert set(train["account_id"]) & set(test["account_id"])
 
@@ -99,11 +94,11 @@ class TestSplitByTime:
 
 class TestLeakageGuard:
     def test_duration_is_leaky(self):
-        """Match length is unknown at buy time and encodes the outcome."""
+        """Match length isn't known when buying."""
         assert "duration_s" in splits.LEAKY_FEATURES
 
     def test_purchase_count_is_leaky(self):
-        """n_purchases counts the very process being modeled."""
+        """n_purchases counts the thing being predicted."""
         assert "n_purchases" in splits.LEAKY_FEATURES
 
     def test_final_networth_is_leaky(self):
