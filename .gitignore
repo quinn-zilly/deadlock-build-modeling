@@ -99,7 +99,8 @@ ipython_config.py
 #   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
 #   commonly ignored for libraries.
-# uv.lock
+# Installs go through `uv pip install` (README), which never reads a lockfile.
+uv.lock
 
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
@@ -239,3 +240,6 @@ data/processed/*
 # only place the naming survives a refit -- losing it means re-deciding every
 # name a Deadlock player already ruled on.
 !data/archetype_names.json
+
+# Browser-session logs and page snapshots from the Playwright MCP tool.
+.playwright-mcp/
