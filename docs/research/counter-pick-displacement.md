@@ -1,63 +1,59 @@
-# What a counter-pick displaces from the build
+# What does a counter-pick replace in the build?
 
-Resolves [#26](https://github.com/quinn-zilly/deadlock-build-modeling/issues/26).
+Answers [#26](https://github.com/quinn-zilly/deadlock-build-modeling/issues/26).
 
-**Answer: nothing in particular.** A counter-pick is paid for out of the whole
-build, a couple of percentage points at a time, not by dropping one item. The
-"substitute X for Y" phrasing #20 wanted is not earned, and the matchup section
-ships additive.
+**Short answer: no particular item.** Players pay for a counter-pick by buying
+slightly less of many items, not by dropping one. So the site can't say
+"buy X instead of Y", and the matchup section lists counter-picks as additions.
 
 ## The question
 
-`counters.py` measures **lift**: facing Vindicta raises Knockdown's pick rate.
-Lift is additive. #20 wanted the stronger, more useful instruction —
-*"substitute Knockdown for Y against Vindicta"* — which is a claim about
-**displacement**, about what the player gave up. No table held one. This
-measures whether such a table could exist.
+`counters.py` measures lift: facing Vindicta raises Knockdown's pick rate.
+Issue #20 wanted the site to say "buy Knockdown instead of Y against
+Vindicta", which needs to know what the player gave up. Nothing measured that.
+This checks whether it can be measured.
 
 ## Method
 
-Within each (hero, archetype) cell, split players by whether they faced the
-enemy hero, then compare per-item prevalence between the two groups. An item
-whose prevalence **falls** when the counter-pick's rises is a displacement
-candidate.
+Within each hero-and-archetype cell, split players by whether they faced a
+given enemy hero, and compare each item's prevalence between the two groups.
+An item whose prevalence falls when the counter-pick's rises could be what it
+replaced.
 
-- 296,332 players, 5.1M purchase rows, joined to `archetypes.parquet`.
-- Prevalence is measured over players, not purchase rows, matching
-  `counters.py` (no item is bought twice).
-- A cell is kept when **both** sides clear 500 players, so `MIN_FACING`
-  binds on the smaller group rather than only the facing one.
-- **1,361 cells** qualify, spanning 200,993 (cell × item) deltas.
+- 296,332 players and 5.1M purchases, joined to `archetypes.parquet`.
+- Prevalence is per player, as in `counters.py`.
+- A cell is kept only if both groups have at least 500 players, so
+  `MIN_FACING` applies to the smaller group.
+- 1,361 (cell, enemy hero) pairs qualify, giving 200,993 item differences.
 
-The confounds #26 named are both handled below: build length settles the
-"bought in addition" alternative, and a placebo split settles sampling noise.
+Issue #26 raised two alternative explanations. Build length tests "players
+just buy one more item", and a random re-split tests "it's noise".
 
-## Finding 1 — the budget is conserved, so something does leave
+## Finding 1: the counter-pick replaces something
 
-Facing the enemy hero changes mean build length by **+0.036 items** (median
-+0.035) and mean net worth by +97 souls. Both are negligible: players facing a
-counter-pick target do not simply buy one item more. Within a counter cell,
-positive and negative prevalence movement nearly cancel (mean +0.55 / −0.51).
+Facing the enemy hero changes build length by +0.036 items on average (median
++0.035) and net worth by +97 souls. Both are negligible, so players don't just
+buy one more item. Within a cell, the rises and drops in prevalence nearly
+cancel (mean +0.55 against -0.51).
 
-So the counter-pick *is* paid for. The question is by whom.
+So something is given up. The question is what.
 
-## Finding 2 — the payer is the entire build, not one item
+## Finding 2: the whole build pays, not one item
 
-Take the 93 strongest cells, those where some item rises by ≥10pp. Within them:
+Take the 93 strongest cells, where some item rises by at least 10 points:
 
 | | mean |
 |---|---|
-| the rise (the counter-pick) | +13.4pp |
-| the single biggest drop | −4.9pp |
-| items that dropped at all | **81.3** |
-| share of all negative movement carried by the biggest drop | **8.7%** |
-| share carried by the top 3 drops | **21.0%** |
+| the rise (the counter-pick) | +13.4 points |
+| the single biggest drop | -4.9 points |
+| items that dropped at all | 81.3 |
+| share of the total drop from the biggest drop | 8.7% |
+| share from the top 3 drops | 21.0% |
 
-The cost is spread across ~81 items. The largest single drop carries under a
-tenth of it. There is no Y.
+The cost is spread over about 81 items, and the biggest single drop is under a
+tenth of it. There is no one item being replaced.
 
-The strongest cell in the dataset reads by hand — Rem (archetype 0) vs
-Vindicta, n=1,557:
+The strongest cell in the data, Rem (archetype 0) against Vindicta, n=1,557:
 
 ```
 rises   Knockdown          +27.89pp   19.6 -> 47.5
@@ -67,38 +63,38 @@ drops   Rapid Recharge      -3.51pp   63.1 -> 59.5
         Spirit Burn         -2.81pp   16.4 -> 13.6
 ```
 
-A +27.9pp rise against a −3.5pp largest drop. Nothing here supports "instead
-of Rapid Recharge" — and as Finding 3 shows, −3.5pp is not even distinguishable
-from noise.
+A 27.9-point rise against a 3.5-point biggest drop. That doesn't support
+"instead of Rapid Recharge", and Finding 3 shows a 3.5-point drop is within
+noise anyway.
 
-## Finding 3 — `MIN_LIFT` = 0.03 is a noise floor at cell size, not a bar
+## Finding 3: at cell size, MIN_LIFT (3 points) is noise
 
-This is the methodological trap, and it nearly produced a false positive.
-1,031 of 1,234 counter cells contain a drop clearing `MIN_LIFT`. That looks
-like displacement everywhere. It is not.
+This nearly produced a false result. 1,031 of 1,234 counter cells have some
+item dropping by more than `MIN_LIFT`, which looks like replacement
+everywhere. It isn't.
 
-Re-splitting each cell **at random**, same group sizes, same code, gives:
+Splitting each cell at random, with the same group sizes and the same code:
 
-| threshold | real cells w/ drop | placebo | excess |
+| threshold | real cells with a drop | random split | difference |
 |---|---|---|---|
-| −0.02 | 1,334 | 1,253 | 81 |
-| −0.03 | 1,116 | **784** | 332 |
-| −0.05 | 369 | 104 | 265 |
-| −0.08 | 20 | 3 | 17 |
-| −0.10 | 4 | 0 | 4 |
+| -0.02 | 1,334 | 1,253 | 81 |
+| -0.03 | 1,116 | 784 | 332 |
+| -0.05 | 369 | 104 | 265 |
+| -0.08 | 20 | 3 | 17 |
+| -0.10 | 4 | 0 | 4 |
 
-A coin flip clears the project's `MIN_LIFT` bar in **784 of 1,361 cells**.
-`MIN_LIFT` was calibrated for lift on the full table, where the baseline is
-measured over all 296k players; inside a cell of ~600 per side it is roughly
-the noise floor. The rise side survives this easily (93 cells at ≥0.10 vs 0
-placebo; max real rise +27.9pp vs max placebo +8.7pp). The drop side does not:
-the largest drop anywhere is −12.7pp against a placebo maximum of −10.0pp.
+A random split passes `MIN_LIFT` in 784 of 1,361 cells. `MIN_LIFT` was set for
+lift over all 296k players. Within a cell of about 600 players per side it is
+roughly the noise level. Rises still stand out clearly: 93 cells rise by 10
+points or more against none at random, and the biggest real rise is 27.9
+points against 8.7 at random. Drops don't: the biggest real drop is 12.7
+points against 10.0 at random.
 
-**Lift replicates. Displacement does not.**
+Lift holds up. Replacement doesn't.
 
-## Finding 4 — the big drops are matchups, not substitutions
+## Finding 4: the biggest drops are reverse counter-picks
 
-The largest drops are themselves counter-pick logic with the sign reversed:
+The largest drops are items players avoid against a hero:
 
 ```
 Lady Geist a0 vs Haze     Spirit Resilience  -12.66pp   67.1 -> 54.5
@@ -107,53 +103,41 @@ Billy      a1 vs Graves   Slowing Hex         -9.99pp   36.5 -> 26.5
 Bebop      a1 vs Graves   Slowing Hex         -9.22pp   61.8 -> 52.6
 ```
 
-Spirit Resilience falls against Haze because Haze is a gun hero — buying spirit
-resist into her is the *wrong* resistance. That is a negative counter-pick, a
-fact about the enemy, not about a slot freed for something else. Reporting it
-as "substitute X for Spirit Resilience" would assert a trade the data does not
-contain. Note both drops replicate across two heroes, so they are real effects
-— just not displacement.
+Spirit Resilience drops against Haze because Haze deals gun damage, so spirit
+resistance is the wrong defense. That is a fact about the enemy, not a slot
+freed for the counter-pick. Both drops repeat across two heroes, so they are
+real, just not replacement.
 
-## Finding 5 — the genre is additive too
+## Finding 5: other build sites don't do this either
 
-#23 found the genre baseline for touch detail was nothing at all. The same
-holds here, and the incumbents are not avoiding substitution phrasing by
-oversight:
+- deadlockitembuilder.com's counter-item helper lists "situational items" and
+  "best items to counter specific ability threats", with no swap advice.
+- Backdash's Deadlock counter-item guide notes "you will have limited slots
+  and souls per game" and "you will have to pick and choose which Counter
+  Items you need", but never says what to drop.
+- Mobalytics (League of Legends) describes situational items as bought "into
+  team comps that have assassins", not as swaps.
 
-- **deadlockitembuilder.com's counter-item helper**, the closest incumbent,
-  is additive: "situational items", "situational item priority", "best items
-  to counter specific ability threats". No swap language.
-- **Backdash's Deadlock counter-item guide** is additive even while
-  acknowledging the constraint: "you will have limited slots and souls per
-  game", "you will have to pick and choose which Counter Items you need to go
-  for" — it names the pressure and still declines to say what to drop.
-- **Mobalytics (LoL)** frames situational items as bought *into* an enemy
-  condition ("bought into team comps that have assassins"), not as swaps.
+This measurement explains why. The trade-off is real overall but has no
+single item on the other side, so any "instead of Y" would pick Y arbitrarily.
 
-So there is no incumbent substitution pattern to copy. The measurement says why:
-the trade is real in aggregate but has no identifiable counterparty, so anyone
-writing "instead of Y" would be picking Y arbitrarily.
+## What this means for the site
 
-## Consequence for the site
+The "if you're facing..." section lists counter-picks as additions, in the
+shape `counters.for_build` already returns:
 
-The "if you're facing…" section ships **additive**, in the shape
-`counters.py` already supports and `for_build` already returns:
+> **Against Vindicta**: Knockdown, 47.5% vs 19.6% (n=1,557)
 
-> **Against Vindicta** — Knockdown, 47.5% vs 19.6% (n=1,557)
+Both rates and the sample size are shown, so a player can check the claim.
 
-Both base rates and the sample count stay, per the module's existing rule that
-a reordered list is not checkable but "+27.9pp against Vindicta" is.
+Two things to avoid, both ruled out above:
 
-Two things not to do, each of which this measurement rules out:
+- Don't compute a replaced item per counter-pick. At cell size the biggest
+  drop is noise about two times in three, and it would look like specific,
+  checkable advice.
+- Don't use `MIN_LIFT` for per-cell work. It is set for the full table. Any
+  per-cell measurement needs its own random-split check to find its noise
+  level; the table above is that check for this one.
 
-- **Do not compute a displaced item per counter-pick.** At cell size the
-  argmin of a prevalence delta is noise 2 times in 3; it would render as
-  confident, specific, hand-checkable advice and be wrong.
-- **Do not lower `MIN_LIFT` for cell-level work.** It is a full-table bar. Any
-  future per-cell measurement needs its own placebo split to find its floor —
-  the numbers above are the calibration.
-
-What *is* honest, and free, if the section ever wants to express the tradeoff:
-the build does not get longer, so a counter-pick costs a slot. That can be said
-in general ("counter-picks come out of your build, not on top of it") without
-naming a victim.
+If the section ever needs to mention the trade-off, it can say it in general:
+builds don't get longer, so a counter-pick takes the place of something else.

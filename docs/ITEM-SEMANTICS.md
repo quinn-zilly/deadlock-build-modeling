@@ -1,37 +1,43 @@
-# Naming builds from what items do, not which shop tab they sit in
+# Naming builds from what items do, not which shop tab they're in
 
-`propose_name` in `src/deadlock/archetype.py:352` labels a cluster from the
-slot type its souls went into — `share_weapon` → "Gun", `share_spirit` →
-"Spirit", `share_vitality` → "Tank". A Deadlock player reviewed the output and
-found the names often wrong.
+**Status:** implemented. The naming rule proposed here is
+`src/deadlock/semantics.py`, and archetype clustering now uses build families
+too. This document is the investigation behind it. Cluster numbers and
+"current names" below are from the time it was written, when archetypes were
+still clustered and named by shop tab.
 
-They are wrong because **slot type is a shop tab, not a playstyle**. Measured
-against the item's own stat block, **84 of the 170 scoreable shopable items —
-49% — sit in a tab that does not match what they do**. Naming from the tab is
-therefore close to a coin flip.
+At the time, `propose_name` in `src/deadlock/archetype.py` named a cluster
+after the shop tab most of its souls went to: weapon became "Gun", spirit
+"Spirit", and vitality "Tank". A Deadlock player reviewed the names and found
+many of them wrong.
 
-This document derives a semantic taxonomy from the asset JSON, checks the
-player's five specific corrections against it, and proposes a naming rule that
-reproduces all five.
+They were wrong because the shop tab doesn't say what an item does. Compared
+with their own stats, 84 of the 170 scoreable shop items (49%) are in a tab
+that doesn't match what they do, so naming by tab is close to a coin flip.
 
-Sources are marked throughout: **[asset]** for a field in
-`data/raw/assets/v1_assets_items__c2557efa885c5123.json`, **[web]** for a cited
-URL, **[inferred]** where this document is reasoning rather than citing.
+This document builds a set of families from the asset data, checks the
+player's five corrections against it, and proposes a naming rule that gets
+all five right.
+
+Sources are marked: **[asset]** for a field in
+`data/raw/assets/v1_assets_items__c2557efa885c5123.json`, **[web]** for a
+linked page, and **[inferred]** where this document is reasoning rather than
+citing.
 
 ---
 
-## 1. Where "what an item does" actually lives
+## 1. Where an item's stats are
 
-The task brief pointed at `upgrades[].property_upgrades[]`. That field is real
-and useful, but on its own it is **half the picture**, and the missing half is
-the half that matters for the flagged items.
+The task pointed at `upgrades[].property_upgrades[]`. That field is useful but
+holds only part of the stats, and the missing part is what matters for the
+items the player flagged.
 
 | Field | What it holds | Coverage |
 |---|---|---|
 | `upgrades[].property_upgrades[]` | Only the bonuses the item's **tier-upgrade** adds | 179 distinct names over 251 upgrades |
 | `properties{}` | The item's **full stat block**, base values included | 338 distinct non-zero keys over 173 shopable |
 
-Siphon Bullets is the clean demonstration **[asset]**:
+Siphon Bullets shows the difference **[asset]**:
 
 ```
 property_upgrades: HealthStealPctHero 1.5, BulletResist 10
@@ -40,55 +46,52 @@ properties:        BaseAttackDamagePercent 15  (provided_property_type
                    BulletResist 10, HealthStealPctHero 2.5, StealDuration 17
 ```
 
-Its **+15% Weapon Damage is in `properties` only**. Read `property_upgrades`
-alone and Siphon Bullets has no weapon signal at all — exactly the item the
-player flagged. **Any taxonomy must union both fields.**
+Its +15% weapon damage is only in `properties`. Reading `property_upgrades`
+alone, Siphon Bullets has no weapon stat at all, and it is one of the items
+the player flagged. So both fields have to be read.
 
-A useful sub-signal inside `properties`: 66 distinct `provided_property_type`
-values (`MODIFIER_VALUE_*`) mark the keys the engine treats as real character
-stats, and `tooltip_section: "innate"` marks the always-on ones **[asset]**.
+Within `properties`, 66 distinct `provided_property_type` values
+(`MODIFIER_VALUE_*`) mark the stats the game treats as real hero stats, and
+`tooltip_section: "innate"` marks the always-on ones **[asset]**.
 
-### Two traps in the raw fields
+### Two traps
 
-**`AbilityCooldown` is not cooldown reduction.** It appears on 90 shopable
-items, 48 of the 50 actives. On an active it is *that item's own* cooldown; as
-a `property_upgrades` bonus it is always negative, i.e. the tier-upgrade
-shortening the item's own cooldown (Grit `-25`, Dispel Magic `-25`, Capacitor
-`-32`) **[asset]**. Zero shopable items carry it as an innate stat. The real
-global CDR stat is `CooldownReduction`, on just 7 items: Enchanter's Emblem,
-Compress Cooldown, Superior Cooldown, Transcendent Cooldown, Witchmail,
-Spellslinger, Mystic Conduit **[asset]**. `AbilityDuration`, `AbilityCastRange`,
-`AbilityCastDelay` and `AbilityChannelTime` are self-referential the same way.
-Counting them as a spirit signal makes every active item look like a spirit
-item — this is what dragged Rescue Beam and Healing Nova to "spirit" in a first
-unweighted pass.
+**`AbilityCooldown` is not cooldown reduction.** It is on 90 shop items,
+including 48 of the 50 actives. On an active item it is that item's own
+cooldown. As an upgrade bonus it is always negative, meaning the upgrade
+shortens the item's own cooldown (Grit -25, Dispel Magic -25, Capacitor -32)
+**[asset]**. No shop item has it as an innate stat. Real cooldown reduction is
+`CooldownReduction`, on 7 items: Enchanter's Emblem, Compress Cooldown,
+Superior Cooldown, Transcendent Cooldown, Witchmail, Spellslinger, and Mystic
+Conduit **[asset]**. `AbilityDuration`, `AbilityCastRange`, `AbilityCastDelay`,
+and `AbilityChannelTime` also describe the item itself. Counting them as
+spirit makes every active item look like a spirit item; an early version put
+Rescue Beam and Healing Nova in spirit this way.
 
-**The per-tier implicit bonus is not in the JSON.** Community documentation
-states each item grants a flat category bonus by tier — weapon damage for
-weapon items, base health for vitality, spirit power for spirit **[web:
+**The automatic per-tier bonus isn't in the data.** Community guides say every
+item gives a flat bonus by tier: weapon damage for weapon items, health for
+vitality, and spirit power for spirit **[web:
 [Dignitas](https://dignitas.gg/articles/understanding-items-in-deadlock)]**.
-Checking the asset: only 20 of 61 vitality items carry `BonusHealth`, 16 of 56
-weapon items carry `BaseAttackDamagePercent`, and 9 of 56 spirit items carry
-`TechPower` **[asset]**. So the implicit bonus is applied by the engine and
-**not stored per-item**. This matters for the diagnosis: a vitality-heavy build
-reads as "tanky" in a souls-by-slot centroid partly through health the shop
-grants automatically, independent of what the player was buying those items
-*for*. Slot share is therefore **partly self-fulfilling as an archetype
-signal** **[inferred]**.
+But only 20 of 61 vitality items list `BonusHealth`, 16 of 56 weapon items
+list `BaseAttackDamagePercent`, and 9 of 56 spirit items list `TechPower`
+**[asset]**. So the game adds the bonus itself, and it isn't stored per item.
+This means a build with many vitality items looks tanky partly from health
+the shop adds automatically, whatever the items were bought for
+**[inferred]**.
 
 ---
 
-## 2. The stat vocabulary, grouped into families
+## 2. Stats grouped into families
 
-Counts below are `property_upgrades` occurrences across all 251 upgrades, which
-is what the brief asked to enumerate. The family assignment is this document's
-**[inferred]** grouping; the stat names and counts are **[asset]**.
+Counts below are how often each stat appears in `property_upgrades` across all
+251 upgrades. The stat names and counts are **[asset]**; which family each
+belongs to is this document's grouping **[inferred]**.
 
-Full `property_upgrades` vocabulary: **179 distinct names**. The long tail is
-mostly single-item mechanics (`BulletSplitShot`, `HealPercentPerHeadshot`,
-`DeathImmunityDuration`). The head is where the families live.
+There are 179 distinct stat names. Most of the rare ones are single-item
+mechanics (`BulletSplitShot`, `HealPercentPerHeadshot`,
+`DeathImmunityDuration`). The common ones define the families.
 
-### gun — 34 distinct names, 100 occurrences
+### gun: 34 distinct names, 100 occurrences
 
 | n | Stat | Example items |
 |---|---|---|
@@ -101,7 +104,7 @@ mostly single-item mechanics (`BulletSplitShot`, `HealPercentPerHeadshot`,
 | 4 | `BulletResistReduction` | Crippling Headshot, Crushing Fists, Stalker |
 | 2 each | `WeaponPowerPerStack`, `RicochetDamagePercent`, `LongRangeBonusWeaponPower`, `CloseRangeBonusWeaponPower`, `HeadShotBonusDamage`, `CritDamagePercent`, `BonusAttackRangePercent`, `ActiveBonusFireRate`, `NonPlayerBonusWeaponPower` | |
 
-### spirit — 30 distinct names, 114 occurrences
+### spirit: 30 distinct names, 114 occurrences
 
 | n | Stat | Example items |
 |---|---|---|
@@ -115,11 +118,11 @@ mostly single-item mechanics (`BulletSplitShot`, `HealPercentPerHeadshot`,
 | 5 | `SpiritPower` | Alchemical Fire, Arcane Surge, Counterspell |
 | 3 each | `BonusSpirit`, `BonusAbilityCharges`, `BonusSpiritForChargedAbilities`, `TechPowerReduction` | Extra Charge, Infuser, Rapid Recharge |
 
-Note `TechRadiusMultiplier` / `TechRangeMultiplier` are **weak** spirit
-signals: they ride along on many actives regardless of build direction. They
-are weighted 1, not 2, in §6.
+`TechRadiusMultiplier` and `TechRangeMultiplier` are weak spirit evidence:
+they appear on many active items of every kind. They get weight 1, not 2, in
+section 6.
 
-### tank — 26 distinct names, 123 occurrences
+### tank: 26 distinct names, 123 occurrences
 
 | n | Stat | Example items |
 |---|---|---|
@@ -130,13 +133,13 @@ are weighted 1, not 2, in §6.
 | 7 | `CombatBarrier` | Cloak of Opportunity, Diviner's Kevlar, Grit |
 | 5 | `MeleeResistPercent` | Close Quarters, Juggernaut, Point Blank |
 
-**This is the family that breaks naive naming.** `BonusHealth`, `BulletResist`
-and `TechResist` are on 99 of 173 shopable items (57%) — they are what a
-mid-game item gives you *in addition to* its actual purpose. Siphon Bullets'
-+10% Bullet Resist is a rider on a gun item, not a reason to call the build
-tanky. §6 corrects for this with IDF.
+This family is what breaks simple naming. `BonusHealth`, `BulletResist`, and
+`TechResist` are on 99 of 173 shop items (57%). They are what a mid-game item
+gives you on top of its main purpose. Siphon Bullets' +10% bullet resist is an
+extra on a gun item, not a reason to call the build tanky. Section 6 corrects
+for this with IDF.
 
-### melee — 5 distinct names, 10 occurrences
+### melee: 5 distinct names, 10 occurrences
 
 | n | Stat | Items |
 |---|---|---|
@@ -146,10 +149,10 @@ tanky. §6 corrects for this with IDF.
 | 1 | `ParryCooldownReduction` | Rebuttal |
 | 1 | `AmbushBonusMeleeDamage` | Shadow Weave |
 
-Tiny and **highly specific** — only 9 shopable items carry any melee stat.
-That specificity is the whole reason melee is recoverable.
+Only 9 shop items have any melee stat. Because it's so specific, melee is easy
+to detect once rare families are weighted up.
 
-### support — 13 distinct names, 17 occurrences
+### support: 13 distinct names, 17 occurrences
 
 `HealAmpCastPercent`, `HealAmpRegenPercent` (Healing Booster, Healing Tempo);
 `TotalHealthRegen` (Healing Nova, Healing Rite); `HealPercentAmount` (Rescue
@@ -157,37 +160,36 @@ Beam); `HealPerStack`/`Max`/`MinStaminaRestore` (Restorative Locket); `MinHeal`
 (Celestial Blessing); `Regeneration`/`HealingPerCast` (Radiant Regeneration,
 Mystic Regeneration); `HealFromHero`/`HealFromNPC` (Restorative Shot);
 `HealOnActivate` (Dispel Magic); `AllyPercentage`/`HealAmount` (Mystic
-Conduit). 12 items — as specific as melee.
+Conduit). 12 items, about as specific as melee.
 
-### sustain — self-healing, distinct from support
+### sustain: healing yourself, separate from support
 
-`OutOfCombatHealthRegen` (18), `BonusHealthRegen` (4), plus one-offs
+`OutOfCombatHealthRegen` (18), `BonusHealthRegen` (4), and single-item stats
 `HealthStealPctHero` (Siphon Bullets), `HealOnKill` (Healbane), `HealOnVeil`
-(Veil Walker), `HealOnSuccess` (Counterspell),
-`HealLifePercentOutOfCombat` (Fortitude). **Separating this from `support`
-matters**: without the split, Siphon Bullets' HP-steal and Extra Regen land in
-the same bucket as Healing Tempo, and Kelvin's support cluster stops being
-distinguishable **[inferred]**.
+(Veil Walker), `HealOnSuccess` (Counterspell), and
+`HealLifePercentOutOfCombat` (Fortitude). This has to be separate from
+support. Otherwise Siphon Bullets and Extra Regen land with Healing Tempo, and
+Kelvin's support cluster can't be told apart **[inferred]**.
 
-### mobility — 12 names, 52 occurrences
+### mobility: 12 names, 52 occurrences
 
 `BonusMoveSpeed` (14), `BonusSprintSpeed` (10), `Stamina` (7),
 `StaminaCooldownReduction` (6), `GroundDashReductionPercent` (6).
 
-### control — 9 names, 34 occurrences
+### control: 9 names, 34 occurrences
 
-`HealAmpReceivePenaltyPercent` / `HealAmpRegenPenaltyPercent` (7 each — anti-heal),
+`HealAmpReceivePenaltyPercent` and `HealAmpRegenPenaltyPercent` (7 each, anti-heal),
 `SlowPercent` (5), `FireRateSlow` (4), `StunDuration` (3),
 `OutgoingDamagePenaltyPercent` (3), `SilenceDuration` (1).
 
 ---
 
-## 3. The proposed taxonomy
+## 3. The proposed families
 
-Eight families. Each item scores into every family it feeds; defining stats
-weigh 2, supporting stats weigh 1 **[inferred]**. Signature items below are
-ranked by that score, with the fraction of the item's total score that goes to
-this family shown as "purity".
+Eight families. Each item scores in every family it has stats for: strong
+stats count 2 and weak ones 1 **[inferred]**. The typical items below are
+ranked by that score. "Purity" is the share of the item's total score that
+goes to this family.
 
 | Family | Colloquial name | Items | Built around |
 |---|---|---|---|
@@ -200,7 +202,7 @@ this family shown as "purity".
 | `support` | "Support X" | 12 | heal amp, ally heals, barriers on allies |
 | `melee` | "Melee X" / "Punch X" | 9 | melee damage, heavy melee, melee distance |
 
-### gun — signature items **[asset]**
+### gun: signature items **[asset]**
 
 | Score | Purity | Slot | Item |
 |---|---|---|---|
@@ -216,12 +218,12 @@ this family shown as "purity".
 | 5 | 100% | weapon | Express Shot |
 | 5 | 71% | weapon | Opening Rounds |
 | 4 | 100% | weapon | Extended Magazine, Lucky Shot, Ricochet, Titanic Magazine |
-| 3 | — | **spirit** | Quicksilver Reload, Bullet Resist Shredder |
-| 2 | — | **vitality** | Siphon Bullets |
+| 3 | - | **spirit** | Quicksilver Reload, Bullet Resist Shredder |
+| 2 | - | **vitality** | Siphon Bullets |
 
-Note three of the top gun items are not in the weapon tab.
+Three of the top gun items aren't in the weapon tab.
 
-### spirit — signature items **[asset]**
+### spirit: signature items **[asset]**
 
 | Score | Purity | Slot | Item |
 |---|---|---|---|
@@ -237,7 +239,7 @@ Note three of the top gun items are not in the weapon tab.
 | 4 | 67% | **vitality** | Spirit Lifesteal, Diviner's Kevlar |
 | 4 | 67% | **weapon** | Spirit Rend |
 
-### melee — the complete family, all 9 items **[asset]**
+### melee: the complete family, all 9 items **[asset]**
 
 | Score | Purity | Slot | Tier | Item | Stats |
 |---|---|---|---|---|---|
@@ -251,13 +253,13 @@ Note three of the top gun items are not in the weapon tab.
 | 2 | 18% | spirit | T3 | Spirit Snatch | BonusMeleeDamagePercent |
 | 2 | 15% | vitality | T4 | Colossus | BonusMeleeDamagePercent |
 
-Also melee-adjacent by tooltip but carrying no typed melee stat: **Spirit
-Strike** ("When you perform a Light or Heavy Melee attack against a hero, deal
-extra spirit damage") and **Close Quarters** (`CloseRangeBonusWeaponPower`,
-typed as gun) **[asset]**. Community guides list both in melee builds
+Two more items are melee by their tooltip but have no melee stat: Spirit
+Strike ("When you perform a Light or Heavy Melee attack against a hero, deal
+extra spirit damage") and Close Quarters (`CloseRangeBonusWeaponPower`, a gun
+stat) **[asset]**. Community guides put both in melee builds
 **[web: [Sportskeeda Abrams](https://www.sportskeeda.com/esports/deadlock-abrams-build-guide)]**.
 
-### support — the complete family, all 12 items **[asset]**
+### support: the complete family, all 12 items **[asset]**
 
 | Score | Purity | Slot | Tier | Item |
 |---|---|---|---|---|
@@ -274,24 +276,25 @@ typed as gun) **[asset]**. Community guides list both in melee builds
 | 2 | 25% | vitality | T3 | Healing Nova |
 | 1 | 33% | spirit | T1 | Mystic Regeneration |
 
-**Gap: barrier-on-ally items score `tank`, not `support`.** Guardian Ward
+**Gap: items that shield an ally score as tank, not support.** Guardian Ward
 (`GuardianWardCombatBarrier` 250) and Divine Barrier (`CombatBarrier` 600) put
-a shield on a teammate but their typed stats are indistinguishable from Plated
-Armor's **[asset]**. The distinguishing evidence is in `tooltip_sections`, not
-`properties`:
+a barrier on a teammate, but their stats look the same as Plated Armor's
+**[asset]**. Only the tooltip shows the difference:
 
 > Guardian Ward: "Provide the target with a Barrier and temporary Move Speed.
-> Can be self-cast. **Cooldown is reduced by half when cast on someone else.**"
-> Divine Barrier: same clause. **[asset]**
+> Can be self-cast. Cooldown is reduced by half when cast on someone else."
+> Divine Barrier: same wording. **[asset]**
 
-Recommendation in §6: add a support point for any item whose tooltip matches
+Proposed fix: add a support point for any item whose tooltip matches
 `/self-cast|someone else|allied hero|friendly target|allies/i`. That catches
 Guardian Ward, Divine Barrier, Rescue Beam, Healing Rite, Shrink Ray, Scourge,
-Heroic Aura and Celestial Blessing **[asset]**.
+Heroic Aura, and Celestial Blessing **[asset]**. (The implementation uses an
+ally-word pattern plus hand-set scores for Guardian Ward and Divine Barrier;
+see `semantics.TOOLTIP_OVERRIDES`.)
 
-### tank — signature items **[asset]**
+### tank: signature items **[asset]**
 
-Restricted to high purity, since the family is a 57% catch-all: Return Fire
+High purity only, since 57% of items have some tank stat: Return Fire
 (100%), Plated Armor (100%), Spellbreaker (100%), Debuff Reducer (100%),
 Unstoppable (100%), Refresher (100%, spirit slot), Echo Shard (100%, spirit
 slot), Torment Pulse (100%, spirit slot), Scourge (100%, spirit slot),
@@ -299,12 +302,12 @@ Indomitable (75%), Cheat Death (60%), Blood Tribute (55%, weapon slot).
 
 ---
 
-## 4. Verifying the player's five claims
+## 4. Checking the player's five claims
 
-All five hold. Four are confirmed by both the asset data and community sources;
-one needed a name correction.
+All five hold. Four are confirmed by both the asset data and community
+sources, and one needed an item name corrected.
 
-### Siphon Bullets — CLAIM SUPPORTED
+### Siphon Bullets: confirmed
 
 | Field | Value |
 |---|---|
@@ -317,61 +320,60 @@ one needed a name correction.
 | `property_upgrades` | `HealthStealPctHero 1.5`, `BulletResist 10` **[asset]** |
 | Tooltip | "Your bullets temporarily steal Max HP from enemies." **[asset]** |
 
-It is a **bullet-proc item**: the HP steal only fires on bullets hitting, at
-`ProcCooldown` 1.2s, and it carries flat +15% weapon damage. Its family score
-is `tank 2 / gun 2 / sustain 2` — a three-way tie under raw counting, which is
-exactly why raw counting is not enough.
+It works through bullets: the HP steal triggers only when bullets hit (at most
+every 1.2s, `ProcCooldown`), and it gives a flat +15% weapon damage. Its
+family scores are tank 2, gun 2, sustain 2, a three-way tie, which is why
+plain counting isn't enough.
 
-The wiki independently confirms the stat line and the category tension: "+15%
-Weapon Damage, +10% Bullet Resist… Siphon Bullets is a Vitality item, not a
-weapon or gun-build item"
+The wiki confirms the stats and the mismatch: "+15% Weapon Damage, +10% Bullet
+Resist... Siphon Bullets is a Vitality item, not a weapon or gun-build item"
 **[web: [deadlock.wiki](https://deadlock.wiki/Siphon_Bullets)]**.
 
-Decisive evidence for the player's claim is that community Lash builds are
-**literally named** "Gun Lash" and contain Siphon Bullets alongside Headhunter,
-Sharpshooter and Quicksilver Reload
+The clearest support for the player's claim: community Lash builds are named
+"Gun Lash" and include Siphon Bullets with Headhunter, Sharpshooter, and
+Quicksilver Reload
 **[web: [El classico Lash Gun](https://deadlocklabs.gg/builds/lash-el-classico-lash-gun-644537/),
 [car gun lash](https://deadlocklabs.gg/builds/brutus-car-gun-lash-776317/),
 [Hyper the Return of Gun Lash](https://deadlocklabs.gg/builds/lash-hyper-the-return-of-gun-lash-build-598976/)]**.
 
-Our own Lash cluster 1 confirms it. Its highest-lift items are Sharpshooter,
-Recharging Rush, Bullet Resist Shredder, Headhunter — and Siphon Bullets. Its
-souls centroid is `weapon 0.30 / vitality 0.40 / spirit 0.30`, so slot-share
-names it **Tank Lash**; every item in it says gun.
+Our own Lash cluster 1 agrees. Its highest-lift items are Sharpshooter,
+Recharging Rush, Bullet Resist Shredder, Headhunter, and Siphon Bullets. Its
+souls by tab are weapon 0.30, vitality 0.40, spirit 0.30, so naming by tab
+calls it "Tank Lash", though every item in it is a gun item.
 
-### Melee Charge and Crushing Fists — CLAIM SUPPORTED
+### Melee Charge and Crushing Fists: confirmed
 
-Both are `weapon`-slot **[asset]**, and they form a coherent family with a
-component edge between them: `Crushing Fists.component_items = ["upgrade_melee_charge"]`
-**[asset]**. Stats in §3. The wiki confirms "+60% Heavy Melee Distance, +22%
-Melee Damage, +12% Bullet Resist… Upgrades From: Melee Charge"
-**[web: [deadlock.wiki](https://deadlock.wiki/Crushing_Fists)]**.
+Both are in the weapon tab **[asset]**, and Melee Charge is a component of
+Crushing Fists (`Crushing Fists.component_items = ["upgrade_melee_charge"]`)
+**[asset]**. Stats are in section 3. The wiki confirms "+60% Heavy Melee
+Distance, +22% Melee Damage, +12% Bullet Resist... Upgrades From: Melee
+Charge" **[web: [deadlock.wiki](https://deadlock.wiki/Crushing_Fists)]**.
 
-The rest of the family is the 9 items in §3. It is coherent and, at 5% of the
-shopable pool, extremely specific.
+The rest of the family is the 9 items in section 3, about 5% of the shop.
 
-**Sinclair cluster 2 (15%)**: its highest-lift items are Melee Charge (+0.27
-lift), Crushing Fists (+0.16), Melee Lifesteal, Close Quarters. Melee Sinclair
-is a real community build — the deadlock.coach guide covers a "melee bruiser"
-Sinclair progressing Close Quarters → Melee Lifesteal → Melee Charge → Crushing
-Fists, and there is a known Crushing-Fists-with-Rabbit-Hex interaction
+**Sinclair cluster 2 (15%)**: highest-lift items Melee Charge (+0.27),
+Crushing Fists (+0.16), Melee Lifesteal, and Close Quarters. Melee Sinclair is
+a real community build. The deadlock.coach guide describes a "melee bruiser"
+Sinclair going Close Quarters, Melee Lifesteal, Melee Charge, then Crushing
+Fists, and there is a known interaction between Crushing Fists and Rabbit Hex
 **[web: [deadlock.coach Sinclair](https://deadlock.coach/en/heroes/sinclair/builds/209974),
 [playdeadlock forums](https://forums.playdeadlock.com/threads/sinclairs-rabbit-hex-with-crushing-fists-procs-twice.63222/)]**.
 
 **Abrams cluster 1 (78%)**: highest-lift items include Crushing Fists, Melee
-Charge, Melee Lifesteal, Point Blank, Close Quarters. Confirmed
-**[web: [Sportskeeda Abrams](https://www.sportskeeda.com/esports/deadlock-abrams-build-guide)]** —
-"Crushing Fists and Point-Blank lock and delete targets in your face", wall-pin
-into "Heavy Melee (juiced by Crushing Fists / Melee Charge + Spirit Strike)".
-Abrams cluster 0 (22%) is spirit-led (Arcane Surge, Spirit Snatch, Witchmail,
-Spirit Strike), matching the claimed spirit/melee split.
+Charge, Melee Lifesteal, Point Blank, and Close Quarters. A community guide
+agrees: "Crushing Fists and Point-Blank lock and delete targets in your face",
+and pinning enemies to a wall into "Heavy Melee (juiced by Crushing Fists /
+Melee Charge + Spirit Strike)"
+**[web: [Sportskeeda Abrams](https://www.sportskeeda.com/esports/deadlock-abrams-build-guide)]**.
+Abrams cluster 0 (22%) is led by spirit items (Arcane Surge, Spirit Snatch,
+Witchmail, Spirit Strike), matching the claimed spirit and melee split.
 
-### Rescue Beam, Healing Tempo, "Divine Ward" — CLAIM SUPPORTED, one name corrected
+### Rescue Beam, Healing Tempo, and "Divine Ward": confirmed, one name corrected
 
-**There is no item called "Divine Ward"** in the asset **[asset]**. The two
-nearest are **Guardian Ward** (vitality T2, 1600) and **Divine Barrier**
-(vitality T4, 6400, `component_items: ["upgrade_guardian_ward"]`) — the player
-appears to have merged the two names. Both do what they described.
+There is no item called "Divine Ward" **[asset]**. The closest are Guardian
+Ward (vitality, tier 2, 1600) and Divine Barrier (vitality, tier 4, 6400,
+built from Guardian Ward). The player seems to have merged the two names. Both
+do what they described.
 
 | Item | Slot | Support evidence **[asset]** |
 |---|---|---|
@@ -380,53 +382,51 @@ appears to have merged the two names. Both do what they described.
 | Guardian Ward | vitality T2 | `GuardianWardCombatBarrier` 250; "Provide the target with a Barrier… Cooldown is reduced by half when cast on someone else" |
 | Divine Barrier | vitality T4 | `CombatBarrier` 600; same clause; builds from Guardian Ward |
 
-They are a coherent family, tied together by the component graph (Healing
-Booster → Healing Tempo; Guardian Ward → Divine Barrier; Health Stimpak →
-Rescue Beam / Healing Nova) **[asset]**. Full membership in §3.
+They form one family, linked by components: Healing Booster builds into
+Healing Tempo, Guardian Ward into Divine Barrier, and Health Stimpak into
+Rescue Beam and Healing Nova **[asset]**. The full list is in section 3.
 
-Community sources agree these are the Kelvin support kit: "Rescue Beam can be
+Community sources describe these as Kelvin's support items: "Rescue Beam can be
 used to save teammates that are further away"; "Healing Tempo is like a second
 Heroic Aura for your team"; "Guardian Ward is great for mobile support"
 **[web: [Mobalytics Kelvin](https://mobalytics.gg/deadlock/builds/kelvin),
 [dving.net Kelvin guide](https://dving.net/guides/deadlock/kelvin-guide)]**.
 
-Our Kelvin cluster 2 (16%) has exactly these as its highest-lift items —
-Healing Tempo, Rescue Beam, Healing Booster, Healing Rite, Guardian Ward — and
-clusters 0 and 1 are both spirit-led (Escalating Exposure, Boundless Spirit,
-Mystic Reverb vs. Infuser, Transcendent Cooldown), matching the claimed
-two-spirit-paths-plus-support structure.
+Our Kelvin cluster 2 (16%) has exactly these as its highest-lift items:
+Healing Tempo, Rescue Beam, Healing Booster, Healing Rite, and Guardian Ward.
+Clusters 0 and 1 are both led by spirit items (Escalating Exposure, Boundless
+Spirit, Mystic Reverb against Infuser, Transcendent Cooldown), matching the
+claim of two spirit builds plus a support build.
 
-### Bebop — CLAIM SUPPORTED
+### Bebop: confirmed
 
-Cluster 0 (58%) is spirit-led (Boundless Spirit, Mystic Reverb, Improved
-Spirit, Echo Shard); cluster 1 (42%) is gun-led (Headhunter +0.46 lift,
-Headshot Booster, Fleetfoot, Weighted Shots) but has a vitality-heavy souls
-centroid (`vitality 0.40`) and so is currently named "Tank Bebop". Community
-sources describe exactly a weapon-damage Bebop and a spirit/Sticky-Bomb Bebop
+Cluster 0 (58%) is led by spirit items (Boundless Spirit, Mystic Reverb,
+Improved Spirit, Echo Shard). Cluster 1 (42%) is led by gun items (Headhunter
++0.46 lift, Headshot Booster, Fleetfoot, Weighted Shots) but has 40% of its
+souls in vitality, so naming by tab called it "Tank Bebop". Community sources
+describe a weapon-damage Bebop and a spirit Bebop built around Sticky Bomb
 **[web: [egamersworld](https://egamersworld.com/blog/deadlock-bebop-build-guide-YCTMv35pP)]**.
 
-### On "Tank" and "Bruiser" as build names
+### "Tank" and "bruiser" as build names
 
-The community uses "tank" and "bruiser" mostly as **hero-role** vocabulary
-(Warden is a bruiser, Abrams tanks damage), not as build names on a par with
-"gun build" / "spirit build"
+Players mostly use "tank" and "bruiser" for hero roles (Warden is a bruiser,
+Abrams soaks damage), not as build names like "gun build" or "spirit build"
 **[web: [Sportskeeda Warden](https://www.sportskeeda.com/esports/deadlock-warden-build-guide),
 [playdeadlock forums](https://forums.playdeadlock.com/threads/new-hero-idea-bruiser-tank.154620/)]**.
-Build-site titles overwhelmingly use gun/spirit/melee/support. So "Tank X"
-should be a **rare** label, reserved for clusters genuinely led by
-survivability items, rather than the default landing spot it is today
-**[inferred]**.
+Build sites almost always use gun, spirit, melee, or support. So "Tank X"
+should be rare, used only for clusters really led by survivability items, not
+the default it was under tab naming **[inferred]**.
 
 ---
 
-## 5. The misleading items — 84 of 170
+## 5. The 84 of 170 items in the wrong tab
 
-Systematically: for each shopable item, compare the family its shop tab implies
-(weapon→gun, vitality→tank, spirit→spirit) against its top-scoring stat family.
-**84 of the 170 scoreable items disagree** — 49%. All rows **[asset]**.
+For each shop item, compare the family its tab suggests (weapon to gun,
+vitality to tank, spirit to spirit) with its highest-scoring family. 84 of the
+170 scoreable items disagree (49%). All rows are **[asset]**.
 
-Read "naive vs top" as the score the tab's family got versus the score the
-winning family got.
+"Naive/top" is the score of the tab's family against the score of the winning
+family.
 
 ### Vitality-slot items that are not tank builds (33)
 
@@ -458,7 +458,7 @@ winning family got.
 | T3 | Stamina Mastery | **mobility** | 0 vs 5 | Stamina, StaminaCooldownReduction, AirMoveIncreasePercent |
 | T3 | Veil Walker | **mobility** | 2 vs 5 | BonusMoveSpeed, BonusSprintSpeed, InvisMoveSpeedMod |
 | T2 | Trophy Collector | **mobility** | 0 vs 4 | BonusSprintSpeed, StackingBonusSprintSpeed |
-| T2 | Guardian Ward | mobility (see §3 gap) | 2 vs 3 | GuardianWardCombatBarrier, BonusMoveSpeed |
+| T2 | Guardian Ward | mobility (see section 3 gap) | 2 vs 3 | GuardianWardCombatBarrier, BonusMoveSpeed |
 | T1 | Extra Stamina | **mobility** | 0 vs 4 | Stamina, StaminaCooldownReduction |
 | T5 | Seraphim Wings | **mobility** | 0 vs 4 | AirControl, StaminaCooldownReduction |
 | T5 | Electric Slippers | **mobility** | 0 vs 3 | SlideScale, Stamina |
@@ -524,21 +524,21 @@ winning family got.
 | T2 | Stalker | mobility / tank | 1 vs 2 | BonusMoveSpeed |
 | T1 | Restorative Shot | gun / support | tie | HealFromHero, HealFromNPC |
 
-**The pattern**: vitality leaks into gun (lifesteal items carry weapon damage)
-and into support; spirit leaks into control (every debuff item) and mobility
-(every hex/slow carries sprint speed for the caster); weapon leaks into melee
-and into spirit (every "your bullets apply a spirit debuff" item). None of
-these are edge cases — they include the highest-pick-rate items in the game.
+The pattern: vitality items spill into gun (lifesteal items give weapon
+damage) and support. Spirit items spill into control (every debuff) and
+mobility (every hex or slow also gives the caster sprint speed). Weapon items
+spill into melee and spirit (every "your bullets apply a spirit debuff" item).
+These aren't edge cases; they include the most-bought items in the game.
 
 ---
 
-## 6. The recommended naming rule
+## 6. The proposed naming rule
 
-### Why raw stat counting is not enough
+### Why plain counting isn't enough
 
-Scoring a cluster by summing item family scores gets Lash and Bebop right but
-still fails three of the five corrections, because `tank` (99 items) and `gun`
-(71) drown `melee` (9) and `support` (12):
+Adding up item family scores per cluster gets Lash and Bebop right but still
+fails three of the five corrections, because tank (99 items) and gun (71)
+outweigh melee (9) and support (12):
 
 | Hero | Cluster | Unweighted top family | Correct |
 |---|---|---|---|
@@ -548,8 +548,8 @@ still fails three of the five corrections, because `tank` (99 items) and `gun`
 
 ### The fix: IDF
 
-Weight each family by how rare it is across the shopable pool — the standard
-TF-IDF correction, `idf(f) = ln(N / items_feeding_f)` with N = 173 **[inferred]**:
+Weight each family by how rare it is among shop items, the usual TF-IDF
+correction: `idf(f) = ln(N / items in family f)`, with N = 173 **[inferred]**:
 
 | Family | Items | IDF |
 |---|---|---|
@@ -562,7 +562,7 @@ TF-IDF correction, `idf(f) = ln(N / items_feeding_f)` with N = 173 **[inferred]*
 | gun | 71 | 0.89 |
 | tank | 99 | 0.56 |
 
-A tank stat is cheap evidence; a melee stat is expensive evidence.
+A tank stat is weak evidence; a melee stat is strong evidence.
 
 ### The rule
 
@@ -575,22 +575,21 @@ score(cluster, family) = Σ over items i in the cluster's top_items:
 name = "<Display(argmax family)> <hero name>"
 ```
 
-Three deliberate choices:
+Three choices:
 
-1. **Lift, not prevalence.** `in_cluster − elsewhere` is already in
-   `archetype_meta.json` per item **[asset: `data/processed/archetype_meta.json`]**.
-   Raw prevalence would name every cluster after the hero's staples; lift names
-   it after what makes the cluster *different*, which is what the label is for.
-   Negative lift contributes nothing.
-2. **Multi-family items count in every family they feed.** Crushing Fists is
-   melee 9 *and* gun 1 *and* tank 2. Forcing a single label per item throws away
-   the fact that gun and melee builds share Close Quarters.
-3. **IDF at the family level, not the item level.** The thing that needs
-   deflating is the family's prior breadth, not any individual item's.
+1. **Lift, not prevalence.** `in_cluster - elsewhere` is already stored per
+   item in `data/processed/archetype_meta.json`. Prevalence would name every
+   cluster after the hero's staples; lift names it after what sets it apart.
+   Negative lift counts as zero.
+2. **Items count in every family they belong to.** Crushing Fists is melee 9,
+   gun 1, and tank 2. One label per item would hide that gun and melee builds
+   share Close Quarters.
+3. **IDF per family, not per item.** What needs correcting is how common each
+   family is.
 
-### It reproduces every correction
+### It gets every correction right
 
-Run against the live clusters in `data/processed/archetype_meta.json`:
+On the clusters in `data/processed/archetype_meta.json` at the time:
 
 | Hero | c | Share | Current name | Rule's name | Margin over 2nd |
 |---|---|---|---|---|---|
@@ -609,12 +608,12 @@ Run against the live clusters in `data/processed/archetype_meta.json`:
 | Ivy | 0 | 46% | Spirit Ivy | Spirit Ivy | 2.2x |
 | Ivy | 1 | 54% | Gun Ivy | Gun Ivy | 2.7x |
 
-**14/14**, including the two the player already considered correct (Ivy).
+14 of 14, including the two Ivy names the player already considered right.
 
 ### Across all 38 heroes
 
-64 clusters; 17 are single-cluster heroes with no differential items and get no
-name (they should keep the bare hero name, as today).
+64 clusters. 17 heroes had a single cluster, so there is nothing to compare
+against and they keep the bare hero name.
 
 | Label | Old (slot-share) | New (IDF rule) |
 |---|---|---|
@@ -624,58 +623,36 @@ name (they should keep the bare hero name, as today).
 | Melee | 0 | **6** |
 | Support | 0 | **2** |
 
-Duplicate names within a hero drop from 9 to 4 — the rule separates clusters
-the old one collapsed. The new melee labels are Abrams, Apollo, Calico,
-Sinclair, Viscous, Yamato; melee Yamato and melee Calico are documented
-community builds
+Duplicate names within a hero drop from 9 to 4. The new melee names are for
+Abrams, Apollo, Calico, Sinclair, Viscous, and Yamato. Melee Yamato and melee
+Calico are known community builds
 **[web: [Deadlock Tracker melee Yamato](https://deadlocktracker.gg/builds/yamato/277099-d1vio-melee-yamato),
 [Retro Calico's Melee Build](https://deadlocktracker.gg/builds/calico/253486-retro-calico-s-melee-build)]**.
-Apollo, Viscous were not verified against community sources **[inferred]**.
+Apollo and Viscous weren't checked against community sources **[inferred]**.
 
-### What this needs, concretely
+### How it was built
 
-One new module — call it `src/deadlock/semantics.py` — exporting:
+The rule is `src/deadlock/semantics.py`: `FAMILY_WEIGHTS` (stat to family and
+weight), `SELF_REFERENTIAL` (stats about the item itself), the tooltip
+patterns, `item_families`, `family_idf`, and `name_cluster`. It reads the raw
+asset entries, because `assets.Item` doesn't keep stats or tooltips.
+`archetype.propose_name` calls it with the cluster's pick rates, and names in
+`data/archetype_names.json` still override it.
 
-```python
-FAMILY_WEIGHTS: dict[str, tuple[str, int]]   # stat key -> (family, 1 or 2)
-SELF_REF: frozenset[str]                     # AbilityCooldown, AbilityDuration, ...
-ALLY_TOOLTIP_RE: re.Pattern                  # self-cast | someone else | allied ...
+### Limits
 
-def item_families(item_id: int) -> dict[str, int]      # family -> score
-def family_idf() -> dict[str, float]                   # ln(N / docfreq), over shopable
-def name_cluster(top_items, hero_name) -> tuple[str, dict[str, float]]
-```
-
-`item_families` must read the raw asset entry, not the current `Item`
-dataclass — `assets.py` keeps only 6 fields and drops `properties`,
-`upgrades` and `tooltip_sections` entirely. Either widen `Item` with a
-`stats: frozenset[str]` field populated at load, or add a parallel
-`load_item_stats()` cache. The stat union per item is small (median well under
-20 keys), so caching all 173 costs nothing.
-
-`propose_name` at `archetype.py:352` then takes `prevalence` and `cluster`
-instead of `centroid` — it already receives both — and returns the scored
-family. Keep it a proposal: `data/archetype_names.json` overrides stay the
-final word, and the score dict should be written into `archetype_meta.json`
-next to the name so a reviewer can see *why* a cluster got its label.
-
-### Known limits
-
-- **Barrier-on-ally is unresolved in the typed stats.** Guardian Ward and
-  Divine Barrier score `tank` without the tooltip regex. Implement the regex.
-- **Multi-label clusters exist.** Abrams c1 is genuinely melee *and* gun (Melee
-  Charge, Crushing Fists, Close Quarters, Point Blank, Bullet Resist Shredder).
-  Where the margin over 2nd place is under ~1.3x, consider a compound name
-  ("Melee/Gun Abrams") or flag for human review rather than forcing one word.
-  Bebop c1 at 1.5x and Infernus c2 at 1.0x are the current marginal cases.
-- **The taxonomy is a snapshot.** Deadlock is in active development; item stats
-  change between patches. The family map keys on stat *names*, which are far
-  more stable than balance numbers, but a renamed stat silently drops out of
-  its family. Add a test asserting every key in `FAMILY_WEIGHTS` still appears
-  in the asset, so a patch that renames one fails loudly.
-- **This names clusters; it does not validate them.** Per `docs/DIAGNOSIS.md`,
-  aggregate metrics passed while the builds were unusable. A correct *name* on
-  a cluster does not make the cluster's recommended build correct.
+- **Clusters can fit two families.** Abrams cluster 1 is both melee and gun
+  (Melee Charge, Crushing Fists, Close Quarters, Point Blank, Bullet Resist
+  Shredder). When the top family wins by less than about 1.3x, don't force one
+  word. (Implemented: under `MIN_NAMING_MARGIN` the cluster keeps the hero
+  name, and under `HYBRID_MARGIN` it gets a "Hybrid-" prefix.)
+- **Stats change between patches.** The rule keys on stat names, which change
+  far less than numbers, but a renamed stat would silently drop out of its
+  family. A test that every `FAMILY_WEIGHTS` key still exists in the assets
+  would catch that. There isn't one yet.
+- **A good name doesn't make a good build.** `docs/DIAGNOSIS.md` records
+  aggregate checks passing while the builds were unusable. A correct name
+  says nothing about whether the cluster's generated build is right.
 
 ---
 
@@ -686,19 +663,19 @@ upgrades, 389 abilities; Valve first-party data served via deadlock-api.com).
 Cluster data: `data/processed/archetype_meta.json`.
 
 Community:
-- [deadlock.wiki — Siphon Bullets](https://deadlock.wiki/Siphon_Bullets)
-- [deadlock.wiki — Crushing Fists](https://deadlock.wiki/Crushing_Fists)
-- [Dignitas — Understanding Items in Deadlock](https://dignitas.gg/articles/understanding-items-in-deadlock)
-- [Deadlock Labs — El classico Lash Gun](https://deadlocklabs.gg/builds/lash-el-classico-lash-gun-644537/)
-- [Deadlock Labs — car gun lash](https://deadlocklabs.gg/builds/brutus-car-gun-lash-776317/)
-- [Deadlock Labs — Hyper the Return of Gun Lash](https://deadlocklabs.gg/builds/lash-hyper-the-return-of-gun-lash-build-598976/)
-- [deadlock.coach — Sinclair builds](https://deadlock.coach/en/heroes/sinclair/builds/209974)
-- [playdeadlock forums — Sinclair Rabbit Hex + Crushing Fists](https://forums.playdeadlock.com/threads/sinclairs-rabbit-hex-with-crushing-fists-procs-twice.63222/)
-- [Sportskeeda — Abrams build guide](https://www.sportskeeda.com/esports/deadlock-abrams-build-guide)
-- [Mobalytics — Kelvin build](https://mobalytics.gg/deadlock/builds/kelvin)
-- [dving.net — Kelvin guide](https://dving.net/guides/deadlock/kelvin-guide)
-- [egamersworld — Bebop build guide](https://egamersworld.com/blog/deadlock-bebop-build-guide-YCTMv35pP)
-- [Deadlock Tracker — d1vio melee yamato](https://deadlocktracker.gg/builds/yamato/277099-d1vio-melee-yamato)
-- [Deadlock Tracker — Retro Calico's Melee Build](https://deadlocktracker.gg/builds/calico/253486-retro-calico-s-melee-build)
-- [Sportskeeda — Warden build guide](https://www.sportskeeda.com/esports/deadlock-warden-build-guide)
-- [playdeadlock forums — Bruiser Tank hero idea](https://forums.playdeadlock.com/threads/new-hero-idea-bruiser-tank.154620/)
+- [deadlock.wiki: Siphon Bullets](https://deadlock.wiki/Siphon_Bullets)
+- [deadlock.wiki: Crushing Fists](https://deadlock.wiki/Crushing_Fists)
+- [Dignitas: Understanding Items in Deadlock](https://dignitas.gg/articles/understanding-items-in-deadlock)
+- [Deadlock Labs: El classico Lash Gun](https://deadlocklabs.gg/builds/lash-el-classico-lash-gun-644537/)
+- [Deadlock Labs: car gun lash](https://deadlocklabs.gg/builds/brutus-car-gun-lash-776317/)
+- [Deadlock Labs: Hyper the Return of Gun Lash](https://deadlocklabs.gg/builds/lash-hyper-the-return-of-gun-lash-build-598976/)
+- [deadlock.coach: Sinclair builds](https://deadlock.coach/en/heroes/sinclair/builds/209974)
+- [playdeadlock forums: Sinclair Rabbit Hex + Crushing Fists](https://forums.playdeadlock.com/threads/sinclairs-rabbit-hex-with-crushing-fists-procs-twice.63222/)
+- [Sportskeeda: Abrams build guide](https://www.sportskeeda.com/esports/deadlock-abrams-build-guide)
+- [Mobalytics: Kelvin build](https://mobalytics.gg/deadlock/builds/kelvin)
+- [dving.net: Kelvin guide](https://dving.net/guides/deadlock/kelvin-guide)
+- [egamersworld: Bebop build guide](https://egamersworld.com/blog/deadlock-bebop-build-guide-YCTMv35pP)
+- [Deadlock Tracker: d1vio melee yamato](https://deadlocktracker.gg/builds/yamato/277099-d1vio-melee-yamato)
+- [Deadlock Tracker: Retro Calico's Melee Build](https://deadlocktracker.gg/builds/calico/253486-retro-calico-s-melee-build)
+- [Sportskeeda: Warden build guide](https://www.sportskeeda.com/esports/deadlock-warden-build-guide)
+- [playdeadlock forums: Bruiser Tank hero idea](https://forums.playdeadlock.com/threads/new-hero-idea-bruiser-tank.154620/)

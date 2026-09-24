@@ -1,177 +1,148 @@
-# 1. Imbue names archetypes; it does not find them
+# 1. Imbue names archetypes but doesn't find them
 
 Date: 2026-09-07
 
 ## Status
 
-Accepted.
+Accepted. Re-measured on 2026-09-23 and still holds (see the end).
 
 ## Context
 
-Archetypes are fitted per hero by clustering on [[build family]] shares. Two
-ability-derived feature blocks have been proposed as extra input, and they are
-not the same feature:
+Archetypes are found per hero by clustering on build family shares. Three
+ability features were proposed as extra clustering inputs:
 
-- **Ability state** — how many points each of the four signature abilities
-  holds at a fixed instant, read at 480s. Measured, and rejected: adding it
-  degrades the fit monotonically, with Ivy's separation falling 0.508 → 0.421 →
-  0.361 → 0.274 as the block's weight went 0 → 0.25 → 0.5 → 1.0, and the same
-  direction on Haze, Dynamo, Bebop and Wraith. The reason is visible directly —
-  between Ivy's two clusters the largest mean ability-level gap is 0.48 of 4.
-- **Ability order** — how far into a player's spending each ability reached
-  each level. A sequence, where state at 480s is an inventory. **Never tested
-  in the clustering.** It separates Ivy 67% against 9%, and it earns its place
-  in the recommendation and the naming, where it was measured.
-- **Imbue** — which ability a build points its imbueable items at. This ADR.
+- **Ability levels** at 480s: how many points each signature ability has.
+  Tested and rejected. Adding them made clustering worse at every weight: Ivy's
+  separation fell 0.508, 0.421, 0.361, 0.274 as the weight went 0, 0.25, 0.5,
+  1.0, and Haze, Dynamo, Bebop, and Wraith went the same way. Between Ivy's two
+  clusters, the largest gap in mean level is 0.48 out of 4.
+- **Ability order**: when each ability reached each level. Not tested when
+  this ADR was written; ADR 0003 later tested and rejected it.
+- **Imbue**: which ability each imbueable item was aimed at. This ADR.
 
-Imbue was put in the clustering in two forms.
+Imbue was tried in two forms.
 
-The **first form** carried the direction shares plus `has_imbue` and a depth
-count. It split heroes on *whether* a build bought an imbueable item rather
-than on which ability it aimed at: nine imbueable items out of 173 shopable
-supplied the separating item for 27 of 33 split heroes, and Kelvin, Warden,
-Vyper and Sinclair each lost a genuine split when a sharp 6–11% niche displaced
-their broad playstyle split.
+The **first form** used the target shares plus `has_imbue` and an imbue count.
+It split heroes on whether players bought an imbueable item, not on what they
+aimed it at. The 9 imbueable items (out of 173 shop items) were the separating
+item for 27 of 33 split heroes. Kelvin, Warden, Vyper, and Sinclair each lost a
+real split to a 6-11% niche.
 
-The **conditional form** was the proposed fix. Direction only — no ownership
-flag, no depth — with a build that imbued nothing placed at its hero's mean, so
-that it says nothing rather than joining every other non-imbuer at the origin.
+The **conditional form** was the proposed fix: target shares only, with no
+`has_imbue` or count, and players who imbued nothing placed at their hero's
+mean instead of at zero.
 
-A rule was fixed **before** the numbers were seen, and applied as written:
+This rule was written down before seeing the results and applied as written:
 
 > Keep the conditional imbue block in the clustering only if no hero loses a
-> split it had under build family shares alone, **and** the concentration of
-> imbueable items among the separating items drops materially.
+> split it had with build family shares alone, and the share of split heroes
+> whose separating item is imbueable drops by at least half.
 
-`scripts/compare_imbue_fits.py` fits all 38 heroes three ways in one run —
-families alone, first form, conditional form — and reports the item carrying
-each fit's weakest cluster pair, which is the claim behind the separation
-score.
+`scripts/compare_imbue_fits.py` fits all 38 heroes three ways in one run
+(families alone, first form, conditional form) and reports each fit's
+separating item.
 
 ## Decision
 
-**Imbue leaves the clustering.** It serves naming and advice only.
+Imbue stays out of the clustering. It is used for naming archetypes and for
+advice.
 
-The conditional form failed both halves of the rule:
+The conditional form failed both parts of the rule:
 
 | | families | first form | conditional |
 |---|---|---|---|
 | heroes that split | 28 | 33 | 29 |
 | separating item is imbueable | 2 (7%) | 27 (82%) | 24 (83%) |
 
-- **Nine heroes lose a split** they had under build families alone: Drifter,
-  Grey Talon, Haze, Holliday, Lady Geist, Venator, Viscous, Vyper, Warden.
-- **The concentration did not drop.** 83% against the first form's 82%, where
-  the rule asked for at most half.
+- Nine heroes lost a split they had with families alone: Drifter, Grey Talon,
+  Haze, Holliday, Lady Geist, Venator, Viscous, Vyper, Warden.
+- The share didn't drop: 83% against the first form's 82%.
 
-The build-family column is the control that makes the concentration figure mean
-anything: under families alone the separating item is imbueable for 2 of 28
-split heroes. Nine items out of 173 carrying five sixths of the splits is
-therefore a property of the block, not of the heroes — and the conditional form
-removed the ownership *columns* without removing the effect. Direction shares
-are still only defined for builds that buy those items, so the block continues
-to move exactly the players who bought them, and mean-imputation moves everyone
-else to a per-hero constant that carries no within-hero signal at all.
+The families column is the control. With families alone, the separating item
+is imbueable for only 2 of 28 split heroes, so the high share comes from the
+block, not the heroes. Removing `has_imbue` didn't remove the effect. Target
+shares only exist for players who bought an imbueable item, so the block
+still moves exactly those players, and everyone else sits at their hero's mean,
+which carries no information.
 
-Held-out next-item accuracy was compared between the two fits **in the same
-run** (`scripts/score_archetype_fits.py`), on the same match split and the same
-capped set of decisions, because separation falls whenever k rises and a top-1
-figure recorded under one run configuration says nothing about one recorded
-under another. Over 20,000 matches and the same 20,000 held-out decisions:
+Next-item accuracy for both fits was measured in one run
+(`scripts/score_archetype_fits.py`) on the same split and the same 20,000
+held-out decisions from 20,000 matches:
 
 | fit | top-1 | top-3 | cells in the sample |
 |---|---|---|---|
 | build families | 0.3779 | 0.5884 | 75 |
 | conditional imbue | 0.3810 | 0.5856 | 76 |
 
-That is a wash — ±0.003 either way on 20,000 decisions, where one standard
-error is 0.0034. The block does not buy accuracy, so nothing here argues
-against the rule; both fits sit well above the bigram bar of 0.266 measured on
-the same split. The cell counts are the fits over that 20,000-match sample, not
-over the full table where the same two fits reach 75 and 79 cells; both numbers
-come from this run and neither is comparable to a figure recorded elsewhere.
+The difference is within one standard error (0.0034). The block doesn't
+improve accuracy, so nothing here argues against the rule. Both fits beat the
+bigram baseline of 0.266 on the same split. The cell counts are for this
+20,000-match sample; on the full table the two fits have 75 and 79 cells.
 
 ## Consequences
 
-- `scripts/review_archetypes.py` fits on build family shares alone. The
-  archetype artifacts — `archetypes.parquet`, `archetype_meta.json`,
-  `docs/ARCHETYPES.md` — are regenerated from that fit. `archetypes.parquet`
-  comes back byte-identical to the shipped one: the labels were already the
-  family fit, and only the script had drifted. `archetype_meta.json` does move,
-  because it had never been regenerated since archetype names were made unique
-  — Dynamo's clusters ship as "Kinetic Pulse Dynamo" and "Ult Dynamo", Lady
-  Geist's as "Reverb" and "Exposure", eight names in all. That is committed
-  naming code catching up on a stale artifact, not a decision taken here.
-- Every generated build still passes the prevalence gate: 75 of 75 cells, 0
-  failed, 0 inconclusive. Order agreement is unchanged at median tau +0.809
-  over 75 of 75 reliable cells, and membership against real players is
-  unchanged at mean J@12 0.415 against a player-vs-player ceiling of 0.335.
-  Measured before and after the change in this work, from
+- `scripts/review_archetypes.py` clusters on build family shares alone, and
+  the archetype files (`archetypes.parquet`, `archetype_meta.json`,
+  `docs/ARCHETYPES.md`) were regenerated from that fit. `archetypes.parquet`
+  came back byte-identical, because the shipped labels already came from the
+  family fit. `archetype_meta.json` changed because it predated unique naming:
+  eight names changed, such as Dynamo's clusters becoming "Kinetic Pulse
+  Dynamo" and "Ult Dynamo".
+- Every generated build still passes the staple gate: 75 of 75 cells, none
+  failed or inconclusive. Median order agreement (tau) stayed at +0.809 over
+  75 reliable cells, and overlap with real players stayed at mean J@12 0.415
+  against a player-to-player ceiling of 0.335. Measured before and after with
   `scripts/generate_builds.py`.
-- Imbue keeps every job it had outside the fit: `ability_focus` reads it first
-  when naming a cluster, `deadlock build` names the ability to imbue for each
-  imbueable item it recommends, and the exported build carries the target. That
-  is where imbue measured strongly, and it is the one signal that names
-  Dynamo's two builds when the item lifts cannot.
-- Ability **order** remains untested as a clustering feature. It is a different
-  feature from ability state, which was tested and rejected, and this decision
-  does not stand in for a measurement of it. **Discharged by
-  `docs/adr/0003-ability-order-out-of-the-clustering.md`**, which measured it
-  and rejected it -- on R1, losing splits, not on the concentration test this
-  ADR turns on.
-- Re-opening this needs a block whose separating items are not concentrated in
-  the items the block is derived from. Reporting the separating item, not only
-  the separation score, is what makes that checkable —
-  `archetype.separating_item`.
+- Imbue keeps its other jobs. `ability_focus` checks it first when naming a
+  cluster, `deadlock build` says which ability to imbue for each imbueable
+  item, and exported builds include the target. It is what tells Dynamo's two
+  builds apart when their items can't.
+- To reopen this, bring a block whose separating items aren't concentrated in
+  the items the block is built from. `archetype.separating_item` reports the
+  item so this can be checked.
 
 ## Evidence
 
-- `docs/IMBUE-FIT-COMPARISON.md` and its `.csv` — per hero, k under each fit
-  and the separating item.
-- `scripts/compare_imbue_fits.py` — the experiment, rule included.
-- `scripts/score_archetype_fits.py` — both fits scored in one run. The
-  teacher-forced loop behind it moved into `evaluate.next_item_accuracy` so
-  both fits and `scripts/score_sequence.py` share one definition. Its decision
-  cap now stops exactly at the cap rather than at the end of the player who
-  crossed it, so top-1 figures from that script recorded before this change are
-  not comparable with figures recorded after it.
+- `docs/IMBUE-FIT-COMPARISON.md` and `.csv`: k and the separating item per hero
+  under each fit.
+- `scripts/compare_imbue_fits.py`: the experiment, with the rule.
+- `scripts/score_archetype_fits.py`: both fits scored in one run. The scoring
+  loop now lives in `evaluate.next_item_accuracy`, shared with
+  `scripts/score_sequence.py`. It now stops exactly at the decision limit, so
+  top-1 figures from before that change don't compare with later ones.
 
 ## Re-measured 2026-09-23
 
-#41 found that `imbues.parquet` held 2,589 abandon and draw players that
-`purchases.parquet` dropped, and #40 re-opens this decision on the strength of
-per-hero imbue rates. So both experiments were rerun, each in one run, on the
-corrected table.
+Issue #41 found that `imbues.parquet` held 2,589 abandon and draw players that
+`purchases.parquet` didn't, and #40 proposed reopening this decision. Both
+experiments were rerun, each in one run, on the fixed table.
 
-**#41 never reached these numbers.** `imbue.imbue_features` reindexes onto the
-purchase table's players, so the extra rows were dropped before either fit saw
-them. The figures below differ from the ones above because the match data
-changed (a later pull of 25,000 matches), not because of the population fix.
-They do not compare with the 2026-09-07 figures. They compare with each other.
+The #41 fix didn't affect these experiments: `imbue.imbue_features` already
+keeps only the purchase table's players. The numbers below differ from the
+2026-09-07 ones because the match data is a newer pull of 25,000 matches.
+Compare them with each other, not with the tables above.
 
 | | families | first form | conditional |
 |---|---|---|---|
 | heroes that split | 31 | 33 | 28 |
 | separating item is imbueable | 5 (16%) | 27 (82%) | 22 (79%) |
 
-- **Eight heroes lose a split** they had under build families alone: Billy,
-  Drifter, Haze, Holliday, Paradox, Venator, Vyper, Warden.
-- **The concentration did not drop.** 79% against the first form's 82%, where
-  the rule asks for at most half.
-- The control rose from 7% to 16%, and the block still concentrates the
-  separating item five times as often as families alone.
+- Eight heroes lose a split they had with families alone: Billy, Drifter,
+  Haze, Holliday, Paradox, Venator, Vyper, Warden.
+- The share didn't drop by half: 79% against 82%.
+- The control rose from 7% to 16%, and the block still makes the separating
+  item imbueable five times as often.
 
-Held-out accuracy (`scripts/score_archetype_fits.py`, 20,000 matches, the same
-20,000 decisions for both fits):
+Next-item accuracy (`scripts/score_archetype_fits.py`, 20,000 matches, the
+same 20,000 decisions for both fits):
 
 | fit | top-1 | top-3 | cells in the sample |
 |---|---|---|---|
 | build families | 0.3732 | 0.5790 | 79 |
 | conditional imbue | 0.3712 | 0.5808 | 80 |
 
-Still a wash, within one standard error either way, and both fits sit well
-above the bigram's 0.2647 on the same split.
+Again within one standard error, and both beat the bigram's 0.2647 on the same
+split.
 
-**The decision stands.** The conditional form fails both halves of the rule
-again. `docs/IMBUE-FIT-COMPARISON.md` and its `.csv` are regenerated from this
-run.
+The decision stands: the conditional form fails both parts of the rule again.
+`docs/IMBUE-FIT-COMPARISON.md` and its `.csv` were regenerated from this run.
