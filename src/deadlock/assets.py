@@ -1,4 +1,4 @@
-"""Game data from the assets API: items, heroes, and abilities.
+"""Game data from the assets API: items, heroes, abilities, and ranks.
 
 A player's `items` list mixes item purchases with ability-point spends (about
 46% are ability points). `upgrade_ids` tells them apart: an entry is a
@@ -52,6 +52,29 @@ class Ability:
     class_name: str
     name: str
     hero_id: int | None
+
+
+@dataclass(frozen=True)
+class Rank:
+    tier: int   # the badge's tens digit
+    name: str
+
+
+def parse_ranks(raw: list[dict[str, Any]]) -> dict[int, Rank]:
+    """Rank tiers keyed by tier number, from a /v1/assets/ranks payload."""
+    return {
+        int(entry["tier"]): Rank(tier=int(entry["tier"]), name=entry.get("name", ""))
+        for entry in raw
+    }
+
+
+@lru_cache(maxsize=1)
+def load_ranks(cache_dir: Path = DEFAULT_CACHE) -> dict[int, Rank]:
+    """The twelve rank tiers, Obscurus (0) to Eternus (11), on 2026-09-25.
+
+    Cached like every other asset, so a Valve rename needs the cache cleared.
+    """
+    return parse_ranks(api.get("/v1/assets/ranks", cache_dir=cache_dir))
 
 
 @lru_cache(maxsize=1)

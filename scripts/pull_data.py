@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Download Ranked matches from the current patch into the local cache.
 
-Only matches since PATCH_START, because balance patches change which items
-are good.
+Only matches since `ingest.PATCH_START`, because balance patches change
+which items are good.
 
 Usage:  python scripts/pull_data.py [n_matches]
 
@@ -24,14 +24,10 @@ six-week window. If you need build ids, pass `max_match_id` to
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import logging
 from pathlib import Path
 
 from deadlock import ingest
-
-# Date of the latest balance patch when this was written.
-PATCH_START = dt.datetime(2026, 8, 22, tzinfo=dt.timezone.utc)
 
 
 def main() -> int:
@@ -53,7 +49,7 @@ def main() -> int:
 
     pages = ingest.pull_matches(
         args.n_matches,
-        min_unix_timestamp=int(PATCH_START.timestamp()),
+        min_unix_timestamp=int(ingest.PATCH_START.timestamp()),
         cache_dir=Path("data/raw/matches"),
     )
     matches = sum(1 for _ in ingest.iter_matches(pages))

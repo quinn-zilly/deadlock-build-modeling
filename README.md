@@ -161,7 +161,7 @@ nothing turns those on.
 One command rebuilds everything derived from the cached pages, in order:
 
 ```bash
-python scripts/refit.py                    # all six steps
+python scripts/refit.py                    # all seven steps
 python scripts/refit.py --from archetypes  # reuse the three parquet tables
 python scripts/refit.py --badge all --hero Ivy
 ```
@@ -184,7 +184,8 @@ Timings from 2026-09-15, over 125 cached pages and 24,999 matches:
 | `imbues` | `imbues.parquet` | 1m 23s |
 | `archetypes` | the fit, labels and review sheet | 53s |
 | `builds` | 80 builds, and the staple check | 27s |
-| `site` | `builds.html` | 14s |
+| `site` | `builds.html`, the review page | 14s |
+| `pages` | `public/methodology.html` (2026-09-25) | 2s |
 
 About 12 minutes in total. The first three steps reread the cached JSON and
 take 87% of that. Everything after them takes under two minutes, so use
@@ -264,5 +265,7 @@ patch that changes one fails loudly:
 | `src/deadlock/imbue.py` | Which ability each imbued item targets |
 | `src/deadlock/buildfmt.py` | Build format and in-game export |
 | `src/deadlock/cli.py` | The `deadlock` command |
+| `src/deadlock/pages.py` | The public site's pages, starting with the methodology page |
+| `scripts/build_pages.py` | Writes the public pages from the model's facts |
 | `scripts/refit.py` | Rebuilds every derived file in order |
 | `tests/` | Unit tests, plus `data` tests that run against the real tables |
