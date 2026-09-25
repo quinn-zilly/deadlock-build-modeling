@@ -20,6 +20,57 @@ from html import escape
 
 REPO_URL = "https://github.com/quinn-zilly/deadlock-build-modeling"
 
+# The site's look, from the visual direction #19 settled on: Variant B in
+# prototypes/variant-b.built.html on the prototype/visual-direction branch.
+# Dark-first, patinated stone ground, oxblood for structure, brass for
+# numerals and staples, verdigris for the ability track. Alegreya Sans SC for
+# nameplates, Sora for body text. Every page shares these tokens.
+FONTS_URL = (
+    "https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;700;800"
+    "&amp;family=Sora:wght@300;400;500;600&amp;display=swap"
+)
+SITE_CSS = """
+:root {
+  --ground: #14171A; --surface: #1B1F23; --raised: #232830;
+  --edge: #2E343C; --edge-soft: #252A31;
+  --oxblood: #7A2233; --oxblood-lit: #A63449;
+  --brass: #C9973F; --brass-lit: #E3B663;
+  --verdigris: #4E8C7D; --verdigris-lit: #6FB3A2;
+  --text: #E9E2D4; --muted: #9C9484; --faint: #6E6759;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--text);
+  font-family: Sora, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px; line-height: 1.6; font-weight: 300;
+  font-variant-numeric: tabular-nums;
+}
+h1, h2, h3 {
+  font-family: "Alegreya Sans SC", Sora, sans-serif;
+  margin: 0; line-height: 1.05; font-weight: 800;
+}
+a { color: var(--brass-lit); }
+:focus-visible { outline: 2px solid var(--brass-lit); outline-offset: 2px; }
+
+/* A page of reading: one column, nameplate heading, brass section titles. */
+.prose { max-width: 42rem; margin: 0 auto; padding: 44px 16px 72px; }
+.prose h1 {
+  font-size: clamp(32px, 5.4vw, 48px);
+  padding-bottom: 14px; border-bottom: 2px solid var(--oxblood);
+}
+.prose .lede { color: var(--muted); font-size: 16px; margin: 14px 0 8px; }
+.prose h2 {
+  font-size: 22px; color: var(--brass); letter-spacing: .02em;
+  margin: 38px 0 10px;
+}
+.prose p { margin: 0 0 14px; }
+.prose section:last-of-type {
+  margin-top: 40px; border-top: 1px solid var(--edge); padding-top: 6px;
+}
+.prose section:last-of-type p { color: var(--muted); font-size: 13.5px; }
+"""
+
 
 @dataclass(frozen=True)
 class Bracket:
@@ -63,30 +114,7 @@ def methodology(
     repo = escape(REPO_URL, quote=True)
     repo_label = escape(REPO_URL.removeprefix("https://"))
 
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How the builds are made</title>
-<meta name="description" content="Where these Deadlock builds come from, whose play they imitate, and what they do not claim.">
-<style>
-:root {{ --bg: #fbfaf7; --fg: #1d1c1a; --muted: #5d5a54; --link: #8a4b2c; }}
-@media (prefers-color-scheme: dark) {{
-  :root {{ --bg: #16161a; --fg: #e9e6df; --muted: #a8a49b; --link: #e0a27e; }}
-}}
-body {{ background: var(--bg); color: var(--fg); margin: 0;
-  font: 17px/1.6 Georgia, "Iowan Old Style", serif; }}
-main {{ max-width: 38rem; margin: 0 auto; padding: 2.5rem 16px 4rem; }}
-h1 {{ font-size: 1.9rem; line-height: 1.2; margin: 0 0 0.5rem; }}
-h2 {{ font-size: 1.15rem; margin: 2.2rem 0 0.4rem; }}
-p {{ margin: 0 0 1rem; }}
-.lede {{ color: var(--muted); font-size: 1.05rem; }}
-a {{ color: var(--link); }}
-</style>
-</head>
-<body>
-<main>
+    body = f"""<main class="prose">
 <h1>How the builds are made</h1>
 <p class="lede">Where these builds come from, whose play they imitate, and what
 they do not claim.</p>
@@ -151,7 +179,32 @@ archetype: how those players did, not a prediction of how you will. The
 model, the data, and the decisions behind them are public at
 <a href="{repo}">{repo_label}</a>.</p>
 </section>
-</main>
+</main>"""
+    return _document(
+        title="How the builds are made",
+        description=(
+            "Where these Deadlock builds come from, whose play they imitate, "
+            "and what they do not claim."
+        ),
+        body=body,
+    )
+
+
+def _document(*, title: str, description: str, body: str) -> str:
+    """Wrap a page's body in the site's shared head and stylesheet."""
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{escape(title)}</title>
+<meta name="description" content="{escape(description, quote=True)}">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="{FONTS_URL}">
+<style>{SITE_CSS}</style>
+</head>
+<body>
+{body}
 </body>
 </html>
 """
