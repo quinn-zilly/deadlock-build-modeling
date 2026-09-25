@@ -149,6 +149,37 @@ def describe_badge(badge: float | None) -> str:
     return "all badges" if badge is None else f"badge ~{badge:g}"
 
 
+def badge_tier(badge: float) -> int:
+    """The rank tier a badge falls in: its tens digit, so 83 is tier 8."""
+    return int(badge) // 10
+
+
+def badge_tier_name(
+    badge: float, ranks: dict[int, assets.Rank] | None = None
+) -> str:
+    """Name a badge's tier for a player to read: 80 is "Oracle".
+
+    The tens digit is the tier. `describe_badge` names the same bracket for
+    CLI output. Raises KeyError for a badge above the top tier.
+    """
+    ranks = assets.load_ranks() if ranks is None else ranks
+    return ranks[badge_tier(badge)].name
+
+
+def bracket_share(frame: pd.DataFrame, badge: float) -> float:
+    """Share of player-matches at the badge's tier or above.
+
+    Counts player-matches, not purchase rows, which would weight each player
+    by how much they bought. Starts at the bottom of the tier, so the share
+    describes the same players as the tier name. Player-matches without a
+    badge are left out.
+    """
+    player_matches = frame.drop_duplicates(["match_id", "player_slot"])
+    badges = pd.to_numeric(player_matches["average_badge"], errors="coerce").dropna()
+    floor = badge_tier(badge) * 10
+    return float((badges >= floor).mean())
+
+
 def row_weights(
     df: pd.DataFrame,
     *,

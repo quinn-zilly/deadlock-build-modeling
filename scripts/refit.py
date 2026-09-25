@@ -8,7 +8,8 @@ Each step reads what the previous one wrote:
     3. imbues.parquet      scripts/build_imbues.py
     4. archetypes          scripts/review_archetypes.py  (labels + review sheet)
     5. builds + the gate   scripts/generate_builds.py
-    6. the website         scripts/build_site.py
+    6. the review page     scripts/build_site.py
+    7. the public pages    scripts/build_pages.py
 
 Steps 1-3 read the match pages and are the slowest. Use --from to start
 later, for example when only the archetype fit changed.
@@ -40,6 +41,7 @@ STEPS: tuple[tuple[str, str, bool, bool], ...] = (
     ("archetypes", "review_archetypes.py", False, False),
     ("builds", "generate_builds.py", True, True),
     ("site", "build_site.py", True, True),
+    ("pages", "build_pages.py", False, True),
 )
 NAMES = [name for name, _, _, _ in STEPS]
 
@@ -85,8 +87,8 @@ def main() -> int:
         "--badge",
         default=None,
         help=(
-            "badge to weight the builds and the website toward, or 'all'; "
-            "both steps get the same value"
+            "badge to weight the builds and the pages toward, or 'all'; "
+            "every step that takes it gets the same value"
         ),
     )
     parser.add_argument(

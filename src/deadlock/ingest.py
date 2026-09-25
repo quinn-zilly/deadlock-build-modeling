@@ -25,6 +25,7 @@ one day, so measure again before relying on it.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import logging
 from pathlib import Path
@@ -33,6 +34,12 @@ from typing import Any, Iterator
 from . import api
 
 log = logging.getLogger(__name__)
+
+# The start of the data window: the latest balance patch when this was
+# written. scripts/pull_data.py pulls matches since this date, and the public
+# site states it, so both read this one value. It is the intended window. The
+# pulled matches carry no timestamp, so nothing checks it against the data.
+PATCH_START = dt.datetime(2026, 8, 22, tzinfo=dt.timezone.utc)
 
 # The endpoint allows up to 10000 matches per page. We ask for 200 because
 # iter_matches loads a whole page into memory. Measured 2026-09-15, a match is
