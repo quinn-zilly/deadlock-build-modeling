@@ -1,0 +1,36 @@
+# Publishes the `site` branch to GitHub Pages.
+#
+# The pages are built from gitignored data, so they can't be built here.
+# scripts/deploy_site.py builds them locally, commits them to `site`, and
+# starts this workflow. It runs from main because the github-pages
+# environment only accepts deployments from main.
+name: Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4

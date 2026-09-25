@@ -195,6 +195,25 @@ Archetype names a person has approved live in `data/archetype_names.json`. The
 file is checked in and applied on every fit, so a refit can't rename a build
 someone already reviewed.
 
+## Publishing the site
+
+The public site is at https://quinn-zilly.github.io/deadlock-build-modeling/.
+Publish it by hand after a refit:
+
+```bash
+python scripts/deploy_site.py              # build, push, and start the deploy
+python scripts/deploy_site.py --no-push    # build and commit locally only
+```
+
+The pages are built from `data/`, which git ignores, so CI can't build them.
+The script builds them locally and commits the output to the `site` branch,
+which holds only the published files. Then it pushes that branch and starts
+the `Pages` workflow, which publishes it. It never changes your checkout. Pass
+the same `--badge` as the refit.
+
+The site isn't redeployed on a schedule. Each deploy describes one data window,
+and the methodology page states it.
+
 ## Source data problems
 
 `features.py` fixes these, and a test covers each one:
@@ -267,5 +286,6 @@ patch that changes one fails loudly:
 | `src/deadlock/cli.py` | The `deadlock` command |
 | `src/deadlock/pages.py` | The public site's pages, starting with the methodology page |
 | `scripts/build_pages.py` | Writes the public pages from the model's facts |
+| `scripts/deploy_site.py` | Publishes the public pages to GitHub Pages |
 | `scripts/refit.py` | Rebuilds every derived file in order |
 | `tests/` | Unit tests, plus `data` tests that run against the real tables |
