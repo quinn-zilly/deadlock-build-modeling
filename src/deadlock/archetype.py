@@ -17,7 +17,7 @@ Shop-tab shares were used before. Build families raised mean separation from
 0.321 to 0.429 over 38 heroes and found real splits on six heroes that shop
 tabs missed, including Dynamo.
 
-Three other inputs were tested and left out:
+Four other inputs were tested and left out:
 
 - Ability levels. Adding them made clustering worse on every hero tried. Ivy's
   separation fell 0.508, 0.421, 0.361, 0.274 as the ability weight went 0,
@@ -28,6 +28,10 @@ Three other inputs were tested and left out:
 - Ability order, in three forms (raw, minus the hero mean, as a percentile).
   Each lost splits on 4, 14, and 15 of 31 heroes and gained back fewer. See
   ADR 0003.
+- Upgrade effects (what each ability's upgrade tiers unlock) and gun-routed
+  spirit (spirit share for abilities that work through the gun). Upgrade
+  effects are a per-hero reweighting of ability order. All four forms tried
+  lost splits, 2 to 14 of 31. See ADR 0004.
 
 The shares are not standardized. They already sum to 1, and z-scoring would
 blow up whichever family has low variance for that hero.

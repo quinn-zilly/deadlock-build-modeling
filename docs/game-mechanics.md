@@ -417,7 +417,7 @@ time (UNVERIFIED).
 ### What each upgrade does: the `upgrades` field
 
 The costs above say what an upgrade costs. What it gives is in `upgrades` on
-the ability's asset record, which nothing in this project reads yet. It is
+the ability's asset record, which `src/deadlock/upgrades.py` parses (#42). It is
 listed per upgrade, so "this effect only exists from the second upgrade" can
 be looked up.
 
@@ -471,22 +471,53 @@ The property names identify them. `behaviours` has no flag for "works through
 the weapon" on any of the 285 abilities. `TechPower` and `WeaponPower` don't
 help either: they are placeholders (`value: "0"`) on every ability checked.
 
-VERIFIED by matching property and upgrade names against
+A name regex overcounts. Matching property and upgrade names against
 `bullet|firerate|ammo|magazine|reload|weapondamage|crit|recoil|perbullet|buffbaseweapon`
-(case-insensitive, ignoring the two placeholders): 92 of 285 abilities have a
-weapon property, across 45 of 56 heroes, and 41 of those also scale with
-`ETechPower`. Those 41 are where spirit investment works through the gun.
+(case-insensitive, ignoring the two placeholders) finds 92 of 285 abilities
+across 45 of 56 heroes (VERIFIED, #42). But it also matches defensive and
+enemy-debuff properties: `BulletResist` (15 abilities), `FireRateSlow` (20),
+resist shred, bullet evasion and bullet shields. An earlier version of this
+section said 41 of the 92 also scale with `ETechPower`. That count doesn't
+reproduce: 43 have a property whose `specific_stat_scale_type` is
+`ETechPower`, and 67 scale with spirit if the `scale_function_tech_damage`
+class is counted too.
 
-| Hero | Ability | Weapon properties |
-|---|---|---|
-| Wraith | Full Auto | `BonusFireRate`, `MagicDamagePerBullet`, `UnlimitedAmmo`, `BulletLifestealPercent` |
-| Infernus | Afterburn | `BuildUpBulletPercentPerHit`, `CritBuildup`, `RefillDurationCrit` |
-| Mirage | Dust Devil | `TargetBulletEvasionChance` |
-| Dynamo | Kinetic Pulse | `BonusFireRate`, `BulletResistReduction` |
+**A listed property isn't necessarily set.** Many weapon properties are listed
+at `value: "0"` and only get a value from an upgrade tier, and some are never
+set at all. This is the same trap `semantics.py` records for items. Kinetic
+Pulse lists `BonusFireRate`, `BulletResistReduction` and
+`IncomingBulletDamagePercentFromCaster`, all at `"0"`. Its only weapon-related
+upgrade is `BulletResistReduction: -15` at the 2nd upgrade, which shreds the
+enemy and doesn't work through Dynamo's gun. Mirage's Dust Devil lists only
+`TargetBulletEvasionChance: "0"`, which is defensive, and its upgrades add
+`WhirlwindEvasionChance`. **Neither ability works through the gun.** Both
+appeared as examples in an earlier version of this table.
 
-For all 41, the weapon property is already in `properties`; none have it only
-in `upgrades`. So finding these abilities doesn't need `upgrades`, but knowing
-at which upgrade the effect arrives does.
+The rule `upgrades.py` uses (VERIFIED, #42): a property works through the gun
+when the game tags it with a weapon modifier type (`provided_property_type`
+`MODIFIER_VALUE_FIRE_RATE`, `..._WEAPON_DAMAGE_INCREASE`, `..._AMMO_CLIP_SIZE`,
+`..._BULLET_LIFESTEAL`, and a few more) or its name marks an on-hit proc
+(`PerBullet`, `CritBuildup`, `PerShot`, `Headshot`...). Names containing Slow,
+Debuff or Summon are excluded, since those act on the enemy's or a summon's
+gun. The property must also be set, either nonzero at base or given a bonus
+by an upgrade. By that rule, 38 of 285 abilities on 32 heroes work through the
+gun, 28 of them spirit-scaling. Among the signature abilities of the 38
+playable heroes, **26 abilities on 21 heroes** scale with spirit and work
+through the gun.
+
+| Hero | Ability | Gun effect | From |
+|---|---|---|---|
+| Wraith | Full Auto | `BonusFireRate: 20`, `MagicDamagePerBullet: 2`; `UnlimitedAmmo` added | base; 5-point |
+| Infernus | Afterburn | `BuildUpBulletPercentPerHit`, `CritBuildup`, `RefillDurationCrit` | base |
+| Mina | Love Bites | `MagicDamagePerBullet`, `BuildUpPerShot` | base |
+| Holliday | Crackshot | `AbilityCooldownPerHeadshot` | 5-point upgrade |
+
+When the gun effect arrives, for the 26: 15 at base, 5 at the 1-point upgrade,
+1 at the 2-point, and 5 at the 5-point. So for 11 of them, knowing whether the
+ability works through the gun requires reading `upgrades`. Nine signature
+abilities list a weapon property that nothing ever sets (Kinetic Pulse,
+Quantum Entanglement, Sticky Bomb, Boot Kick, Stalker's Mark, Eternal Night,
+Seismic Impact, Concussive Combustion, Medicinal Specter).
 
 ## Imbue
 
@@ -560,8 +591,8 @@ So the model can't see anything below.
 | 4 | **Souls as a real budget** | Yes, for advice during a match | Build generation treats souls as unlimited, so it can only say what to buy eventually, never what to buy now. The in-match `next` command takes `--souls` but only as a filter, so it can't say "wait 40 seconds and buy the tier 3 instead". That is real advice, and `economy.py`'s `n_saved_up` shows players doing it. |
 | 5 | **Shop-visit bursts** | Probably, as a correction | 18.7% of consecutive purchases are in the same visit, and 19.7% of those are a component right before its composite, one purchase in two steps. Counting these as separate timed decisions makes some bigrams look better supported than they are. Component bursts are the easiest to merge in training, since `component_map()` already knows the pairs. |
 | 6 | **Ability points at the time of purchase** | Yes, and the data exists | `abilities.parquet` has 4.45M ability points, and the item model reads none of them. Whether the ultimate is unlocked (a hard 3,800-soul cutoff, VERIFIED at a median 383s) changes which items make sense: an imbue on the ultimate before it exists is wasted. `abilityorder.py` recommends ability order separately but isn't an input to the item model. And the upgrade level decides which effects exist: 220 abilities have 3 listed upgrades, so an effect like Kinetic Pulse's `BulletResistReduction` at the 2nd upgrade is part of the player's state when buying. |
-| 6b | **What upgrades give, as an input to clustering or the model** | Open | Nothing reads `upgrades`. Two builds that level the same ability equally look the same to the model, and so do two that differ only at the 5-point upgrade. Whether what the upgrades give separates builds better than point counts is unmeasured. |
-| 6c | **Abilities that work through the gun** | Open | 41 abilities scale with spirit and have a bullet or fire-rate property (Wraith's Full Auto, Infernus's Afterburn). For these heroes spirit investment works through the weapon, so the gun/spirit split behind archetype clustering may be describing the wrong thing. Unmeasured, and it matters for naming as much as for modeling. |
+| 6b | **What upgrades give, as an input to clustering or the model** | No (ADR 0004) | What a player's upgrades unlock is fixed by their ability order, so any upgrade-effect feature reweights the order ADR 0003 rejected. Measured in #42: effect-category exposure lost 5 of 31 splits, and the 5-point tier alone lost 14. No generated build has an upgrade-timing defect an item-model key would fix. `upgrades.py` parses the field for describing abilities. |
+| 6c | **Abilities that work through the gun** | No (ADR 0004) | 26 signature abilities on 21 of 38 heroes scale with spirit and work through the gun (strict rule, see above). Measured in #42: these heroes split as often and as clearly as the rest, along the same gun/spirit axis; their spirit buyers invest *less* in the gun-routed ability; and counting that spirit as gun renames no Spirit/Gun archetype. Both per-player forms tried lost splits. |
 | 7 | **Imbues can't be changed** | Yes, in how it's shown | A display change, not a model change: say that changing the target costs half the item. Right now a target is shown like any other statistic. |
 | 8 | **Absorption across slot types** | Minor, but easy to get wrong | The 4 cross-tab component links move souls between slot types. Anyone implementing #1 from the purchase sequence will get these wrong unless they account for absorption. |
 | 9 | **Catch-up souls and net-worth position** | No, on purpose | This is the line `docs/DIAGNOSIS.md` is about. By mid-match, being ahead is mostly a result of winning: its correlation with winning is 0.16 in the first phase and 0.60 by the fourth. Using it as an input brings back the failure this project was rebuilt to avoid. Listed so nobody rediscovers it as a promising feature. |
