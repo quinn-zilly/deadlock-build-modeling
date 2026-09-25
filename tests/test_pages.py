@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from deadlock import assets, pages, sequence
+from deadlock import assets, pages, sequence, tooltips
 
 PURCHASES = Path("data/processed/purchases.parquet")
 
@@ -368,8 +368,31 @@ class TestChooser:
         assert not re.search(r"[+−]\d+(\.\d+)?\s*(%|pp)", text)
 
 
+TOOLTIP = tooltips.ItemTooltip(
+    sections=(
+        tooltips.Section(
+            kind="passive",
+            prose='Adds <span class="highlight">Spirit Power</span>.',
+            stats=(tooltips.Stat(label="Spirit Power", value="+10"),),
+            conditions=(),
+        ),
+    ),
+    headline="+10 Spirit Power",
+)
+
+KUDZU = pages.Imbue(
+    item="Mystic Reach", ability="Kudzu Bomb", share=0.99, n=900, ability_id=11
+)
+
+
 def item(
-    item_id: int, name: str, cost: int, phase: int, builds_into: str | None = None
+    item_id: int,
+    name: str,
+    cost: int,
+    phase: int,
+    builds_into: str | None = None,
+    imbue: pages.Imbue | None = None,
+    tooltip: tooltips.ItemTooltip | None = None,
 ) -> pages.Item:
     return pages.Item(
         item_id=item_id,
@@ -380,18 +403,24 @@ def item(
         players=1788,
         position=3,
         builds_into=builds_into,
+        imbue=imbue,
+        tooltip=tooltip,
     )
 
 
 ITEMS = (
-    item(1, "Extra Spirit", 800, 0, builds_into="Improved Spirit"),
-    item(2, "Mystic Burst", 800, 0),
+    item(1, "Extra Spirit", 800, 0, builds_into="Improved Spirit", tooltip=TOOLTIP),
+    item(2, "Mystic Burst", 800, 0, tooltip=TOOLTIP),
     item(3, "Improved Spirit", 1600, 1),
     item(4, "Superior Duration", 6400, 2),
+    item(5, "Mystic Reach", 1600, 2, imbue=KUDZU),
 )
-POINTS = tuple(
-    pages.AbilityPoint(ability_id=a, name=n)
-    for a, n in [(11, "Kudzu Bomb"), (12, "Watcher's Covenant"), (11, "Kudzu Bomb")]
+POINTS = (
+    pages.AbilityPoint(ability_id=11, name="Kudzu Bomb", cost=None),
+    pages.AbilityPoint(ability_id=12, name="Watcher's Covenant", cost=None),
+    pages.AbilityPoint(ability_id=11, name="Kudzu Bomb", cost=1),
+    pages.AbilityPoint(ability_id=11, name="Kudzu Bomb", cost=2),
+    pages.AbilityPoint(ability_id=11, name="Kudzu Bomb", cost=5),
 )
 
 
@@ -405,9 +434,6 @@ def facts(**overrides) -> pages.BuildFacts:
         items=ITEMS,
         phases=PHASES,
         abilities=POINTS,
-        imbues=(
-            pages.Imbue(item="Mystic Reach", ability="Kudzu Bomb", share=0.99, n=900),
-        ),
         counter_picks=(
             pages.CounterPick(
                 enemy="Lash", item="Counterspell", facing=0.16, baseline=0.085, n=412
@@ -473,9 +499,60 @@ class TestBuildPage:
         assert "facing" in visible_text(build_html()).lower()
         assert "facing" not in visible_text(build_html(counter_picks=())).lower()
 
-    def test_no_imbues_means_no_imbue_heading(self):
-        assert "imbue" in visible_text(build_html()).lower()
-        assert "imbue" not in visible_text(build_html(imbues=())).lower()
+    def test_an_imbued_item_carries_its_target_on_the_row(self):
+        html = build_html()
+        # The badge's alt text is the closed row's only imbue signal.
+        assert 'alt="imbued into Kudzu Bomb"' in html
+        assert html.count('class="badge"') == 1
+
+    def test_the_disclosure_states_the_target_and_its_evidence(self):
+        text = visible_text(build_html())
+        assert "Imbue into Kudzu Bomb" in text
+        assert "99% of 900 imbues" in text
+
+    def test_a_split_target_reads_as_a_preference(self):
+        split = pages.Imbue(
+            item="Mystic Reach", ability="Kudzu Bomb", share=0.35, n=1602,
+            ability_id=11, split=True,
+        )
+        items = ITEMS[:-1] + (item(5, "Mystic Reach", 1600, 2, imbue=split),)
+        text = visible_text(build_html(items=items))
+        assert "not most players'" in text
+        assert "35% of 1,602" in text
+
+    def test_no_imbued_item_means_no_imbue_text(self):
+        text = visible_text(build_html(items=ITEMS[:-1])).lower()
+        assert "imbue" not in text
+
+    def test_there_is_no_separate_imbue_section(self):
+        assert "What to imbue" not in build_html()
+
+    def test_the_disclosure_carries_the_games_tooltip(self):
+        html = build_html()
+        assert 'Adds <span class="highlight">Spirit Power</span>.' in html
+        text = visible_text(html)
+        assert "Passive" in text
+        assert "Spirit Power +10" in text
+
+    def test_the_headline_stat_fills_the_subline_only_without_builds_into(self):
+        html = build_html()
+        # Mystic Burst has no "builds into", so its row shows the stat;
+        # Extra Spirit builds into something, so its row shows that instead.
+        assert html.count('class="sub stat"') == 1
+        assert "builds into Improved Spirit" in visible_text(html)
+
+    def test_the_page_has_one_tooltip(self):
+        html = build_html()
+        assert html.count('role="tooltip"') == 1
+        assert html.count('class="tiphead"') == len(ITEMS)
+
+    def test_the_ability_track_numbers_points_and_marks_costs(self):
+        html = build_html()
+        track = visible_text(html[html.index("Ability order"):])
+        # Point numbers across the top, then AP cost on each upgrade marker;
+        # an unlock has no number, as in the game's build browser.
+        assert in_order(track, ["1", "2", "3", "4", "5", "Kudzu Bomb"])
+        assert html.count('class="on unlock"') == 2
 
     def test_counter_picks_state_both_rates_and_the_count(self):
         text = visible_text(build_html())

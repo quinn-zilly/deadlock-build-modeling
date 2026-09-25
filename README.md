@@ -291,6 +291,7 @@ patch that changes one fails loudly:
 | `src/deadlock/buildfmt.py` | Build format and in-game export |
 | `src/deadlock/cli.py` | The `deadlock` command |
 | `src/deadlock/pages.py` | The public site's pages: home, hero choosers, builds, methodology |
+| `src/deadlock/tooltips.py` | Item tooltips from the game's own tooltip data, sanitized |
 | `scripts/build_pages.py` | Writes the public site; stops if a build fails the staple check |
 | `scripts/deploy_site.py` | Publishes the public pages to GitHub Pages |
 | `scripts/refit.py` | Rebuilds every derived file in order |

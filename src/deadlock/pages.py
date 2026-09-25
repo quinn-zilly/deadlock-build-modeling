@@ -19,6 +19,8 @@ from collections import Counter
 from dataclasses import dataclass
 from html import escape
 
+from .tooltips import ItemTooltip
+
 REPO_URL = "https://github.com/quinn-zilly/deadlock-build-modeling"
 
 # The site's look, from the visual direction #19 settled on: Variant B in
@@ -190,10 +192,61 @@ details.buy summary:hover { background: var(--surface); }
   width: 40px; height: 40px; object-fit: contain; padding: 2px;
   border: 1px solid var(--edge); background: var(--raised);
 }
+/* One line each, so a closed row keeps its height (#23): a long name or
+   subline is cut with an ellipsis, and the disclosure has the rest. */
+.txt { min-width: 0; }
+.txt .nm, .txt .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .txt .nm { display: block; font-size: 14.5px; font-weight: 400; line-height: 1.3; }
 .txt .sub { display: block; font-size: 11.5px; color: var(--verdigris-lit); }
+.txt .sub.stat { color: var(--muted); }
+
+/* The game's tooltip, in the disclosure and in the hover tooltip. */
+.facts .tsec + .tsec { border-top: 1px solid var(--edge-soft); margin-top: 8px; padding-top: 8px; }
+.kind {
+  margin: 0 0 2px; font-size: 10.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--brass);
+}
+.tprose { margin: 0 0 6px; color: var(--muted); }
+.tprose .highlight { color: var(--text); font-weight: 400; }
+.tprose .diminish { color: var(--faint); }
+.tprose svg, .tprose img { width: 1em; height: 1em; vertical-align: -.12em; fill: currentColor; }
+.conds { margin: 0 0 6px; color: var(--text); }
+dl.tstats {
+  display: grid; grid-template-columns: 1fr auto; gap: 1px 14px;
+  margin: 0 0 6px; font-size: 12.5px;
+}
+dl.tstats dt { color: var(--faint); }
+dl.tstats dd { margin: 0; color: var(--brass); font-weight: 500; text-align: right; }
+.uptake { margin: 6px 0 0; }
+.tip {
+  position: fixed; z-index: 60; max-width: 340px; padding: 12px 14px;
+  background: #0F1215; border: 1px solid var(--edge);
+  border-left: 3px solid var(--brass); box-shadow: 0 10px 34px rgba(0, 0, 0, .6);
+  font-size: 13px; line-height: 1.5; color: var(--text);
+}
+.tip[hidden] { display: none; }
+.tip h4 {
+  margin: 0 0 2px; font-family: "Alegreya Sans SC", Sora, sans-serif;
+  font-size: 18px; font-weight: 700; color: var(--brass-lit);
+}
+.tip .tcost { margin: 0 0 8px; font-size: 12px; color: var(--faint); }
 .cost { font-size: 13px; color: var(--muted); }
-.detail { margin: 0; padding: 0 2px 12px 70px; font-size: 13px; color: var(--muted); }
+.detail { padding: 0 2px 12px 70px; font-size: 13px; color: var(--muted); }
+.detail p { margin: 0; }
+.icowrap { position: relative; width: 40px; height: 40px; }
+.badge {
+  position: absolute; right: -6px; bottom: -5px; width: 20px; height: 20px;
+  border-radius: 50%; border: 1.5px solid var(--verdigris-lit);
+  background: #000; object-fit: cover;
+}
+.imbuebox {
+  display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 10px;
+  padding: 7px 10px; border-left: 2px solid var(--verdigris-lit);
+  background: rgba(111, 179, 162, .08);
+}
+.imbuebox img { width: 28px; height: 28px; border-radius: 50%; flex: none; background: #000; }
+.imbuebox b { color: var(--text); font-weight: 500; }
+.imbuebox .why { display: block; font-size: 12px; color: var(--faint); margin-top: 2px; }
 
 .sec { margin-top: 36px; border-top: 1px solid var(--edge); padding-top: 18px; }
 .sec h2 { font-size: 22px; color: var(--brass); }
@@ -208,7 +261,10 @@ details.buy summary:hover { background: var(--surface); }
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 ol.copy { margin: 0; padding-left: 26px; font-size: 14px; }
-.track { overflow-x: auto; background: var(--surface); border: 1px solid var(--edge); }
+.track {
+  position: relative; overflow-x: auto;
+  background: var(--surface); border: 1px solid var(--edge);
+}
 .track table { border-collapse: collapse; }
 .track th {
   display: flex; align-items: center; gap: 10px; min-width: 190px;
@@ -220,6 +276,11 @@ ol.copy { margin: 0; padding-left: 26px; font-size: 14px; }
   font-size: 12px; border-left: 1px solid var(--edge-soft);
 }
 .track td.on { color: var(--ground); background: var(--verdigris-lit); font-weight: 600; }
+.track td.unlock { background: var(--brass-lit); }
+.track tr.nums th {
+  font-size: 11px; font-weight: 400; color: var(--faint); text-align: center;
+  display: table-cell; min-width: 0; padding: 4px 0;
+}
 .track tr + tr { border-top: 1px solid var(--edge-soft); }
 ul.lines { list-style: none; margin: 8px 0 0; padding: 0; }
 ul.lines li {
@@ -385,6 +446,8 @@ class Imbue:
     ability: str
     share: float   # of this item's imbues that chose this ability
     n: int         # imbues counted
+    ability_id: int | None = None   # for the ability's icon
+    split: bool = False             # the top target has under half the imbues
 
 
 @dataclass(frozen=True)
@@ -413,12 +476,15 @@ class Item:
     players: int                # in the archetype
     position: int               # median purchase number buyers bought it at
     builds_into: str | None = None
+    imbue: Imbue | None = None  # set on the few items that imbue an ability
+    tooltip: ItemTooltip | None = None   # the game's own text and stats
 
 
 @dataclass(frozen=True)
 class AbilityPoint:
     ability_id: int
     name: str
+    cost: int | None = None   # ability points this upgrade costs; None unlocks
 
 
 @dataclass(frozen=True)
@@ -449,7 +515,6 @@ class BuildFacts:
     items: tuple[Item, ...]
     phases: tuple[str, ...]           # a label per phase index
     abilities: tuple[AbilityPoint, ...]
-    imbues: tuple[Imbue, ...]
     counter_picks: tuple[CounterPick, ...]
     chooser_href: str | None          # None when the hero has one archetype
 
@@ -512,8 +577,9 @@ def chooser(
     rather than per card. An item in exactly one card's column is marked, per
     column. An imbue target shows only on a card that departs from the
     others: Ivy's two archetypes that agree show nothing, and the third,
-    which imbues the same item elsewhere, shows its target. A hero with one archetype has nothing to choose between; its page is
-    `build_page`, and this raises.
+    which imbues the same item elsewhere, shows its target. A hero with one
+    archetype has nothing to choose between; its page is `build_page`, and
+    this raises.
     """
     if len(cards) < 2:
         raise ValueError(f"{hero} has {len(cards)} archetype(s); use build_page")
@@ -583,10 +649,14 @@ def build_page(
     """One hero and archetype: the purchase order and everything that goes with it.
 
     Sections in #20's order: purchase order in phase bands, the block to copy
-    into the game's build browser, ability order, imbue targets, and matchup
-    counter-picks. A section with nothing in it is left out, heading and all. No
-    per-item clock: buy time is linear in buy index, so a clock would claim a
-    precision the model doesn't have.
+    into the game's build browser, ability order, and counter-picks. A section
+    with nothing in it is left out, heading and all. No per-item clock: buy
+    time is linear in buy index, so a clock would claim a precision the model
+    doesn't have.
+
+    An imbue target sits on its item's row, per #25: the ability's icon as a
+    badge on the item icon, and the instruction inside the row's disclosure.
+    There is no separate imbue section.
     """
     lines = []
     if build.chooser_href is not None:
@@ -599,8 +669,6 @@ def build_page(
     sections = [_purchases(build, root), _copy_block(build)]
     if build.abilities:
         sections.append(_ability_order(build.abilities, root))
-    if build.imbues:
-        sections.append(_imbues(build.imbues))
     if build.counter_picks:
         sections.append(_counter_picks(build.counter_picks))
 
@@ -614,7 +682,8 @@ def build_page(
     prov=_provenance(bracket, window_start, root, n=build.n),
 )}
 {"".join(sections)}
-</main>"""
+</main>
+<div id="tip" class="tip" role="tooltip" hidden></div>"""
     return _document(
         root=root,
         title=f"{build.archetype} build",
@@ -622,21 +691,82 @@ def build_page(
             f"What {_players(bracket)} buy for {build.archetype}, in order."
         ),
         body=body,
-        script=DISCLOSURE_SCRIPT,
+        script=PAGE_SCRIPT,
     )
 
 
-# Keeps aria-expanded true to each item row's state. The toggle itself is the
-# browser's: without this script the rows still open and close, and only the
-# announced state goes stale. scripts/build_pages.py runs it under node before
+# Two jobs, and the page works without either.
+#
+# 1. Keeps aria-expanded true to each item row's state. The toggle itself is
+#    the browser's; without this only the announced state goes stale.
+# 2. The item tooltip (#19), rebuilt to pass WCAG 1.4.13 as #23 required
+#    before one could come back: it opens on hover (fine pointers only) and
+#    on keyboard focus, stays while the pointer moves onto it, and Escape
+#    closes it. It shows the same facts as the row's disclosure, which stays
+#    the path for touch and keyboard, so nothing lives only in the tooltip.
+#
+# scripts/build_pages.py runs this under node against a stub DOM before
 # writing, because a page once shipped with a script that died on load.
-DISCLOSURE_SCRIPT = """
-document.querySelectorAll("details.buy").forEach(function (row) {
-  var summary = row.querySelector("summary");
-  row.addEventListener("toggle", function () {
-    summary.setAttribute("aria-expanded", String(row.open));
+PAGE_SCRIPT = """
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll("details.buy"));
+  var tip = document.getElementById("tip");
+  var shown = null;
+  var timer = null;
+
+  function hide() {
+    clearTimeout(timer);
+    if (tip) tip.hidden = true;
+    shown = null;
+  }
+  function hideSoon() {
+    clearTimeout(timer);
+    timer = setTimeout(hide, 150);
+  }
+  function show(row) {
+    clearTimeout(timer);
+    if (!tip || row.open || shown === row) return;
+    var head = row.querySelector(".tiphead");
+    var facts = row.querySelector(".facts");
+    if (!head) return;
+    tip.innerHTML = head.innerHTML + (facts ? facts.innerHTML : "");
+    tip.hidden = false;
+    shown = row;
+    var r = row.querySelector("summary").getBoundingClientRect();
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = r.right + 10;
+    if (x + w > window.innerWidth - 8) x = r.left - w - 10;
+    if (x < 8) x = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+    var y = Math.max(8, Math.min(r.top, window.innerHeight - h - 8));
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+
+  var fine = !!(window.matchMedia &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+
+  rows.forEach(function (row) {
+    var summary = row.querySelector("summary");
+    row.addEventListener("toggle", function () {
+      summary.setAttribute("aria-expanded", String(row.open));
+      if (row.open) hide();
+    });
+    if (fine) {
+      summary.addEventListener("mouseenter", function () { show(row); });
+      summary.addEventListener("mouseleave", hideSoon);
+    }
+    summary.addEventListener("focus", function () { show(row); });
+    summary.addEventListener("blur", hideSoon);
   });
-});
+  if (tip) {
+    tip.addEventListener("mouseenter", function () { clearTimeout(timer); });
+    tip.addEventListener("mouseleave", hideSoon);
+  }
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") hide();
+  });
+  window.addEventListener("scroll", hide, { passive: true });
+})();
 """
 
 
@@ -649,21 +779,7 @@ def _purchases(build: BuildFacts, root: str) -> str:
             if item.phase != phase:
                 continue
             number += 1
-            sub = (
-                f'<span class="sub">builds into {escape(item.builds_into)}</span>'
-                if item.builds_into
-                else ""
-            )
-            rows.append(
-                f"""<details class="buy"><summary role="button" aria-expanded="false">
-<span class="ix">{number}</span>
-<img class="ico" src="{_item_image(item.item_id, root)}" alt="">
-<span class="txt"><span class="nm">{escape(item.name)}</span>{sub}</span>
-<span class="cost">{item.cost:,}</span></summary>
-<p class="detail">Bought by {_pct(item.buyers / item.players)} of this build's
-players ({item.buyers:,} of {item.players:,}), most often as purchase
-{item.position}.</p></details>"""
-            )
+            rows.append(_item_row(item, number, root))
         if rows:
             bands.append(
                 f'<section class="band"><h2>{escape(name)}</h2>{"".join(rows)}</section>'
@@ -671,8 +787,108 @@ players ({item.buyers:,} of {item.players:,}), most often as purchase
     return f"""<section class="purchases">
 <h2 class="sr">Purchase order</h2>
 <div class="bands">{"".join(bands)}</div>
-<p class="note">Costs are in souls. Tap an item for how firmly players agree on it.</p>
+<p class="note">Costs are in souls. Hover or tap an item for what it does and how
+many of this build's players buy it.</p>
 </section>"""
+
+
+def _item_row(item: Item, number: int, root: str) -> str:
+    """One purchase: a native disclosure, 51px closed (#23).
+
+    The subline says what the item builds into, or else its headline stat:
+    the two don't both fit at 375px, and on a component the stat is the one
+    least worth showing, since the item is about to be absorbed (#23). The
+    disclosure holds the imbue instruction, the game's own tooltip, and how
+    many of the archetype's players bought it. `.tiphead` and `.facts` are
+    what the hover tooltip shows.
+    """
+    tip = item.tooltip
+    if item.builds_into:
+        sub = f'<span class="sub">builds into {escape(item.builds_into)}</span>'
+    elif tip is not None and tip.headline:
+        sub = f'<span class="sub stat">{escape(tip.headline)}</span>'
+    else:
+        sub = ""
+    into = f" \u00b7 builds into {escape(item.builds_into)}" if item.builds_into else ""
+    head = (
+        f'<div class="tiphead" hidden><h4>{escape(item.name)}</h4>'
+        f'<p class="tcost">{item.cost:,} souls{into}</p></div>'
+    )
+    badge = imbue_box = ""
+    if item.imbue is not None:
+        badge = _imbue_badge(item.imbue, root)
+        imbue_box = _imbue_box(item.imbue, root)
+    return f"""<details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">{number}</span>
+<span class="icowrap"><img class="ico" src="{_item_image(item.item_id, root)}" alt="">{badge}</span>
+<span class="txt"><span class="nm">{escape(item.name)}</span>{sub}</span>
+<span class="cost">{item.cost:,}</span></summary>
+<div class="detail">{head}{imbue_box}{_facts(tip)}<p class="uptake">Bought by
+{_pct(item.buyers / item.players)} of this build's players ({item.buyers:,} of
+{item.players:,}), most often as purchase {item.position}.</p></div></details>"""
+
+
+def _facts(tip: ItemTooltip | None) -> str:
+    """The game's tooltip for an item: each section's text, stats and effects.
+
+    The prose is already sanitized by `tooltips.sanitize`, so it goes in as
+    HTML; everything else is escaped here.
+    """
+    if tip is None or not tip.sections:
+        return ""
+    parts = []
+    for section in tip.sections:
+        label = (
+            f'<p class="kind">{escape(section.kind.title())}</p>'
+            if section.kind in ("active", "passive")
+            else ""
+        )
+        prose = f'<p class="tprose">{section.prose}</p>' if section.prose else ""
+        conditions = (
+            f'<p class="conds">{escape(" \u00b7 ".join(section.conditions))}</p>'
+            if section.conditions
+            else ""
+        )
+        stats = "".join(
+            f"<dt>{escape(s.label)}</dt><dd>{escape(s.value)}</dd>" for s in section.stats
+        )
+        stats = f'<dl class="tstats">{stats}</dl>' if stats else ""
+        if label or prose or conditions or stats:
+            parts.append(f'<div class="tsec">{label}{prose}{conditions}{stats}</div>')
+    return f'<div class="facts">{"".join(parts)}</div>' if parts else ""
+
+
+def _imbue_badge(imbue: Imbue, root: str) -> str:
+    """The imbued ability's icon on the item icon: the closed row's only signal,
+    so its alt text carries the instruction."""
+    if imbue.ability_id is None:
+        return ""
+    return (
+        f'<img class="badge" src="{_ability_image(imbue.ability_id, root)}" '
+        f'alt="imbued into {escape(imbue.ability, quote=True)}">'
+    )
+
+
+def _imbue_box(imbue: Imbue, root: str) -> str:
+    """The instruction, set apart from the item facts in the disclosure (#25).
+
+    A split target is stated as a preference: it is the most common choice
+    but not most players'.
+    """
+    icon = (
+        f'<img src="{_ability_image(imbue.ability_id, root)}" alt="">'
+        if imbue.ability_id is not None
+        else ""
+    )
+    evidence = (
+        f"the most common choice, but not most players' ({_pct(imbue.share)} of "
+        f"{imbue.n:,})."
+        if imbue.split
+        else f"{_pct(imbue.share)} of {imbue.n:,} imbues."
+    )
+    return f"""<div class="imbuebox">{icon}<div>Imbue into <b>{escape(imbue.ability)}</b>
+— {evidence}<span class="why">Chosen at the counter and fixed after —
+changing it means selling the item.</span></div></div>"""
 
 
 def _copy_block(build: BuildFacts) -> str:
@@ -698,11 +914,14 @@ def _ability_order(points: tuple[AbilityPoint, ...], root: str) -> str:
     abilities: dict[int, str] = {}
     for point in points:
         abilities.setdefault(point.ability_id, point.name)
+    header = "".join(
+        f'<th scope="col">{number}</th>' for number in range(1, len(points) + 1)
+    )
     rows = []
     for ability_id, name in abilities.items():
         cells = "".join(
-            f'<td class="on">{number}</td>' if point.ability_id == ability_id else "<td></td>"
-            for number, point in enumerate(points, start=1)
+            _track_cell(point) if point.ability_id == ability_id else "<td></td>"
+            for point in points
         )
         rows.append(
             f"""<tr><th scope="row"><img src="{_ability_image(ability_id, root)}" alt="">
@@ -710,21 +929,18 @@ def _ability_order(points: tuple[AbilityPoint, ...], root: str) -> str:
         )
     return f"""<section class="sec">
 <h2>Ability order</h2>
-<p class="note">Each number is a point, in the order to spend them.</p>
-<div class="track"><table>{"".join(rows)}</table></div>
+<p class="note">Spend points left to right. As in the game's build browser, a
+marker shows what the upgrade costs in ability points; an empty marker unlocks
+the ability.</p>
+<div class="track"><table><tr class="nums"><td></td>{header}</tr>{"".join(rows)}</table></div>
 </section>"""
 
 
-def _imbues(imbues: tuple[Imbue, ...]) -> str:
-    rows = "".join(
-        f"""<li><span>Imbue <b>{escape(i.item)}</b> into <b>{escape(i.ability)}</b></span>
-<span class="num">{_pct(i.share)} of {i.n:,} imbues</span></li>"""
-        for i in imbues
-    )
-    return f"""<section class="sec">
-<h2>What to imbue</h2>
-<ul class="lines">{rows}</ul>
-</section>"""
+def _track_cell(point: AbilityPoint) -> str:
+    if point.cost is None:
+        return '<td class="on unlock"><span class="sr">unlock</span></td>'
+    return f'<td class="on">{point.cost}</td>'
+
 
 
 def _counter_picks(picks: tuple[CounterPick, ...]) -> str:

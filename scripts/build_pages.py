@@ -54,14 +54,16 @@ from deadlock import (  # noqa: E402
     ingest,
     pages,
     sequence,
+    tooltips,
 )
 
 DEFAULT_OUT = Path("data/site/public")
 ART = Path("data/assets")
 
-# A name for each phase index. The minute ranges come from
-# features.PHASE_INTERVAL_S, so they move if the phase length does.
-PHASE_NAMES = ("Laning", "Mid game", "Late game", "Very late")
+# The page's phase bands. Three, not the model's four: #19 and #20 merged
+# "very late" into late because it held one item on Gun Ivy. The minute
+# ranges come from features.PHASE_INTERVAL_S, so they move with it.
+PHASE_NAMES = ("Laning", "Mid game", "Late game")
 
 
 @dataclass
@@ -89,9 +91,9 @@ def measure_bracket(badge: float | None) -> pages.Bracket | None:
 def phase_labels() -> tuple[str, ...]:
     minutes = features.PHASE_INTERVAL_S // 60
     labels = []
-    for index, name in enumerate(PHASE_NAMES[: features.N_PHASES]):
+    for index, name in enumerate(PHASE_NAMES):
         start = index * minutes
-        if index == features.N_PHASES - 1:
+        if index == len(PHASE_NAMES) - 1:
             labels.append(f"{name}, {start}+ min")
         else:
             labels.append(f"{name}, {start}–{start + minutes} min")
@@ -116,6 +118,11 @@ def collect(
     hero_names = {i: h.name for i, h in assets.load_heroes().items()}
     item_names = {i: it.name for i, it in assets.load_items().items()}
     phases = phase_labels()
+    item_tips = {
+        entry["id"]: tooltips.item_tooltip(entry)
+        for entry in api.get("/v1/assets/items", cache_dir=assets.DEFAULT_CACHE)
+        if entry.get("type") == "upgrade"
+    }
     wanted = assets.resolve_hero(hero_filter) if hero_filter else None
 
     heroes: list[HeroSite] = []
@@ -178,11 +185,22 @@ def collect(
                 except ValueError as exc:
                     print(f"  no ability order for {name}: {exc}", file=sys.stderr)
 
-            imbues = tuple(
-                pages.Imbue(item=t.item_name, ability=t.ability_name, share=t.share, n=t.n)
-                for t in cli.load_imbue_targets(cell, item_ids)
+            targets = [
+                t for t in cli.load_imbue_targets(cell, item_ids)
                 if t.ability_id is not None
-            )
+            ]
+            imbue_by_item = {
+                t.item_id: pages.Imbue(
+                    item=t.item_name,
+                    ability=t.ability_name,
+                    share=t.share,
+                    n=t.n,
+                    ability_id=t.ability_id,
+                    split=t.split,
+                )
+                for t in targets
+            }
+            imbues = tuple(imbue_by_item.values())
             into = build.absorbed_into(generated)
             uptake = evaluate.item_uptake(cell)
             arch_slug = slug(name)
@@ -197,20 +215,27 @@ def collect(
                         item_id=i.item_id,
                         name=i.name,
                         cost=i.cost,
-                        phase=int(features.phase_of(i.buy_time_s)),
+                        phase=min(
+                            int(features.phase_of(i.buy_time_s)), len(PHASE_NAMES) - 1
+                        ),
                         buyers=int(uptake.loc[i.item_id, "buyers"]),
                         players=int(uptake.loc[i.item_id, "players"]),
                         position=int(uptake.loc[i.item_id, "position"]),
                         builds_into=into[i.position].name if i.position in into else None,
+                        imbue=imbue_by_item.get(i.item_id),
+                        tooltip=item_tips.get(i.item_id),
                     )
                     for i in generated.items
                 ),
                 phases=phases,
                 abilities=tuple(
-                    pages.AbilityPoint(ability_id=p.ability_id, name=p.ability_name)
+                    pages.AbilityPoint(
+                        ability_id=p.ability_id,
+                        name=p.ability_name,
+                        cost=_point_cost(p.level),
+                    )
                     for p in points
                 ),
-                imbues=imbues,
                 counter_picks=tuple(
                     pages.CounterPick(
                         enemy=hero_names.get(c.enemy_hero_id, "?"),
@@ -251,6 +276,16 @@ def collect(
         if site.builds:
             heroes.append(site)
     return sorted(heroes, key=lambda h: h.hero), failures
+
+
+def _point_cost(level: int) -> int | None:
+    """What a point at this level costs in ability points; None for an unlock.
+
+    From abilityorder.LEVEL_COST: an unlock spends its own currency (type 2),
+    and upgrades spend ability points (type 1).
+    """
+    currency, change = abilityorder.LEVEL_COST[level]
+    return -change if currency == 1 else None
 
 
 def _entries(column: list[evaluate.ColumnItem], names: dict[int, str]) -> tuple:
@@ -323,7 +358,14 @@ def art_needed(heroes: list[HeroSite]) -> dict[Path, str | None]:
         for item_id in item_ids:
             entry = raw_items.get(item_id) or {}
             needed[Path("items", f"{item_id}.png")] = entry.get("shop_image") or entry.get("image")
-        for ability_id in {p.ability_id for _, b in h.builds for p in b.abilities}:
+        ability_ids = {p.ability_id for _, b in h.builds for p in b.abilities}
+        ability_ids |= {
+            i.imbue.ability_id
+            for _, b in h.builds
+            for i in b.items
+            if i.imbue is not None and i.imbue.ability_id is not None
+        }
+        for ability_id in ability_ids:
             needed[Path("abilities", f"{ability_id}.png")] = (
                 raw_items.get(ability_id) or {}
             ).get("image")
@@ -354,34 +396,58 @@ def copy_art(needed: dict[Path, str | None], out: Path) -> list[str]:
     return missing
 
 
-# Runs the build page's script against a stub DOM: one row, toggled open.
-DISCLOSURE_CHECK = """
-var handler = null, attrs = {};
-var summary = { setAttribute: function (k, v) { attrs[k] = v; } };
-var row = {
-  open: true,
-  querySelector: function () { return summary; },
-  addEventListener: function (name, fn) { if (name === "toggle") handler = fn; },
-};
-var document = { querySelectorAll: function () { return [row]; } };
+# A stub DOM for the build page's script: one item row and the tooltip. The
+# check hovers the row, focuses it, presses Escape and opens it, and fails if
+# the tooltip or aria-expanded don't follow.
+SCRIPT_CHECK_SETUP = """
+function node(extra) {
+  var n = { listeners: {}, attrs: {}, hidden: true, innerHTML: "", style: {},
+    offsetWidth: 300, offsetHeight: 200,
+    addEventListener: function (k, f) { (this.listeners[k] = this.listeners[k] || []).push(f); },
+    fire: function (k, e) { (this.listeners[k] || []).forEach(function (f) { f(e || {}); }); },
+    setAttribute: function (k, v) { this.attrs[k] = String(v); },
+    getBoundingClientRect: function () { return { left: 100, right: 400, top: 50 }; } };
+  for (var k in extra) n[k] = extra[k];
+  return n;
+}
+var summary = node({});
+var head = node({ innerHTML: "<h4>Item</h4>" });
+var facts = node({ innerHTML: "<p>does things</p>" });
+var row = node({ open: false, querySelector: function (sel) {
+  return sel === "summary" ? summary : sel === ".tiphead" ? head : sel === ".facts" ? facts : null; } });
+var tip = node({});
+var doc = node({ querySelectorAll: function () { return [row]; },
+  getElementById: function (id) { return id === "tip" ? tip : null; } });
+var document = doc;
+var window = node({ innerWidth: 1280, innerHeight: 900,
+  matchMedia: function () { return { matches: true }; } });
+function setTimeout(f) { f(); return 1; }
+function clearTimeout() {}
+"""
+
+SCRIPT_CHECK_RUN = """
+function expect(cond, what) { if (!cond) throw new Error(what); }
+summary.fire("mouseenter");
+expect(!tip.hidden && tip.innerHTML.indexOf("does things") >= 0, "hover shows the tooltip");
+doc.fire("keydown", { key: "Escape" });
+expect(tip.hidden, "Escape hides the tooltip");
+summary.fire("focus");
+expect(!tip.hidden, "keyboard focus shows the tooltip");
+row.open = true;
+row.fire("toggle");
+expect(tip.hidden, "opening the row hides the tooltip");
+expect(summary.attrs["aria-expanded"] === "true", "aria-expanded follows the row");
+console.log("  the build page's script runs: tooltip and aria-expanded behave");
 """
 
 
 def check_script() -> None:
-    """Parse and run the build page's script with node, if installed."""
+    """Run the build page's script under node against a stub DOM, if installed."""
     node = shutil.which("node")
     if not node:
         print("  node not found; skipping the script check", file=sys.stderr)
         return
-    source = (
-        DISCLOSURE_CHECK
-        + pages.DISCLOSURE_SCRIPT
-        + """
-if (!handler) throw new Error("no toggle listener");
-handler();
-if (attrs["aria-expanded"] !== "true") throw new Error("aria-expanded not set");
-"""
-    )
+    source = SCRIPT_CHECK_SETUP + pages.PAGE_SCRIPT + SCRIPT_CHECK_RUN
     with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
         f.write(source)
         path = f.name
@@ -391,7 +457,7 @@ if (attrs["aria-expanded"] !== "true") throw new Error("aria-expanded not set");
         Path(path).unlink(missing_ok=True)
     if result.returncode != 0:
         raise SystemExit(f"the build page's script failed:\n{result.stderr}")
-    print("  the build page's script runs")
+    print(result.stdout.rstrip())
 
 
 def main() -> int:
