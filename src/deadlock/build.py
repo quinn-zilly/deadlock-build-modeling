@@ -202,7 +202,6 @@ def generate_build(
     return build
 
 
-
 def absorbed_into(build: Build) -> dict[int, BuildItem]:
     """Map each absorbed component's position to the purchase that absorbed it.
 

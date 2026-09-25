@@ -27,6 +27,7 @@ Pass the same --badge as generate_builds.py, so the pages describe the builds.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import re
 import shutil
 import subprocess
@@ -126,10 +127,8 @@ def collect(
         hero_name = playable[hero_id].name
         site = HeroSite(hero=hero_name, hero_id=hero_id, slug=slug(hero_name))
         hero_rows = purchases[purchases["hero_id"] == hero_id]
-        archetypes = entry.get("archetypes", [])
-        split = len(archetypes) > 1
 
-        for arch in archetypes:
+        for arch in entry.get("archetypes", []):
             archetype_id = int(arch["archetype_id"])
             name = arch.get("name") or hero_name
             cell = hero_rows.merge(
@@ -185,21 +184,23 @@ def collect(
                 if t.ability_id is not None
             )
             into = build.absorbed_into(generated)
+            uptake = evaluate.item_uptake(cell)
             arch_slug = slug(name)
             facts = pages.BuildFacts(
                 hero=hero_name,
                 hero_id=hero_id,
                 archetype=name,
-                share=float(arch.get("share") or 1.0),
-                n=int(arch.get("n") or 0),
+                share=float(arch["share"]),
+                n=int(arch["n"]),
                 items=tuple(
                     pages.Item(
                         item_id=i.item_id,
                         name=i.name,
                         cost=i.cost,
                         phase=int(features.phase_of(i.buy_time_s)),
-                        share=i.probability,
-                        n=i.n,
+                        buyers=int(uptake.loc[i.item_id, "buyers"]),
+                        players=int(uptake.loc[i.item_id, "players"]),
+                        position=int(uptake.loc[i.item_id, "position"]),
                         builds_into=into[i.position].name if i.position in into else None,
                     )
                     for i in generated.items
@@ -210,8 +211,8 @@ def collect(
                     for p in points
                 ),
                 imbues=imbues,
-                matchups=tuple(
-                    pages.Matchup(
+                counter_picks=tuple(
+                    pages.CounterPick(
                         enemy=hero_names.get(c.enemy_hero_id, "?"),
                         item=item_names.get(c.item_id, str(c.item_id)),
                         facing=c.facing_rate,
@@ -220,7 +221,7 @@ def collect(
                     )
                     for c in counters.for_build(lifts, item_ids)
                 ),
-                chooser_href="../index.html" if split else None,
+                chooser_href=None,
             )
             site.builds.append((arch_slug, facts))
 
@@ -229,14 +230,24 @@ def collect(
                 pages.Card(
                     archetype=name,
                     href=f"{arch_slug}/index.html",
-                    share=float(arch.get("share") or 0.0),
-                    win_rate=float(arch.get("win_rate") or 0.0),
-                    n=int(arch.get("n") or 0),
+                    share=float(arch["share"]),
+                    win_rate=float(arch["win_rate"]),
+                    n=int(arch["n"]),
                     most_common=_entries(columns.most_common, item_names),
                     defining=_entries(columns.defining, item_names),
                     imbues=imbues,
                 )
             )
+        # Decided after the loop: an archetype with no players is skipped, so
+        # a split hero can end up with one build, and then it has no chooser.
+        if len(site.builds) > 1:
+            site.builds = [
+                (s_, dataclasses.replace(f, chooser_href="../index.html"))
+                for s_, f in site.builds
+            ]
+        slugs = [s_ for s_, _ in site.builds]
+        if len(set(slugs)) != len(slugs):
+            raise SystemExit(f"{hero_name} has two archetypes with one URL: {slugs}")
         if site.builds:
             heroes.append(site)
     return sorted(heroes, key=lambda h: h.hero), failures
@@ -325,8 +336,13 @@ def copy_art(needed: dict[Path, str | None], out: Path) -> list[str]:
     for rel, url in sorted(needed.items()):
         cached = ART / rel
         if not cached.exists() and url:
-            response = requests.get(url, headers={"User-Agent": api.USER_AGENT}, timeout=30)
-            if response.ok and response.content:
+            try:
+                response = requests.get(
+                    url, headers={"User-Agent": api.USER_AGENT}, timeout=30
+                )
+            except requests.RequestException:
+                response = None
+            if response is not None and response.ok and response.content:
                 cached.parent.mkdir(parents=True, exist_ok=True)
                 cached.write_bytes(response.content)
         if not cached.exists():

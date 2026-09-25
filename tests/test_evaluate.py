@@ -486,3 +486,27 @@ class TestItemColumns:
     def test_most_common_is_capped(self):
         builds = {p: list(range(10)) for p in range(5)}
         assert len(evaluate.item_columns(purchases(builds), [], cap=6).most_common) == 6
+
+
+class TestItemUptake:
+    """How many of a cell's players bought each item, and at which purchase."""
+
+    def test_counts_buyers_and_players(self):
+        builds = {p: [1, 2] + ([3] if p < 3 else []) for p in range(10)}
+        uptake = evaluate.item_uptake(purchases(builds))
+        assert uptake.loc[3, "buyers"] == 3
+        assert uptake.loc[3, "players"] == 10
+        assert uptake.loc[3, "share"] == pytest.approx(0.3)
+
+    def test_typical_position_is_the_median_first_purchase(self):
+        # Item 5 is the 1st purchase for two players and the 3rd for one.
+        builds = {0: [5, 1, 2], 1: [5, 1, 2], 2: [1, 2, 5]}
+        uptake = evaluate.item_uptake(purchases(builds))
+        assert uptake.loc[5, "position"] == 1
+
+    def test_a_repeat_purchase_counts_once_at_its_first_position(self):
+        builds = {0: [1, 5, 5], 1: [1, 5, 2]}
+        uptake = evaluate.item_uptake(purchases(builds))
+        assert uptake.loc[5, "buyers"] == 2
+        assert uptake.loc[5, "position"] == 2
+

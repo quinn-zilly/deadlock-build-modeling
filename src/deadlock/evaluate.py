@@ -99,6 +99,28 @@ def item_prevalence(df: pd.DataFrame) -> pd.Series:
     return (buyers / n_players).rename("prevalence").sort_values(ascending=False)
 
 
+def item_uptake(df: pd.DataFrame) -> pd.DataFrame:
+    """Per item: how many of the group's players bought it, and when.
+
+    Indexed by item id, with `buyers`, `players`, `share` (buyers / players,
+    the same number as `item_prevalence`) and `position`, the median purchase
+    number (1-based) at which a buyer first bought it. Every column is a count
+    or a direct function of one, so a build page can state it as a fact about
+    the archetype's players.
+    """
+    players = len(df[["match_id", "player_slot"]].drop_duplicates())
+    first = df.groupby(["item_id", "match_id", "player_slot"])["buy_index"].min()
+    grouped = first.groupby("item_id")
+    out = pd.DataFrame(
+        {
+            "buyers": grouped.size(),
+            "position": (grouped.median() + 1).round().astype(int),
+        }
+    )
+    out["players"] = players
+    out["share"] = out["buyers"] / players if players else 0.0
+    return out
+
 
 # How many items each of the chooser's two columns shows. #21 measured that a
 # blended "3 common + 3 distinct" list fails, so it is six and six, labelled.

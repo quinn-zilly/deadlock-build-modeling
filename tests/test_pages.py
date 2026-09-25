@@ -335,6 +335,24 @@ class TestChooser:
         assert "Kudzu Bomb" in texts["Spirit Ivy"]
         assert "Air Drop" in texts["Gun Ivy"]
 
+    def test_only_the_card_that_departs_shows_its_target(self):
+        kudzu = (pages.Imbue(item="Mystic Reach", ability="Kudzu Bomb", share=0.99, n=900),)
+        drop = (pages.Imbue(item="Mystic Reach", ability="Air Drop", share=0.8, n=400),)
+        names = ["Spirit Ivy", "Hybrid Ivy", "Gun Ivy"]
+        texts = card_texts(
+            chooser_page(
+                [
+                    card("Spirit Ivy", imbues=kudzu),
+                    card("Hybrid Ivy", imbues=kudzu),
+                    card("Gun Ivy", imbues=drop),
+                ]
+            ),
+            names,
+        )
+        assert "Mystic Reach" not in texts["Spirit Ivy"]
+        assert "Mystic Reach" not in texts["Hybrid Ivy"]
+        assert "Air Drop" in texts["Gun Ivy"]
+
     def test_an_item_only_one_archetype_imbues_is_no_disagreement(self):
         pair = (pages.Imbue(item="Mystic Reach", ability="Kudzu Bomb", share=0.99, n=900),)
         html = chooser_page([card("Spirit Ivy", imbues=pair), card("Gun Ivy")])
@@ -358,8 +376,9 @@ def item(
         name=name,
         cost=cost,
         phase=phase,
-        share=0.69,
-        n=1234,
+        buyers=1234,
+        players=1788,
+        position=3,
         builds_into=builds_into,
     )
 
@@ -389,8 +408,8 @@ def facts(**overrides) -> pages.BuildFacts:
         imbues=(
             pages.Imbue(item="Mystic Reach", ability="Kudzu Bomb", share=0.99, n=900),
         ),
-        matchups=(
-            pages.Matchup(
+        counter_picks=(
+            pages.CounterPick(
                 enemy="Lash", item="Counterspell", facing=0.16, baseline=0.085, n=412
             ),
         ),
@@ -425,10 +444,11 @@ class TestBuildPage:
     def test_names_what_a_component_builds_into(self):
         assert "builds into Improved Spirit" in visible_text(build_html())
 
-    def test_item_detail_states_the_share_and_count(self):
+    def test_item_detail_states_buyers_of_players_and_position(self):
         text = visible_text(build_html())
         assert "69%" in text
-        assert "1,234" in text
+        assert "1,234 of 1,788" in text
+        assert "purchase 3" in text
 
     def test_every_item_row_is_a_disclosure(self):
         html = build_html()
@@ -449,15 +469,15 @@ class TestBuildPage:
     def test_states_no_clock(self):
         assert not re.search(r"\b\d{1,2}:\d{2}\b", visible_text(build_html()))
 
-    def test_no_matchups_means_no_matchup_heading(self):
+    def test_no_counter_picks_means_no_counter_pick_heading(self):
         assert "facing" in visible_text(build_html()).lower()
-        assert "facing" not in visible_text(build_html(matchups=())).lower()
+        assert "facing" not in visible_text(build_html(counter_picks=())).lower()
 
     def test_no_imbues_means_no_imbue_heading(self):
         assert "imbue" in visible_text(build_html()).lower()
         assert "imbue" not in visible_text(build_html(imbues=())).lower()
 
-    def test_matchups_state_both_rates_and_the_count(self):
+    def test_counter_picks_state_both_rates_and_the_count(self):
         text = visible_text(build_html())
         assert "16%" in text and "8.5%" in text and "412" in text
 

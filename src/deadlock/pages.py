@@ -15,6 +15,7 @@ the files.
 from __future__ import annotations
 
 import datetime as dt
+from collections import Counter
 from dataclasses import dataclass
 from html import escape
 
@@ -408,8 +409,9 @@ class Item:
     name: str
     cost: int
     phase: int                  # index into BuildFacts.phases
-    share: float                # of players at this point who bought it next
-    n: int                      # purchases behind that share
+    buyers: int                 # of the archetype's players who bought it
+    players: int                # in the archetype
+    position: int               # median purchase number buyers bought it at
     builds_into: str | None = None
 
 
@@ -420,7 +422,7 @@ class AbilityPoint:
 
 
 @dataclass(frozen=True)
-class Matchup:
+class CounterPick:
     """An item in the build that players buy more often against one enemy.
 
     Measured across every hero's players (`counters.counter_lifts`), not per
@@ -430,9 +432,9 @@ class Matchup:
 
     enemy: str
     item: str
-    facing: float     # pick rate in player-matches against the enemy
-    baseline: float   # pick rate in all player-matches
-    n: int            # player-matches against the enemy
+    facing: float     # prevalence in player-matches against the enemy
+    baseline: float   # prevalence in all player-matches
+    n: int            # player-matches against the enemy, across every hero
 
 
 @dataclass(frozen=True)
@@ -445,10 +447,10 @@ class BuildFacts:
     share: float
     n: int
     items: tuple[Item, ...]
-    phases: tuple[str, ...]           # a name per phase index, e.g. "Lane"
+    phases: tuple[str, ...]           # a label per phase index
     abilities: tuple[AbilityPoint, ...]
     imbues: tuple[Imbue, ...]
-    matchups: tuple[Matchup, ...]
+    counter_picks: tuple[CounterPick, ...]
     chooser_href: str | None          # None when the hero has one archetype
 
 
@@ -508,8 +510,9 @@ def chooser(
 
     The comparison is the point, so two things are computed across the cards
     rather than per card. An item in exactly one card's column is marked, per
-    column. An imbue target shows only where the cards disagree about it:
-    another archetype imbues the same item into a different ability. A hero with one archetype has nothing to choose between; its page is
+    column. An imbue target shows only on a card that departs from the
+    others: Ivy's two archetypes that agree show nothing, and the third,
+    which imbues the same item elsewhere, shows its target. A hero with one archetype has nothing to choose between; its page is
     `build_page`, and this raises.
     """
     if len(cards) < 2:
@@ -517,16 +520,14 @@ def chooser(
 
     unique_common = _in_one_card([c.most_common for c in cards])
     unique_defining = _in_one_card([c.defining for c in cards])
-    targets: dict[str, set[str]] = {}
+    targets: dict[str, Counter[str]] = {}
     for c in cards:
         for i in c.imbues:
-            targets.setdefault(i.item, set()).add(i.ability)
+            targets.setdefault(i.item, Counter())[i.ability] += 1
 
     articles = []
     for c in cards:
-        # Only where the archetypes disagree: another one imbues this item
-        # into a different ability.
-        imbues = [i for i in c.imbues if len(targets[i.item]) > 1]
+        imbues = [i for i in c.imbues if _departs(i, targets[i.item])]
         imbue_lines = "".join(
             f'<p class="imbue">Imbue <b>{escape(i.item)}</b> into '
             f"<b>{escape(i.ability)}</b></p>"
@@ -565,8 +566,8 @@ def chooser(
 </div>
 <p class="legend"><span class="swatch"></span>Highlighted items are in that column
 for one {escape(hero)} build and none of the others. Defining items are the ones
-this build buys far more often than {escape(hero)}'s other builds; the second
-rate is how often the others buy them.</p>
+with the biggest gap between how often this build buys them and how often
+{escape(hero)}'s other builds do. The second rate is the other builds' mean.</p>
 </main>"""
     return _document(
         root=root,
@@ -583,7 +584,7 @@ def build_page(
 
     Sections in #20's order: purchase order in phase bands, the block to copy
     into the game's build browser, ability order, imbue targets, and matchup
-    items. A section with nothing in it is left out, heading and all. No
+    counter-picks. A section with nothing in it is left out, heading and all. No
     per-item clock: buy time is linear in buy index, so a clock would claim a
     precision the model doesn't have.
     """
@@ -600,12 +601,12 @@ def build_page(
         sections.append(_ability_order(build.abilities, root))
     if build.imbues:
         sections.append(_imbues(build.imbues))
-    if build.matchups:
-        sections.append(_matchups(build.matchups))
+    if build.counter_picks:
+        sections.append(_counter_picks(build.counter_picks))
 
     body = f"""<main class="wide">
 {_masthead(
-    kicker=f"{escape(build.hero)} build",
+    kicker=f"{build.hero} build",
     title=build.archetype,
     hero_id=build.hero_id,
     root=root,
@@ -659,8 +660,9 @@ def _purchases(build: BuildFacts, root: str) -> str:
 <img class="ico" src="{_item_image(item.item_id, root)}" alt="">
 <span class="txt"><span class="nm">{escape(item.name)}</span>{sub}</span>
 <span class="cost">{item.cost:,}</span></summary>
-<p class="detail">{_pct(item.share)} of this build's players at this point bought
-it next, from {item.n:,} purchases made in the same spot.</p></details>"""
+<p class="detail">Bought by {_pct(item.buyers / item.players)} of this build's
+players ({item.buyers:,} of {item.players:,}), most often as purchase
+{item.position}.</p></details>"""
             )
         if rows:
             bands.append(
@@ -725,12 +727,12 @@ def _imbues(imbues: tuple[Imbue, ...]) -> str:
 </section>"""
 
 
-def _matchups(matchups: tuple[Matchup, ...]) -> str:
+def _counter_picks(picks: tuple[CounterPick, ...]) -> str:
     rows = "".join(
         f"""<li><span><b>{escape(m.enemy)}</b>: {escape(m.item)}</span>
 <span class="num">{_pct1(m.facing)} against {escape(m.enemy)}, {_pct1(m.baseline)}
-overall · {m.n:,} matches</span></li>"""
-        for m in matchups
+overall · {m.n:,} player-matches</span></li>"""
+        for m in picks
     )
     return f"""<section class="sec">
 <h2>If you're facing…</h2>
@@ -759,6 +761,20 @@ def _column(
     return f'<div class="itemcol"><h3>{title}</h3><ul>{"".join(rows)}</ul></div>'
 
 
+def _departs(imbue: Imbue, targets: Counter[str]) -> bool:
+    """Whether this card's target for an item differs from the other cards'.
+
+    True unless its target is the single most common one across the cards
+    that imbue the item. When two targets tie, both cards show theirs.
+    """
+    if len(targets) < 2:
+        return False
+    ranked = targets.most_common()
+    top, count = ranked[0]
+    tied = ranked[1][1] == count
+    return tied or imbue.ability != top
+
+
 def _in_one_card(columns: list[tuple[ColumnEntry, ...]]) -> set[int]:
     """Item ids that appear in exactly one card's version of a column."""
     seen: dict[int, int] = {}
@@ -771,11 +787,12 @@ def _in_one_card(columns: list[tuple[ColumnEntry, ...]]) -> set[int]:
 def _masthead(
     *, kicker: str, title: str, hero_id: int, root: str, lines: list[str], prov: str
 ) -> str:
+    # `lines` are HTML: they can carry a link. Callers escape their text.
     extra = "".join(f'<p class="who">{line}</p>' for line in lines)
     return f"""<header class="mast">
 <img class="portrait" src="{_hero_image(hero_id, root)}" alt="">
 <div>
-<p class="kicker">{kicker}</p>
+<p class="kicker">{escape(kicker)}</p>
 <h1>{escape(title)}</h1>
 {extra}
 <p class="prov">{prov}</p>
