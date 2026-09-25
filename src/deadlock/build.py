@@ -202,6 +202,23 @@ def generate_build(
     return build
 
 
+
+def absorbed_into(build: Build) -> dict[int, BuildItem]:
+    """Map each absorbed component's position to the purchase that absorbed it.
+
+    The page says "builds into X" rather than "sold". The catalogue can't
+    answer which X (Grit has four parents), but the build can: a component is
+    marked sold at the buy time of the purchase that absorbed it, and every
+    position has its own buy time.
+    """
+    by_time = {item.buy_time_s: item for item in build.items}
+    return {
+        item.position: by_time[item.sell_time_s]
+        for item in build.items
+        if item.sell_time_s is not None and item.sell_time_s in by_time
+    }
+
+
 def _apply_priors(
     ids: np.ndarray,
     probability: np.ndarray,

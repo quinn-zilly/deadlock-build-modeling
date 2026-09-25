@@ -448,3 +448,41 @@ class TestNextItemAccuracy:
             model, self.frame([11]), self.labels(), min_badge=80
         )
         assert got["n_decisions"] == 0
+
+
+class TestItemColumns:
+    """The chooser's two columns: most common, and defining."""
+
+    def candidate(self, item_id: int, here: float, elsewhere: float) -> dict:
+        return {"item_id": item_id, "in_cluster": here, "elsewhere": elsewhere}
+
+    def test_defining_ranks_by_the_gap_not_by_either_rate(self):
+        # Item 1 is the most bought here, but nearly as common elsewhere.
+        # Item 2 is bought less here and hardly at all elsewhere.
+        candidates = [self.candidate(1, 0.95, 0.90), self.candidate(2, 0.60, 0.10)]
+        columns = evaluate.item_columns(population(), candidates)
+        assert [c.item_id for c in columns.defining] == [2, 1]
+
+    def test_defining_keeps_both_rates(self):
+        columns = evaluate.item_columns(population(), [self.candidate(2, 0.6, 0.1)])
+        assert columns.defining[0].rate == pytest.approx(0.6)
+        assert columns.defining[0].elsewhere == pytest.approx(0.1)
+
+    def test_the_cap_is_applied(self):
+        candidates = [self.candidate(i, 0.5, 0.01 * i) for i in range(10)]
+        columns = evaluate.item_columns(population(), candidates, cap=6)
+        assert len(columns.defining) == 6
+
+    def test_fewer_candidates_than_the_cap_are_not_padded(self):
+        candidates = [self.candidate(1, 0.5, 0.1), self.candidate(2, 0.5, 0.2)]
+        assert len(evaluate.item_columns(population(), candidates).defining) == 2
+
+    def test_most_common_is_prevalence_highest_first(self):
+        builds = {p: [1, 2] + ([3] if p % 2 else []) for p in range(10)}
+        columns = evaluate.item_columns(purchases(builds), [])
+        assert [c.item_id for c in columns.most_common] == [1, 2, 3]
+        assert columns.most_common[2].rate == pytest.approx(0.5)
+
+    def test_most_common_is_capped(self):
+        builds = {p: list(range(10)) for p in range(5)}
+        assert len(evaluate.item_columns(purchases(builds), [], cap=6).most_common) == 6

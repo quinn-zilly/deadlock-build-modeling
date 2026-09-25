@@ -1,30 +1,75 @@
 #!/usr/bin/env python
-"""Write the public site's pages. For now, the methodology page.
+"""Write the public site: the home page, a page per hero, a page per build,
+the methodology page, and the art they show.
 
-The page's prose is `deadlock.pages`. This script computes the facts it
-states: the rank tier at the badge the builds are weighted toward (from the
-assets API), that tier's share of player-matches (from purchases.parquet),
-and the start of the data window (`ingest.PATCH_START`).
+The pages' prose and markup are `deadlock.pages`. This script computes the
+facts they state and writes the files:
 
-Pass the same --badge as generate_builds.py, so the page describes the builds
-it sits beside.
+    index.html                       every hero
+    methodology.html                 where the builds come from
+    <hero>/index.html                a split hero's chooser, or the build
+                                     itself when the hero has one archetype
+    <hero>/<archetype>/index.html    one build of a split hero
+    assets/{items,heroes,abilities}/<id>.png
 
-    python scripts/build_pages.py [--out DIR] [--badge N|all]
+Every build must pass the staple check (`evaluate.prevalence_gate`) before
+anything is written. One that fails stops the script with a non-zero exit, so
+a build missing an item most of its players buy is never published.
+
+Art is copied from data/assets/, and anything missing there is downloaded
+from the URL the assets API gives for it and kept for next time.
+
+Pass the same --badge as generate_builds.py, so the pages describe the builds.
+
+    python scripts/build_pages.py [--out DIR] [--badge N|all] [--hero NAME]
 """
 
 from __future__ import annotations
 
 import argparse
+import re
+import shutil
+import subprocess
 import sys
+import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
+import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from deadlock import cli, ingest, pages, sequence  # noqa: E402
+from deadlock import (  # noqa: E402
+    abilityorder,
+    api,
+    archetype,
+    assets,
+    build,
+    cli,
+    counters,
+    evaluate,
+    features,
+    ingest,
+    pages,
+    sequence,
+)
 
 DEFAULT_OUT = Path("data/site/public")
+ART = Path("data/assets")
+
+# A name for each phase index. The minute ranges come from
+# features.PHASE_INTERVAL_S, so they move if the phase length does.
+PHASE_NAMES = ("Laning", "Mid game", "Late game", "Very late")
+
+
+@dataclass
+class HeroSite:
+    hero: str
+    hero_id: int
+    slug: str
+    builds: list[tuple[str, pages.BuildFacts]] = field(default_factory=list)
+    cards: list[pages.Card] = field(default_factory=list)
 
 
 def measure_bracket(badge: float | None) -> pages.Bracket | None:
@@ -40,6 +85,299 @@ def measure_bracket(badge: float | None) -> pages.Bracket | None:
     )
 
 
+def phase_labels() -> tuple[str, ...]:
+    minutes = features.PHASE_INTERVAL_S // 60
+    labels = []
+    for index, name in enumerate(PHASE_NAMES[: features.N_PHASES]):
+        start = index * minutes
+        if index == features.N_PHASES - 1:
+            labels.append(f"{name}, {start}+ min")
+        else:
+            labels.append(f"{name}, {start}–{start + minutes} min")
+    return tuple(labels)
+
+
+def slug(name: str) -> str:
+    """A URL segment for a hero or archetype name: "Mo & Krill" -> "mo-krill"."""
+    return re.sub(r"[^a-z0-9]+", "-", name.lower().replace("'", "")).strip("-")
+
+
+def collect(
+    badge: float | None, hero_filter: str | None = None
+) -> tuple[list[HeroSite], list[str]]:
+    """Every hero's builds and chooser cards, and the builds that fail the gate."""
+    labels, meta = archetype.load()
+    model = cli.load_model(badge=badge)
+    ability_model, ability_frame = cli.load_ability_model(badge=badge)
+    lifts = cli.load_counters()
+    purchases = pd.read_parquet(cli.PURCHASES, columns=cli.COLUMNS)
+    playable = assets.playable_heroes()
+    hero_names = {i: h.name for i, h in assets.load_heroes().items()}
+    item_names = {i: it.name for i, it in assets.load_items().items()}
+    phases = phase_labels()
+    wanted = assets.resolve_hero(hero_filter) if hero_filter else None
+
+    heroes: list[HeroSite] = []
+    failures: list[str] = []
+    for hero_key, entry in meta.get("heroes", {}).items():
+        hero_id = int(hero_key)
+        if hero_id not in playable or (wanted is not None and hero_id != wanted):
+            continue
+        hero_name = playable[hero_id].name
+        site = HeroSite(hero=hero_name, hero_id=hero_id, slug=slug(hero_name))
+        hero_rows = purchases[purchases["hero_id"] == hero_id]
+        archetypes = entry.get("archetypes", [])
+        split = len(archetypes) > 1
+
+        for arch in archetypes:
+            archetype_id = int(arch["archetype_id"])
+            name = arch.get("name") or hero_name
+            cell = hero_rows.merge(
+                labels[
+                    (labels["hero_id"] == hero_id)
+                    & (labels["archetype_id"] == archetype_id)
+                ][["match_id", "player_slot"]],
+                on=["match_id", "player_slot"],
+            )
+            if cell.empty:
+                continue
+
+            prevalence = evaluate.item_prevalence(cell)
+            staples = {
+                int(i): float(v)
+                for i, v in prevalence[
+                    prevalence >= evaluate.PREVALENCE_THRESHOLD
+                ].items()
+            }
+            generated = build.generate_build(
+                hero_id,
+                archetype_id,
+                model,
+                staples=staples,
+                hero_name=hero_name,
+                archetype_name=name,
+            )
+            item_ids = [i.item_id for i in generated.items]
+            gate = evaluate.prevalence_gate(
+                item_ids, cell, hero_id=hero_id, archetype_id=archetype_id
+            )
+            # Same rule as generate_builds.py: a cell too thin to judge is
+            # inconclusive, not a failure.
+            if gate.missing:
+                failures.append(f"{name}: {gate.describe(item_names)}")
+
+            points = []
+            if ability_model is not None:
+                try:
+                    points = abilityorder.generate_order(
+                        ability_model,
+                        ability_frame,
+                        hero_id,
+                        archetype_id,
+                        target_badge=badge,
+                    )
+                except ValueError as exc:
+                    print(f"  no ability order for {name}: {exc}", file=sys.stderr)
+
+            imbues = tuple(
+                pages.Imbue(item=t.item_name, ability=t.ability_name, share=t.share, n=t.n)
+                for t in cli.load_imbue_targets(cell, item_ids)
+                if t.ability_id is not None
+            )
+            into = build.absorbed_into(generated)
+            arch_slug = slug(name)
+            facts = pages.BuildFacts(
+                hero=hero_name,
+                hero_id=hero_id,
+                archetype=name,
+                share=float(arch.get("share") or 1.0),
+                n=int(arch.get("n") or 0),
+                items=tuple(
+                    pages.Item(
+                        item_id=i.item_id,
+                        name=i.name,
+                        cost=i.cost,
+                        phase=int(features.phase_of(i.buy_time_s)),
+                        share=i.probability,
+                        n=i.n,
+                        builds_into=into[i.position].name if i.position in into else None,
+                    )
+                    for i in generated.items
+                ),
+                phases=phases,
+                abilities=tuple(
+                    pages.AbilityPoint(ability_id=p.ability_id, name=p.ability_name)
+                    for p in points
+                ),
+                imbues=imbues,
+                matchups=tuple(
+                    pages.Matchup(
+                        enemy=hero_names.get(c.enemy_hero_id, "?"),
+                        item=item_names.get(c.item_id, str(c.item_id)),
+                        facing=c.facing_rate,
+                        baseline=c.baseline_rate,
+                        n=c.n_facing,
+                    )
+                    for c in counters.for_build(lifts, item_ids)
+                ),
+                chooser_href="../index.html" if split else None,
+            )
+            site.builds.append((arch_slug, facts))
+
+            columns = evaluate.item_columns(cell, arch.get("top_items", []))
+            site.cards.append(
+                pages.Card(
+                    archetype=name,
+                    href=f"{arch_slug}/index.html",
+                    share=float(arch.get("share") or 0.0),
+                    win_rate=float(arch.get("win_rate") or 0.0),
+                    n=int(arch.get("n") or 0),
+                    most_common=_entries(columns.most_common, item_names),
+                    defining=_entries(columns.defining, item_names),
+                    imbues=imbues,
+                )
+            )
+        if site.builds:
+            heroes.append(site)
+    return sorted(heroes, key=lambda h: h.hero), failures
+
+
+def _entries(column: list[evaluate.ColumnItem], names: dict[int, str]) -> tuple:
+    return tuple(
+        pages.ColumnEntry(
+            item_id=c.item_id,
+            name=names.get(c.item_id, str(c.item_id)),
+            rate=c.rate,
+            elsewhere=c.elsewhere,
+        )
+        for c in column
+    )
+
+
+def render(
+    heroes: list[HeroSite], bracket: pages.Bracket | None
+) -> dict[Path, str]:
+    """Every page, keyed by its path under the site root."""
+    window = ingest.PATCH_START.date()
+    out: dict[Path, str] = {
+        Path("index.html"): pages.home(
+            heroes=[
+                pages.HeroLink(
+                    hero=h.hero,
+                    hero_id=h.hero_id,
+                    href=f"{h.slug}/index.html",
+                    builds=len(h.builds),
+                )
+                for h in heroes
+            ],
+            bracket=bracket,
+            window_start=window,
+        ),
+        Path("methodology.html"): pages.methodology(
+            bracket=bracket, window_start=window
+        ),
+    }
+    for h in heroes:
+        if len(h.builds) == 1:
+            out[Path(h.slug, "index.html")] = pages.build_page(
+                h.builds[0][1], bracket=bracket, window_start=window, root="../"
+            )
+            continue
+        out[Path(h.slug, "index.html")] = pages.chooser(
+            hero=h.hero,
+            hero_id=h.hero_id,
+            cards=h.cards,
+            bracket=bracket,
+            window_start=window,
+            root="../",
+        )
+        for arch_slug, facts in h.builds:
+            out[Path(h.slug, arch_slug, "index.html")] = pages.build_page(
+                facts, bracket=bracket, window_start=window, root="../../"
+            )
+    return out
+
+
+def art_needed(heroes: list[HeroSite]) -> dict[Path, str | None]:
+    """Each image the pages show, mapped to where to download it if it's missing."""
+    raw_items = {e["id"]: e for e in api.get("/v1/assets/items", cache_dir=assets.DEFAULT_CACHE)}
+    raw_heroes = {e["id"]: e for e in api.get("/v1/assets/heroes", cache_dir=assets.DEFAULT_CACHE)}
+    needed: dict[Path, str | None] = {}
+    for h in heroes:
+        needed[Path("heroes", f"{h.hero_id}.png")] = (
+            (raw_heroes.get(h.hero_id) or {}).get("images") or {}
+        ).get("icon_hero_card")
+        item_ids = {i.item_id for _, b in h.builds for i in b.items}
+        item_ids |= {e.item_id for c in h.cards for e in (*c.most_common, *c.defining)}
+        for item_id in item_ids:
+            entry = raw_items.get(item_id) or {}
+            needed[Path("items", f"{item_id}.png")] = entry.get("shop_image") or entry.get("image")
+        for ability_id in {p.ability_id for _, b in h.builds for p in b.abilities}:
+            needed[Path("abilities", f"{ability_id}.png")] = (
+                raw_items.get(ability_id) or {}
+            ).get("image")
+    return needed
+
+
+def copy_art(needed: dict[Path, str | None], out: Path) -> list[str]:
+    """Copy each image into the site, downloading any not cached. Returns the misses."""
+    missing = []
+    for rel, url in sorted(needed.items()):
+        cached = ART / rel
+        if not cached.exists() and url:
+            response = requests.get(url, headers={"User-Agent": api.USER_AGENT}, timeout=30)
+            if response.ok and response.content:
+                cached.parent.mkdir(parents=True, exist_ok=True)
+                cached.write_bytes(response.content)
+        if not cached.exists():
+            missing.append(str(rel))
+            continue
+        dest = out / "assets" / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(cached, dest)
+    return missing
+
+
+# Runs the build page's script against a stub DOM: one row, toggled open.
+DISCLOSURE_CHECK = """
+var handler = null, attrs = {};
+var summary = { setAttribute: function (k, v) { attrs[k] = v; } };
+var row = {
+  open: true,
+  querySelector: function () { return summary; },
+  addEventListener: function (name, fn) { if (name === "toggle") handler = fn; },
+};
+var document = { querySelectorAll: function () { return [row]; } };
+"""
+
+
+def check_script() -> None:
+    """Parse and run the build page's script with node, if installed."""
+    node = shutil.which("node")
+    if not node:
+        print("  node not found; skipping the script check", file=sys.stderr)
+        return
+    source = (
+        DISCLOSURE_CHECK
+        + pages.DISCLOSURE_SCRIPT
+        + """
+if (!handler) throw new Error("no toggle listener");
+handler();
+if (attrs["aria-expanded"] !== "true") throw new Error("aria-expanded not set");
+"""
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+        f.write(source)
+        path = f.name
+    try:
+        result = subprocess.run([node, path], capture_output=True, text=True)
+    finally:
+        Path(path).unlink(missing_ok=True)
+    if result.returncode != 0:
+        raise SystemExit(f"the build page's script failed:\n{result.stderr}")
+    print("  the build page's script runs")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -48,7 +386,7 @@ def main() -> int:
         "--out",
         type=Path,
         default=DEFAULT_OUT,
-        help="directory to write the pages into (default: %(default)s)",
+        help="directory to write the site into (default: %(default)s)",
     )
     parser.add_argument(
         "--badge",
@@ -58,23 +396,39 @@ def main() -> int:
             "(default: %(default)s)"
         ),
     )
+    parser.add_argument("--hero", default=None, help="build only this hero")
     args = parser.parse_args()
 
     badge = sequence.parse_target_badge(args.badge)
-    facts = measure_bracket(badge)
-    html = pages.methodology(
-        bracket=facts, window_start=ingest.PATCH_START.date()
-    )
+    bracket = measure_bracket(badge)
+    heroes, failures = collect(badge, args.hero)
+    if failures:
+        print("not writing the site; these builds fail the staple check:", file=sys.stderr)
+        for line in failures:
+            print(f"  {line}", file=sys.stderr)
+        return 1
 
-    args.out.mkdir(parents=True, exist_ok=True)
-    path = args.out / "methodology.html"
-    path.write_text(html, encoding="utf-8")
+    check_script()
+    written = render(heroes, bracket)
+    for rel, html in written.items():
+        path = args.out / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(html, encoding="utf-8")
+
+    missing = copy_art(art_needed(heroes), args.out)
+    if missing:
+        print(f"  {len(missing)} images unavailable, e.g. {missing[:3]}", file=sys.stderr)
+
+    n_builds = sum(len(h.builds) for h in heroes)
     stated = (
         "no bracket"
-        if facts is None
-        else f"{facts.tier_name} and above, {facts.share:.1%} of player-matches"
+        if bracket is None
+        else f"{bracket.tier_name} and above, {bracket.share:.1%} of player-matches"
     )
-    print(f"wrote {path} ({stated}; window from {ingest.PATCH_START:%Y-%m-%d})")
+    print(
+        f"wrote {len(written)} pages for {len(heroes)} heroes and {n_builds} builds "
+        f"to {args.out} ({stated}; window from {ingest.PATCH_START:%Y-%m-%d})"
+    )
     return 0
 
 

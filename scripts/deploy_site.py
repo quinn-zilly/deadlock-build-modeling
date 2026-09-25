@@ -37,7 +37,7 @@ WORKFLOW = "pages.yml"
 URL = "https://quinn-zilly.github.io/deadlock-build-modeling/"
 
 # Every page the site must have. A deploy missing one stops before pushing.
-REQUIRED = ("methodology.html",)
+REQUIRED = ("index.html", "methodology.html")
 
 
 def git(repo: Path, *args: str, env: dict[str, str] | None = None) -> str:

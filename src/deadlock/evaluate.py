@@ -99,6 +99,61 @@ def item_prevalence(df: pd.DataFrame) -> pd.Series:
     return (buyers / n_players).rename("prevalence").sort_values(ascending=False)
 
 
+
+# How many items each of the chooser's two columns shows. #21 measured that a
+# blended "3 common + 3 distinct" list fails, so it is six and six, labelled.
+CHOOSER_COLUMN_SIZE = 6
+
+
+@dataclass(frozen=True)
+class ColumnItem:
+    """One item in a chooser column: its rate here, and elsewhere if defining."""
+
+    item_id: int
+    rate: float
+    elsewhere: float | None = None
+
+
+@dataclass(frozen=True)
+class ItemColumns:
+    most_common: list[ColumnItem]
+    defining: list[ColumnItem]
+
+
+def item_columns(
+    cell: pd.DataFrame,
+    candidates: list[dict],
+    cap: int = CHOOSER_COLUMN_SIZE,
+) -> ItemColumns:
+    """The two item columns a chooser card shows for one archetype.
+
+    "Most common" is the cell's prevalence, highest first. "Defining" ranks
+    the fit's candidate items (`top_items` in the archetype metadata, each with
+    `in_cluster` and `elsewhere` rates) by the gap between the two rates, so an
+    item every archetype buys can't top it just by being popular. Both are cut
+    to `cap` and never padded.
+    """
+    prevalence = item_prevalence(cell).head(cap)
+    ranked = sorted(
+        candidates,
+        key=lambda c: float(c["in_cluster"]) - float(c["elsewhere"]),
+        reverse=True,
+    )[:cap]
+    return ItemColumns(
+        most_common=[
+            ColumnItem(item_id=int(i), rate=float(v)) for i, v in prevalence.items()
+        ],
+        defining=[
+            ColumnItem(
+                item_id=int(c["item_id"]),
+                rate=float(c["in_cluster"]),
+                elsewhere=float(c["elsewhere"]),
+            )
+            for c in ranked
+        ],
+    )
+
+
 def prevalence_gate(
     build_item_ids: list[int] | set[int],
     df: pd.DataFrame,

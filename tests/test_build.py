@@ -459,3 +459,41 @@ class TestAgainstRealData:
         is_component = frame["item_id"].isin(components)
         assert frame.loc[is_component, "sold"].mean() > 0.6
         assert frame.loc[~is_component, "sold"].mean() < 0.15
+
+
+class TestAbsorbedInto:
+    """Which later purchase absorbed each component, for "builds into"."""
+
+    def item(self, item_id: int, position: int, sold: float | None = None):
+        from deadlock.buildfmt import BuildItem
+
+        return BuildItem(
+            item_id=item_id,
+            name=f"item {item_id}",
+            cost=500,
+            position=position,
+            buy_time_s=100.0 * (position + 1),
+            probability=0.5,
+            n=10,
+            backoff_level="L0",
+            sell_time_s=sold,
+        )
+
+    def test_names_the_purchase_that_absorbed_it(self):
+        from deadlock.buildfmt import Build
+
+        generated = Build(
+            hero_id=1,
+            hero_name="Hero",
+            items=[self.item(1, 0, sold=300.0), self.item(2, 1), self.item(3, 2)],
+        )
+        into = build.absorbed_into(generated)
+        assert into[0].item_id == 3
+
+    def test_a_held_item_builds_into_nothing(self):
+        from deadlock.buildfmt import Build
+
+        generated = Build(
+            hero_id=1, hero_name="Hero", items=[self.item(1, 0), self.item(2, 1)]
+        )
+        assert build.absorbed_into(generated) == {}
