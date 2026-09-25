@@ -149,6 +149,11 @@ def describe_badge(badge: float | None) -> str:
     return "all badges" if badge is None else f"badge ~{badge:g}"
 
 
+def badge_tier(badge: float) -> int:
+    """The rank tier a badge falls in: its tens digit, so 83 is tier 8."""
+    return int(badge) // 10
+
+
 def badge_tier_name(
     badge: float, ranks: dict[int, assets.Rank] | None = None
 ) -> str:
@@ -158,7 +163,7 @@ def badge_tier_name(
     CLI output. Raises KeyError for a badge above the top tier.
     """
     ranks = assets.load_ranks() if ranks is None else ranks
-    return ranks[int(badge) // 10].name
+    return ranks[badge_tier(badge)].name
 
 
 def bracket_share(frame: pd.DataFrame, badge: float) -> float:
@@ -171,7 +176,7 @@ def bracket_share(frame: pd.DataFrame, badge: float) -> float:
     """
     player_matches = frame.drop_duplicates(["match_id", "player_slot"])
     badges = pd.to_numeric(player_matches["average_badge"], errors="coerce").dropna()
-    floor = int(badge) // 10 * 10
+    floor = badge_tier(badge) * 10
     return float((badges >= floor).mean())
 
 

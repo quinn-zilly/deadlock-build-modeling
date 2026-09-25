@@ -185,7 +185,7 @@ Timings from 2026-09-15, over 125 cached pages and 24,999 matches:
 | `archetypes` | the fit, labels and review sheet | 53s |
 | `builds` | 80 builds, and the staple check | 27s |
 | `site` | `builds.html`, the review page | 14s |
-| `pages` | `public/methodology.html` (2026-09-25) | 2s |
+| `pages` | `data/site/public/methodology.html` (2026-09-25) | 2s |
 
 About 12 minutes in total. The first three steps reread the cached JSON and
 take 87% of that. Everything after them takes under two minutes, so use

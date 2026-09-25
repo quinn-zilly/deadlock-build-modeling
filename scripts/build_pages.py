@@ -27,7 +27,7 @@ from deadlock import cli, ingest, pages, sequence  # noqa: E402
 DEFAULT_OUT = Path("data/site/public")
 
 
-def bracket(badge: float | None) -> pages.Bracket | None:
+def measure_bracket(badge: float | None) -> pages.Bracket | None:
     """The tier name and measured share for a badge, or None for no weighting."""
     if badge is None:
         return None
@@ -61,7 +61,7 @@ def main() -> int:
     args = parser.parse_args()
 
     badge = sequence.parse_target_badge(args.badge)
-    facts = bracket(badge)
+    facts = measure_bracket(badge)
     html = pages.methodology(
         bracket=facts, window_start=ingest.PATCH_START.date()
     )

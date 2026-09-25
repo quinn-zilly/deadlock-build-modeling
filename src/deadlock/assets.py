@@ -63,7 +63,7 @@ class Rank:
 def parse_ranks(raw: list[dict[str, Any]]) -> dict[int, Rank]:
     """Rank tiers keyed by tier number, from a /v1/assets/ranks payload."""
     return {
-        int(entry["tier"]): Rank(tier=int(entry["tier"]), name=entry.get("name", ""))
+        int(entry["tier"]): Rank(tier=int(entry["tier"]), name=entry["name"])
         for entry in raw
     }
 

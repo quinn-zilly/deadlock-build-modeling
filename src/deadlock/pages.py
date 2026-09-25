@@ -33,7 +33,6 @@ def methodology(
     *,
     bracket: Bracket | None,
     window_start: dt.date,
-    repo_url: str = REPO_URL,
 ) -> str:
     """The page that says where the builds come from and what they claim.
 
@@ -42,6 +41,9 @@ def methodology(
     count, or split figure: those describe the model, and the reader is asking
     about the build. The repo link is where those live.
     """
+    # Unweighted builds imitate every ranked player, so the page must not
+    # call them strong players anywhere.
+    players = "ranked players" if bracket is None else "strong players"
     if bracket is None:
         skill = (
             "These builds weight every ranked match equally, so they imitate "
@@ -58,8 +60,8 @@ def methodology(
             "so they imitate strong play rather than average play."
         )
     window = f"{window_start.day} {window_start:%B %Y}"
-    repo = escape(repo_url, quote=True)
-    repo_label = escape(repo_url.removeprefix("https://"))
+    repo = escape(REPO_URL, quote=True)
+    repo_label = escape(REPO_URL.removeprefix("https://"))
 
     return f"""<!doctype html>
 <html lang="en">
@@ -91,25 +93,25 @@ they do not claim.</p>
 
 <section>
 <h2>What this is</h2>
-<p>Each build here is what strong players of a hero actually buy, pooled
+<p>Each build here is what {players} of a hero actually buy, pooled
 across many players and many matches, and worked out separately for each way
 the hero gets played.</p>
 <p>A community build guide is one strong player's opinion about how to play a
 hero. That is worth a lot: a guide can explain its reasoning and try things
 nobody else has. It is also one opinion, and it can't tell you whether the
 hero's other good players agree. These builds answer that question: where do
-a hero's strong players, taken together, converge? Read a guide for the
+a hero's {players}, taken together, converge? Read a guide for the
 reasoning and these builds for the consensus. Neither replaces the other.</p>
 </section>
 
 <section>
 <h2>We model the order</h2>
 <p>Most Deadlock stats sites show which items win. This one shows the order
-strong players buy them in: what comes first, what follows it, and roughly
+{players} buy them in: what comes first, what follows it, and roughly
 when.</p>
 <p>It never claims that an item causes a win. A late item with a high win rate
 may be strong, or it may only be what players who are already ahead can
-afford. The builds claim one thing: strong players buy these items, in this
+afford. The builds claim one thing: {players} buy these items, in this
 order.</p>
 </section>
 
@@ -117,13 +119,13 @@ order.</p>
 <h2>Archetypes</h2>
 <p>Some heroes are played in more than one way, and an average of those ways
 is a build nobody plays. Ivy is the clearest case. Some Ivy players build
-around her gun and others around her spirit damage, and the two builds share
+around her gun and others around her spirit damage, and those builds share
 few items. So each hero's players are grouped by what they buy, and each
 group, an archetype, gets its own build.</p>
-<p>A hero is split only where the evidence is there. When its players don't
-separate into clearly different builds, the hero keeps one. A single build
-means the hero's strong players broadly agree, not that the work is
-unfinished.</p>
+<p>A hero is split only where the evidence is there: a second build has to be
+clearly different and common enough to learn from. When no second build
+clears that bar, the hero keeps one. A single build is the method declining to
+guess, not unfinished work.</p>
 </section>
 
 <section>

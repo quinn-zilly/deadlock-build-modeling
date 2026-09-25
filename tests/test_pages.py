@@ -128,6 +128,11 @@ class TestSkillLevel:
         assert "Oracle" not in text
         assert "%" not in text
 
+    def test_unweighted_builds_are_not_called_strong_play(self):
+        text = visible_text(page(bracket=None)).lower()
+        assert "strong players" not in text
+        assert "strong play " not in text
+
 
 class TestDataWindow:
     def test_states_the_window_it_was_given(self):
