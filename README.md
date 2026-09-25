@@ -185,7 +185,7 @@ Timings from 2026-09-15, over 125 cached pages and 24,999 matches:
 | `archetypes` | the fit, labels and review sheet | 53s |
 | `builds` | 80 builds, and the staple check | 27s |
 | `site` | `builds.html`, the review page | 14s |
-| `pages` | `data/site/public/methodology.html` (2026-09-25) | 2s |
+| `pages` | the public site in `data/site/public/` (2026-09-25) | 15s |
 
 About 12 minutes in total. The first three steps reread the cached JSON and
 take 87% of that. Everything after them takes under two minutes, so use
@@ -204,6 +204,12 @@ Publish it by hand after a refit:
 python scripts/deploy_site.py              # build, push, and start the deploy
 python scripts/deploy_site.py --no-push    # build and commit locally only
 ```
+
+The site has a home page listing every hero, a page per hero, and a page per
+build. A hero with two or more archetypes gets a chooser that compares them
+side by side and links to each build. A hero with one archetype's page is its
+build. `scripts/build_pages.py` writes all of it, and writes nothing if any
+build fails the staple check.
 
 The pages are built from `data/`, which git ignores, so CI can't build them.
 The script builds them locally and commits the output to the `site` branch,
@@ -284,8 +290,9 @@ patch that changes one fails loudly:
 | `src/deadlock/imbue.py` | Which ability each imbued item targets |
 | `src/deadlock/buildfmt.py` | Build format and in-game export |
 | `src/deadlock/cli.py` | The `deadlock` command |
-| `src/deadlock/pages.py` | The public site's pages, starting with the methodology page |
-| `scripts/build_pages.py` | Writes the public pages from the model's facts |
+| `src/deadlock/pages.py` | The public site's pages: home, hero choosers, builds, methodology |
+| `src/deadlock/tooltips.py` | Item tooltips from the game's own tooltip data, sanitized |
+| `scripts/build_pages.py` | Writes the public site; stops if a build fails the staple check |
 | `scripts/deploy_site.py` | Publishes the public pages to GitHub Pages |
 | `scripts/refit.py` | Rebuilds every derived file in order |
 | `tests/` | Unit tests, plus `data` tests that run against the real tables |
