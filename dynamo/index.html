@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How the builds are made</title>
-<meta name="description" content="Where these Deadlock builds come from, whose play they imitate, and what they do not claim.">
+<title>Dynamo builds</title>
+<meta name="description" content="The ways Dynamo is built in Deadlock, side by side.">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;700;800&amp;family=Sora:wght@300;400;500;600&amp;display=swap">
 <style>
@@ -272,73 +272,95 @@ ul.lines .num { color: var(--muted); font-size: 13px; }
 </style>
 </head>
 <body>
-<nav class="site"><a href="index.html">Deadlock builds</a>
-<a href="methodology.html">How the builds are made</a></nav>
-<main class="prose">
-<h1>How the builds are made</h1>
-<p class="lede">Where these builds come from, whose play they imitate, and what
-they do not claim.</p>
-
-<section>
-<h2>What this is</h2>
-<p>Each build here is what strong players of a hero actually buy, pooled
-across many players and many matches, and worked out separately for each way
-the hero gets played.</p>
-<p>A community build guide is one strong player's opinion about how to play a
-hero. That is worth a lot: a guide can explain its reasoning and try things
-nobody else has. It is also one opinion, and it can't tell you whether the
-hero's other good players agree. These builds answer that question: where do
-a hero's strong players, taken together, converge? Read a guide for the
-reasoning and these builds for the consensus. Neither replaces the other.</p>
-</section>
-
-<section>
-<h2>We model the order</h2>
-<p>Most Deadlock stats sites show which items win. This one shows the order
-strong players buy them in: what comes first, what follows it, and roughly
-when.</p>
-<p>It never claims that an item causes a win. A late item with a high win rate
-may be strong, or it may only be what players who are already ahead can
-afford. The builds claim one thing: strong players buy these items, in this
-order.</p>
-</section>
-
-<section>
-<h2>Archetypes</h2>
-<p>Some heroes are played in more than one way, and an average of those ways
-is a build nobody plays. Ivy is the clearest case. Some Ivy players build
-around her gun and others around her spirit damage, and those builds share
-few items. So each hero's players are grouped by what they buy, and each
-group, an archetype, gets its own build.</p>
-<p>A hero is split only where the evidence is there: a second build has to be
-clearly different and common enough to learn from. When no second build
-clears that bar, the hero keeps one. A single build is the method declining to
-guess, not unfinished work.</p>
-</section>
-
-<section>
-<h2>Skill level</h2>
-<p>The builds are weighted toward Oracle and above, roughly the top 30% of players, so they imitate strong play rather than average play.</p>
-</section>
-
-<section>
-<h2>Data window and patches</h2>
-<p>The builds come from ranked matches played since the 22 August 2026 balance
-patch.</p>
-<p>New matches are pulled and the builds refitted as a deliberate step, not on
-a timer, so that each set of builds comes from one patch. A patch can age a
-build: if an item has changed since 22 August 2026, the build shows how players
-used it before the change. If the game has patched since then, treat a build
-as a starting point.</p>
-</section>
-
-<section>
-<h2>The fine print</h2>
-<p>A build's win rate is the win rate of the matches the model placed in that
-archetype: how those players did, not a prediction of how you will. The
-model, the data, and the decisions behind them are public at
-<a href="https://github.com/quinn-zilly/deadlock-build-modeling">github.com/quinn-zilly/deadlock-build-modeling</a>.</p>
-</section>
+<nav class="site"><a href="../index.html">Deadlock builds</a>
+<a href="../methodology.html">How the builds are made</a></nav>
+<main class="wide">
+<header class="mast">
+<img class="portrait" src="../assets/heroes/11.png" alt="">
+<div>
+<p class="kicker">Deadlock builds</p>
+<h1>Dynamo</h1>
+<p class="who">Dynamo's players split 2 ways. Compare what each build buys and pick the one that matches how you play.</p>
+<p class="prov">Ranked matches, weighted toward Oracle and above, played since 22 August 2026. <a href="../methodology.html">How the builds are made</a></p>
+</div>
+</header>
+<div class="chooser">
+<article class="card">
+<a class="cardlink" href="hybrid-gun-dynamo/index.html"><h2>Hybrid-Gun Dynamo</h2></a>
+<div class="stats">
+<div class="stat"><b>50.1%</b><span>win rate</span></div>
+<div class="stat"><b>3,607</b><span>matches</span></div>
+<div class="stat"><b>42%</b><span>of Dynamo players</span></div>
+</div>
+<div class="itemcol"><h3>Most common</h3><ul><li class="">
+<img src="../assets/items/3776945997.png" alt="">
+<span class="nm">Extra Charge</span><span class="pc">88%</span></li><li class="uniq">
+<img src="../assets/items/787198704.png" alt="">
+<span class="nm">Rapid Recharge<span class="sr"> (only in this build)</span></span><span class="pc">71%</span></li><li class="">
+<img src="../assets/items/754480263.png" alt="">
+<span class="nm">Mystic Expansion</span><span class="pc">70%</span></li><li class="uniq">
+<img src="../assets/items/1763073141.png" alt="">
+<span class="nm">Recharging Rush<span class="sr"> (only in this build)</span></span><span class="pc">62%</span></li><li class="uniq">
+<img src="../assets/items/3399065363.png" alt="">
+<span class="nm">Sprint Boots<span class="sr"> (only in this build)</span></span><span class="pc">61%</span></li><li class="uniq">
+<img src="../assets/items/2829638276.png" alt="">
+<span class="nm">Extra Regen<span class="sr"> (only in this build)</span></span><span class="pc">59%</span></li></ul></div>
+<div class="itemcol"><h3>Defining</h3><ul><li class="uniq">
+<img src="../assets/items/2447176615.png" alt="">
+<span class="nm">Enduring Speed<span class="sr"> (only in this build)</span></span><span class="pc">52% · 16% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/1763073141.png" alt="">
+<span class="nm">Recharging Rush<span class="sr"> (only in this build)</span></span><span class="pc">62% · 37% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/3577481646.png" alt="">
+<span class="nm">Mystic Reverb<span class="sr"> (only in this build)</span></span><span class="pc">30% · 8% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/968099481.png" alt="">
+<span class="nm">Extra Spirit<span class="sr"> (only in this build)</span></span><span class="pc">42% · 20% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/3919289022.png" alt="">
+<span class="nm">Mercurial Magnum<span class="sr"> (only in this build)</span></span><span class="pc">20% · 0% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/4104549924.png" alt="">
+<span class="nm">Swift Striker<span class="sr"> (only in this build)</span></span><span class="pc">19% · 1% elsewhere</span></li></ul></div>
+<div class="cardfoot"><p class="imbue">Imbue <b>Mystic Expansion</b> into <b>Kinetic Pulse</b></p>
+<a class="go" href="hybrid-gun-dynamo/index.html">See the full build</a></div>
+</article><article class="card">
+<a class="cardlink" href="dynamo/index.html"><h2>Dynamo</h2></a>
+<div class="stats">
+<div class="stat"><b>54.4%</b><span>win rate</span></div>
+<div class="stat"><b>4,901</b><span>matches</span></div>
+<div class="stat"><b>58%</b><span>of Dynamo players</span></div>
+</div>
+<div class="itemcol"><h3>Most common</h3><ul><li class="">
+<img src="../assets/items/754480263.png" alt="">
+<span class="nm">Mystic Expansion</span><span class="pc">88%</span></li><li class="uniq">
+<img src="../assets/items/677738769.png" alt="">
+<span class="nm">Refresher<span class="sr"> (only in this build)</span></span><span class="pc">81%</span></li><li class="">
+<img src="../assets/items/3776945997.png" alt="">
+<span class="nm">Extra Charge</span><span class="pc">78%</span></li><li class="uniq">
+<img src="../assets/items/1193964439.png" alt="">
+<span class="nm">Greater Expansion<span class="sr"> (only in this build)</span></span><span class="pc">73%</span></li><li class="uniq">
+<img src="../assets/items/380806748.png" alt="">
+<span class="nm">Compress Cooldown<span class="sr"> (only in this build)</span></span><span class="pc">70%</span></li><li class="uniq">
+<img src="../assets/items/3270001687.png" alt="">
+<span class="nm">Warp Stone<span class="sr"> (only in this build)</span></span><span class="pc">68%</span></li></ul></div>
+<div class="itemcol"><h3>Defining</h3><ul><li class="uniq">
+<img src="../assets/items/677738769.png" alt="">
+<span class="nm">Refresher<span class="sr"> (only in this build)</span></span><span class="pc">81% · 13% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/3270001687.png" alt="">
+<span class="nm">Warp Stone<span class="sr"> (only in this build)</span></span><span class="pc">68% · 19% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/3357231760.png" alt="">
+<span class="nm">Unstoppable<span class="sr"> (only in this build)</span></span><span class="pc">56% · 9% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/2951612397.png" alt="">
+<span class="nm">Duration Extender<span class="sr"> (only in this build)</span></span><span class="pc">67% · 30% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/2717651715.png" alt="">
+<span class="nm">Superior Duration<span class="sr"> (only in this build)</span></span><span class="pc">61% · 28% elsewhere</span></li><li class="uniq">
+<img src="../assets/items/1047818222.png" alt="">
+<span class="nm">Debuff Reducer<span class="sr"> (only in this build)</span></span><span class="pc">43% · 10% elsewhere</span></li></ul></div>
+<div class="cardfoot"><p class="imbue">Imbue <b>Mystic Expansion</b> into <b>Singularity</b></p>
+<a class="go" href="dynamo/index.html">See the full build</a></div>
+</article>
+</div>
+<p class="legend"><span class="swatch"></span>Highlighted items are in that column
+for one Dynamo build and none of the others. Defining items are the ones
+with the biggest gap between how often this build buys them and how often
+Dynamo's other builds do. The second rate is the other builds' mean.</p>
 </main>
 </body>
 </html>

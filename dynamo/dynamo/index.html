@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dynamo build</title>
+<meta name="description" content="What strong players buy for Dynamo, in order.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;700;800&amp;family=Sora:wght@300;400;500;600&amp;display=swap">
+<style>
+:root {
+  --ground: #14171A; --surface: #1B1F23; --raised: #232830;
+  --edge: #2E343C; --edge-soft: #252A31;
+  --oxblood: #7A2233; --oxblood-lit: #A63449;
+  --brass: #C9973F; --brass-lit: #E3B663;
+  --verdigris: #4E8C7D; --verdigris-lit: #6FB3A2;
+  --text: #E9E2D4; --muted: #9C9484; --faint: #6E6759;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--text);
+  font-family: Sora, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px; line-height: 1.6; font-weight: 300;
+  font-variant-numeric: tabular-nums;
+}
+h1, h2, h3 {
+  font-family: "Alegreya Sans SC", Sora, sans-serif;
+  margin: 0; line-height: 1.05; font-weight: 800;
+}
+a { color: var(--brass-lit); }
+:focus-visible { outline: 2px solid var(--brass-lit); outline-offset: 2px; }
+
+/* A page of reading: one column, nameplate heading, brass section titles. */
+.prose { max-width: 42rem; margin: 0 auto; padding: 44px 16px 72px; }
+.prose h1 {
+  font-size: clamp(32px, 5.4vw, 48px);
+  padding-bottom: 14px; border-bottom: 2px solid var(--oxblood);
+}
+.prose .lede { color: var(--muted); font-size: 16px; margin: 14px 0 8px; }
+.prose h2 {
+  font-size: 22px; color: var(--brass); letter-spacing: .02em;
+  margin: 38px 0 10px;
+}
+.prose p { margin: 0 0 14px; }
+.prose section:last-of-type {
+  margin-top: 40px; border-top: 1px solid var(--edge); padding-top: 6px;
+}
+.prose section:last-of-type p { color: var(--muted); font-size: 13.5px; }
+
+/* Site nav: the way home and to the methodology, on every page. */
+nav.site {
+  display: flex; gap: 20px; flex-wrap: wrap; padding: 12px 16px;
+  border-bottom: 1px solid var(--edge); background: var(--surface);
+  font-size: 13px;
+}
+nav.site a { color: var(--muted); text-decoration: none; }
+nav.site a:first-child { color: var(--text); font-weight: 500; }
+nav.site a:hover { color: var(--brass-lit); }
+
+/* The hero surface: home, chooser, build page. */
+.wide { max-width: 1120px; margin: 0 auto; padding: 0 16px 72px; }
+.mast {
+  display: flex; align-items: center; gap: 20px; padding: 30px 0 22px;
+  border-bottom: 2px solid var(--oxblood); margin-bottom: 8px;
+}
+.portrait {
+  width: 84px; height: 84px; flex: none; object-fit: cover;
+  object-position: center top; border: 1px solid var(--edge);
+  background: var(--raised);
+}
+.mast h1 { font-size: clamp(30px, 5.4vw, 46px); }
+.kicker {
+  margin: 0 0 6px; font-size: 12px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--brass);
+}
+.mast .lede, .who { color: var(--muted); margin: 8px 0 0; max-width: 60ch; }
+.prov { color: var(--faint); font-size: 12.5px; margin: 8px 0 0; }
+.note, .legend { color: var(--faint); font-size: 12.5px; margin: 6px 0 12px; }
+.sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+.heroes {
+  list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.hero {
+  display: grid; grid-template-columns: 48px 1fr; gap: 0 12px;
+  align-items: center; padding: 10px; text-decoration: none; color: var(--text);
+  background: var(--surface); border: 1px solid var(--edge);
+}
+.hero:hover { border-color: var(--brass); }
+.hero img {
+  grid-row: 1 / 3; width: 48px; height: 48px; object-fit: cover;
+  object-position: center top; background: var(--raised);
+}
+.hero .nm { font-weight: 500; }
+.hero .sub { font-size: 12px; color: var(--faint); }
+
+.chooser {
+  display: grid; gap: 16px; margin-top: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+}
+.card {
+  display: flex; flex-direction: column; background: var(--surface);
+  border: 1px solid var(--edge);
+}
+.cardlink { display: block; padding: 16px 16px 0; color: inherit; text-decoration: none; }
+.cardlink:hover h2 { color: var(--brass-lit); }
+.card h2 { font-size: 24px; }
+.stats { display: flex; flex-wrap: wrap; gap: 18px; padding: 10px 16px 14px; }
+.stat { display: flex; flex-direction: column; }
+.stat b { font-size: 18px; font-weight: 500; color: var(--brass); }
+.stat span { font-size: 11px; color: var(--faint); }
+.itemcol { padding: 12px 16px 6px; border-top: 1px solid var(--edge-soft); }
+.itemcol h3 {
+  font-family: Sora, sans-serif; font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--faint);
+  margin-bottom: 6px;
+}
+.itemcol ul { list-style: none; margin: 0; padding: 0; }
+.itemcol li {
+  display: grid; grid-template-columns: 26px 1fr auto; gap: 9px;
+  align-items: center; padding: 3px 0; font-size: 13.5px;
+}
+.itemcol img { width: 26px; height: 26px; background: var(--raised); }
+.itemcol .pc { font-size: 12px; color: var(--faint); text-align: right; }
+.itemcol li.uniq {
+  background: linear-gradient(90deg, rgba(122, 34, 51, .45), transparent 75%);
+  margin: 0 -16px; padding-left: 16px; padding-right: 16px;
+}
+.itemcol li.uniq .nm { font-weight: 500; }
+.itemcol li.uniq { box-shadow: inset 3px 0 0 var(--oxblood-lit); }
+.cardfoot { margin-top: auto; padding: 12px 16px 16px; }
+.imbue { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
+.imbue b { color: var(--text); font-weight: 500; }
+.go {
+  display: block; text-align: center; padding: 10px; font-weight: 500;
+  background: var(--oxblood); color: #F6EFE2; text-decoration: none;
+}
+.go:hover { background: var(--oxblood-lit); }
+.legend .swatch {
+  display: inline-block; width: 20px; height: 9px; margin-right: 6px;
+  background: linear-gradient(90deg, rgba(122, 34, 51, .8), transparent);
+}
+
+.bands {
+  display: grid; gap: 0 22px; margin-top: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+.band h2 {
+  font-size: 21px; color: var(--brass); padding-bottom: 6px;
+  border-bottom: 2px solid var(--oxblood);
+}
+details.buy { border-bottom: 1px solid var(--edge-soft); }
+details.buy summary {
+  display: grid; grid-template-columns: 18px 40px 1fr auto; gap: 10px;
+  align-items: center; min-height: 51px; padding: 5px 2px; cursor: pointer;
+  list-style: none;
+}
+details.buy summary::-webkit-details-marker { display: none; }
+details.buy summary:hover { background: var(--surface); }
+.ix { font-size: 11.5px; color: var(--faint); }
+.ico {
+  width: 40px; height: 40px; object-fit: contain; padding: 2px;
+  border: 1px solid var(--edge); background: var(--raised);
+}
+/* One line each, so a closed row keeps its height (#23): a long name or
+   subline is cut with an ellipsis, and the disclosure has the rest. */
+.txt { min-width: 0; }
+.txt .nm, .txt .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.txt .nm { display: block; font-size: 14.5px; font-weight: 400; line-height: 1.3; }
+.txt .sub { display: block; font-size: 11.5px; color: var(--verdigris-lit); }
+.txt .sub.stat { color: var(--muted); }
+
+/* The game's tooltip, in the disclosure and in the hover tooltip. */
+.facts .tsec + .tsec { border-top: 1px solid var(--edge-soft); margin-top: 8px; padding-top: 8px; }
+.kind {
+  margin: 0 0 2px; font-size: 10.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--brass);
+}
+.tprose { margin: 0 0 6px; color: var(--muted); }
+.tprose .highlight { color: var(--text); font-weight: 400; }
+.tprose .diminish { color: var(--faint); }
+.tprose svg, .tprose img { width: 1em; height: 1em; vertical-align: -.12em; fill: currentColor; }
+.conds { margin: 0 0 6px; color: var(--text); }
+dl.tstats {
+  display: grid; grid-template-columns: 1fr auto; gap: 1px 14px;
+  margin: 0 0 6px; font-size: 12.5px;
+}
+dl.tstats dt { color: var(--faint); }
+dl.tstats dd { margin: 0; color: var(--brass); font-weight: 500; text-align: right; }
+.uptake { margin: 6px 0 0; }
+.tip {
+  position: fixed; z-index: 60; max-width: 340px; padding: 12px 14px;
+  background: #0F1215; border: 1px solid var(--edge);
+  border-left: 3px solid var(--brass); box-shadow: 0 10px 34px rgba(0, 0, 0, .6);
+  font-size: 13px; line-height: 1.5; color: var(--text);
+}
+.tip[hidden] { display: none; }
+.tip h4 {
+  margin: 0 0 2px; font-family: "Alegreya Sans SC", Sora, sans-serif;
+  font-size: 18px; font-weight: 700; color: var(--brass-lit);
+}
+.tip .tcost { margin: 0 0 8px; font-size: 12px; color: var(--faint); }
+.cost { font-size: 13px; color: var(--muted); }
+.detail { padding: 0 2px 12px 70px; font-size: 13px; color: var(--muted); }
+.detail p { margin: 0; }
+.icowrap { position: relative; width: 40px; height: 40px; }
+.badge {
+  position: absolute; right: -6px; bottom: -5px; width: 20px; height: 20px;
+  border-radius: 50%; border: 1.5px solid var(--verdigris-lit);
+  background: #000; object-fit: cover;
+}
+.imbuebox {
+  display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 10px;
+  padding: 7px 10px; border-left: 2px solid var(--verdigris-lit);
+  background: rgba(111, 179, 162, .08);
+}
+.imbuebox img { width: 28px; height: 28px; border-radius: 50%; flex: none; background: #000; }
+.imbuebox b { color: var(--text); font-weight: 500; }
+.imbuebox .why { display: block; font-size: 12px; color: var(--faint); margin-top: 2px; }
+
+.sec { margin-top: 36px; border-top: 1px solid var(--edge); padding-top: 18px; }
+.sec h2 { font-size: 22px; color: var(--brass); }
+.sec h3 {
+  font-family: Sora, sans-serif; font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--faint);
+  margin: 6px 0;
+}
+.copygrid {
+  display: grid; gap: 8px 32px; background: var(--surface);
+  border: 1px solid var(--edge); padding: 12px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+ol.copy { margin: 0; padding-left: 26px; font-size: 14px; }
+.track {
+  position: relative; overflow-x: auto;
+  background: var(--surface); border: 1px solid var(--edge);
+}
+.track table { border-collapse: collapse; }
+.track th {
+  display: flex; align-items: center; gap: 10px; min-width: 190px;
+  padding: 4px 12px 4px 4px; font-weight: 400; text-align: left;
+}
+.track th img { width: 36px; height: 36px; background: var(--raised); }
+.track td {
+  width: 28px; min-width: 28px; height: 28px; text-align: center;
+  font-size: 12px; border-left: 1px solid var(--edge-soft);
+}
+.track td.on { color: var(--ground); background: var(--verdigris-lit); font-weight: 600; }
+.track td.unlock { background: var(--brass-lit); }
+.track tr.nums th {
+  font-size: 11px; font-weight: 400; color: var(--faint); text-align: center;
+  display: table-cell; min-width: 0; padding: 4px 0;
+}
+.track tr + tr { border-top: 1px solid var(--edge-soft); }
+ul.lines { list-style: none; margin: 8px 0 0; padding: 0; }
+ul.lines li {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px;
+  padding: 9px 0; border-bottom: 1px solid var(--edge-soft);
+}
+ul.lines b { font-weight: 500; }
+ul.lines .num { color: var(--muted); font-size: 13px; }
+
+@media (max-width: 600px) {
+  .mast { align-items: flex-start; }
+  .portrait { width: 60px; height: 60px; }
+}
+</style>
+</head>
+<body>
+<nav class="site"><a href="../../index.html">Deadlock builds</a>
+<a href="../../methodology.html">How the builds are made</a></nav>
+<main class="wide">
+<header class="mast">
+<img class="portrait" src="../../assets/heroes/11.png" alt="">
+<div>
+<p class="kicker">Dynamo build</p>
+<h1>Dynamo</h1>
+<p class="who">58% of Dynamo players · <a href="../index.html">All Dynamo builds</a></p>
+<p class="prov">4,901 matches, weighted toward Oracle and above, played since 22 August 2026. <a href="../../methodology.html">How the builds are made</a></p>
+</div>
+</header>
+<section class="purchases">
+<h2 class="sr">Purchase order</h2>
+<div class="bands"><section class="band"><h2>Laning, 0–10 min</h2><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">1</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/2010028405.png" alt=""></span>
+<span class="txt"><span class="nm">Headshot Booster</span><span class="sub">builds into Headhunter</span></span>
+<span class="cost">800</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Headshot Booster</h4><p class="tcost">800 souls · builds into Headhunter</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Bonus Health</dt><dd>+30</dd></dl></div><div class="tsec"><p class="kind">Passive</p><p class="tprose">Your next <span class="highlight">headshot</span> against an enemy Hero deals <svg width="128" height="128" viewBox="0 0 128 128" fill="white" xmlns="http://www.w3.org/2000/svg">
+<path d="M32.0027 9C40.8042 9 48.6533 13.3022 53.7875 20.0238H53.7766C57.1324 24.4142 58.5664 26.6091 59.9993 26.6084C61.4318 26.6078 62.8632 24.4129 66.2125 20.0238C71.3467 13.3022 79.1958 9 87.9973 9C103.466 9 116 22.2789 116 38.6558C116 38.7707 115.999 38.8854 115.998 39H4.00155C4.00052 38.8854 4 38.7707 4 38.6558C4 22.2789 16.5345 9 32.0027 9Z" fill="white"/>
+<path d="M24.5608 79C27.3761 82.0873 30.3317 85.1748 33.3264 88.303C41.7966 97.1509 50.5788 106.325 57.3782 116.742C58.8889 119.051 61.1111 119.051 62.6218 116.742C69.4174 106.328 78.1987 97.1556 86.6692 88.3073C89.6652 85.1778 92.6222 82.0889 95.4388 79H24.5608Z" fill="white"/>
+<path d="M123 59.0055C123 59.0055 117.403 49 100.88 49H75V69H100.88C117.413 69 123 58.9945 123 58.9945V59.0055Z" fill="white"/>
+<path d="M67 57C68.1046 57 69 57.8954 69 59C69 60.1046 68.1046 61 67 61H7C5.89543 61 5 60.1046 5 59C5 57.8954 5.89543 57 7 57H67Z" fill="white"/>
+</svg>
+<span class="inline-attribute-label BonusWeaponDamage">bonus weapon damage</span>.</p><dl class="tstats"><dt>Head Shot Bonus Damage</dt><dd>+45</dd><dt>Cooldown</dt><dd>9.0s</dd></dl></div></div><p class="uptake">Bought by
+45% of this build's players (2,195 of
+4,901), most often as purchase 1.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">2</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/3776945997.png" alt=""></span>
+<span class="txt"><span class="nm">Extra Charge</span><span class="sub">builds into Rapid Recharge</span></span>
+<span class="cost">800</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Extra Charge</h4><p class="tcost">800 souls · builds into Rapid Recharge</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Bonus Ability Charges</dt><dd>+1</dd><dt>Bonus Spirit Power for Charged Abilities</dt><dd>+7</dd></dl></div></div><p class="uptake">Bought by
+78% of this build's players (3,832 of
+4,901), most often as purchase 3.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">3</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/4053935515.png" alt=""></span>
+<span class="txt"><span class="nm">Headhunter</span><span class="sub stat">+75 Head Shot Bonus Damage</span></span>
+<span class="cost">3,200</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Headhunter</h4><p class="tcost">3,200 souls</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Weapon Damage</dt><dd>+5%</dd><dt>Bonus Health</dt><dd>+50</dd></dl></div><div class="tsec"><p class="kind">Passive</p><p class="tprose">Your next <span class="highlight">headshot</span> against an enemy Hero deals <svg width="128" height="128" viewBox="0 0 128 128" fill="white" xmlns="http://www.w3.org/2000/svg">
+<path d="M32.0027 9C40.8042 9 48.6533 13.3022 53.7875 20.0238H53.7766C57.1324 24.4142 58.5664 26.6091 59.9993 26.6084C61.4318 26.6078 62.8632 24.4129 66.2125 20.0238C71.3467 13.3022 79.1958 9 87.9973 9C103.466 9 116 22.2789 116 38.6558C116 38.7707 115.999 38.8854 115.998 39H4.00155C4.00052 38.8854 4 38.7707 4 38.6558C4 22.2789 16.5345 9 32.0027 9Z" fill="white"/>
+<path d="M24.5608 79C27.3761 82.0873 30.3317 85.1748 33.3264 88.303C41.7966 97.1509 50.5788 106.325 57.3782 116.742C58.8889 119.051 61.1111 119.051 62.6218 116.742C69.4174 106.328 78.1987 97.1556 86.6692 88.3073C89.6652 85.1778 92.6222 82.0889 95.4388 79H24.5608Z" fill="white"/>
+<path d="M123 59.0055C123 59.0055 117.403 49 100.88 49H75V69H100.88C117.413 69 123 58.9945 123 58.9945V59.0055Z" fill="white"/>
+<path d="M67 57C68.1046 57 69 57.8954 69 59C69 60.1046 68.1046 61 67 61H7C5.89543 61 5 60.1046 5 59C5 57.8954 5.89543 57 7 57H67Z" fill="white"/>
+</svg>
+<span class="inline-attribute-label BonusWeaponDamage">bonus weapon damage</span>, <svg width="128" height="128" viewBox="0 0 128 128" fill="#0F9" xmlns="http://www.w3.org/2000/svg">
+<path d="M92.0059 9C107.475 9.00022 120 22.237 120 38.6592C120 68.2957 85.5894 87.6846 66.6162 116.752C65.1163 119.062 62.8837 119.062 61.3838 116.752C42.4106 87.6846 8.00022 68.2957 8 38.6592C8 22.2808 20.5245 9.00022 35.9941 9C40.2312 9.02587 44.4049 10.0351 48.1855 11.9482C49.3884 12.5569 50.5406 13.2524 51.6343 14.0271C52.9137 14.9332 52.473 16.8509 51.0109 17.4168C37.5479 22.6271 28 35.6977 28 51C28 70.8823 44.1177 87 64 87C83.8823 87 100 70.8823 100 51C100 35.6974 90.4516 22.6267 76.9882 17.4167C75.5261 16.8509 75.0854 14.9333 76.3648 14.0273C77.4588 13.2526 78.6113 12.557 79.8145 11.9482C83.5951 10.0351 87.7688 9.02587 92.0059 9Z" fill="#0F9"/>
+<path d="M69 46H84V56H69V71H59V56H44V46H59V31H69V46Z" fill="#0F9"/>
+</svg>
+<span class="inline-attribute-label Heal" style="color: #0F9;">heal</span> you, and briefly grants <svg width="128" height="128" viewBox="0 0 128 128" fill="#0F9" xmlns="http://www.w3.org/2000/svg">
+<path d="M81.5143 72.4711L117.08 34.3552L68.8057 2L57.0343 31.8506L11 87.2257L34.7257 103.141L43.3657 96.9254L58.4286 118.989L83.2514 124.977L108.646 125L114.269 116.666L95.96 103.665L81.5143 72.4711Z" fill="#0F9"/>
+</svg>
+<span class="inline-attribute-label BonusMoveSpeed" style="color: #0F9;">bonus move speed</span>.</p><dl class="tstats"><dt>Head Shot Bonus Damage</dt><dd>+75</dd><dt>Heal Per Headshot</dt><dd>4%</dd><dt>Move Speed</dt><dd>+1.75m m</dd><dt>Move Speed Duration</dt><dd>3s</dd><dt>Cooldown</dt><dd>8s</dd></dl></div></div><p class="uptake">Bought by
+37% of this build's players (1,799 of
+4,901), most often as purchase 5.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">4</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/1763073141.png" alt=""></span>
+<span class="txt"><span class="nm">Recharging Rush</span><span class="sub stat">200 Damage Threshold</span></span>
+<span class="cost">1,600</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Recharging Rush</h4><p class="tcost">1,600 souls</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Max Ammo</dt><dd>+20%</dd><dt>Weapon Damage</dt><dd>+10%</dd></dl></div><div class="tsec"><p class="tprose">Dealing significant <svg width="128" height="128" viewBox="0 0 128 128" fill="white" xmlns="http://www.w3.org/2000/svg">
+<path d="M32.0027 9C40.8042 9 48.6533 13.3022 53.7875 20.0238H53.7766C57.1324 24.4142 58.5664 26.6091 59.9993 26.6084C61.4318 26.6078 62.8632 24.4129 66.2125 20.0238C71.3467 13.3022 79.1958 9 87.9973 9C103.466 9 116 22.2789 116 38.6558C116 38.7707 115.999 38.8854 115.998 39H4.00155C4.00052 38.8854 4 38.7707 4 38.6558C4 22.2789 16.5345 9 32.0027 9Z" fill="white"/>
+<path d="M24.5608 79C27.3761 82.0873 30.3317 85.1748 33.3264 88.303C41.7966 97.1509 50.5788 106.325 57.3782 116.742C58.8889 119.051 61.1111 119.051 62.6218 116.742C69.4174 106.328 78.1987 97.1556 86.6692 88.3073C89.6652 85.1778 92.6222 82.0889 95.4388 79H24.5608Z" fill="white"/>
+<path d="M123 59.0055C123 59.0055 117.403 49 100.88 49H75V69H100.88C117.413 69 123 58.9945 123 58.9945V59.0055Z" fill="white"/>
+<path d="M67 57C68.1046 57 69 57.8954 69 59C69 60.1046 68.1046 61 67 61H7C5.89543 61 5 60.1046 5 59C5 57.8954 5.89543 57 7 57H67Z" fill="white"/>
+</svg>
+<span class="inline-attribute-label WeaponDamage">weapon damage</span> replenishes a charge for <span class="highlight">each of your charged abilities</span>.</p><dl class="tstats"><dt>Damage Threshold</dt><dd>200</dd><dt>Cooldown</dt><dd>25s</dd><dt>Time Frame</dt><dd>3.5s</dd></dl></div></div><p class="uptake">Bought by
+37% of this build's players (1,814 of
+4,901), most often as purchase 7.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">5</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/4139877411.png" alt=""></span>
+<span class="txt"><span class="nm">Extra Stamina</span><span class="sub">builds into Arcane Surge</span></span>
+<span class="cost">800</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Extra Stamina</h4><p class="tcost">800 souls · builds into Arcane Surge</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Stamina</dt><dd>+1</dd><dt>Stamina Recovery</dt><dd>+12%</dd></dl></div></div><p class="uptake">Bought by
+38% of this build's players (1,841 of
+4,901), most often as purchase 4.</p></div></details></section><section class="band"><h2>Mid game, 10–20 min</h2><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">6</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/1150006784.png" alt=""></span>
+<span class="txt"><span class="nm">Arcane Surge</span><span class="sub stat">+12% Ability Range</span></span>
+<span class="cost">1,600</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Arcane Surge</h4><p class="tcost">1,600 souls</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Stamina</dt><dd>+1</dd><dt>Stamina Recovery</dt><dd>+12%</dd></dl></div><div class="tsec"><p class="kind">Passive</p><p class="tprose">After you <span class="highlight">Dash-Jump</span>, the <span class="highlight">next ability you use</span> within 7s will have bonus <span class="highlight">Range, Duration,</span> and <span class="highlight">Spirit Power</span>.</p><dl class="tstats"><dt>Ability Range</dt><dd>+12%</dd><dt>Ability Duration</dt><dd>+15%</dd><dt>Spirit Power</dt><dd>+20</dd><dt>Cast Window</dt><dd>7s</dd></dl></div></div><p class="uptake">Bought by
+46% of this build's players (2,278 of
+4,901), most often as purchase 6.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">7</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/787198704.png" alt=""></span>
+<span class="txt"><span class="nm">Rapid Recharge</span><span class="sub stat">+2 Bonus Ability Charges</span></span>
+<span class="cost">3,200</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Rapid Recharge</h4><p class="tcost">3,200 souls</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Bonus Ability Charges</dt><dd>+2</dd><dt>Faster Time Between Charges</dt><dd>+30%</dd><dt>Cooldown Reduction For Charged Abilities</dt><dd>+14%</dd><dt>Bonus Spirit Power for Charged Abilities</dt><dd>+14</dd></dl></div></div><p class="uptake">Bought by
+60% of this build's players (2,943 of
+4,901), most often as purchase 9.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">8</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/3970837787.png" alt=""></span>
+<span class="txt"><span class="nm">Enchanter&#x27;s Emblem</span><span class="sub stat">+15 Spirit Power</span></span>
+<span class="cost">1,600</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Enchanter&#x27;s Emblem</h4><p class="tcost">1,600 souls</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Spirit Resist</dt><dd>+18%</dd><dt>Out of Combat Regen</dt><dd>+2</dd></dl></div><div class="tsec"><p class="kind">Passive</p><p class="tprose">While you are <span class="highlight">above 65% health</span>, gain bonus <span class="highlight"><svg width="128" height="128" viewBox="0 0 128 128" fill="#CE90FF" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M66.2532 6.37122C65.2804 4.54292 62.7195 4.54293 61.7471 6.37122L44.1015 39.5393C43.7322 40.233 43.0786 40.7202 42.3208 40.8656L6.09636 47.8197C4.0996 48.2031 3.30824 50.6996 4.70387 52.2131L30.0227 79.6659C30.5523 80.2401 30.8021 81.0281 30.7029 81.8119L25.9605 119.278C25.6991 121.343 27.7709 122.886 29.6061 121.993L62.8996 105.792C63.5958 105.453 64.4041 105.453 65.1007 105.792L98.3941 121.993C100.229 122.886 102.301 121.343 102.039 119.278L97.2971 81.8119C97.198 81.0281 97.4478 80.2401 97.9775 79.6659L123.296 52.2131C124.692 50.6996 123.9 48.2031 121.904 47.8197L85.6794 40.8656C84.9216 40.7202 84.2676 40.233 83.8987 39.5393L66.2532 6.37122ZM61.591 25.1546C62.4149 22.8569 65.585 22.8569 66.4088 25.1546L74.0468 46.4571C74.0262 46.6577 74.0427 46.8669 74.1027 47.0765L80.7174 70.2705C81.0437 71.4137 82.4267 71.8103 83.2841 71.0064L89.8403 64.8601C90.2444 64.4812 90.4268 63.9135 90.3212 63.3625L88.2169 52.3689H105.054C107.473 52.3689 108.549 55.4865 106.667 57.0454L88.2542 72.3055C88.002 72.3447 87.7539 72.4484 87.5329 72.6233L68.8712 87.3875C67.9513 88.1151 68.0948 89.5801 69.1376 90.1057L77.1093 94.1261C77.6011 94.3739 78.1829 94.3413 78.6453 94.0398L87.1338 88.5041L91.7117 104.982C92.3741 107.366 89.7479 109.28 87.7692 107.856L65.4784 91.817C65.1775 91.6009 64.8427 91.4579 64.4968 91.3885L49.094 80.6881C48.1185 80.0104 46.79 80.6347 46.6536 81.8342L45.6334 90.8129C45.5701 91.3705 45.7949 91.9218 46.2268 92.2674L53.6701 98.2257L40.3621 107.852C38.3884 109.28 35.7592 107.376 36.4112 104.992L43.1392 80.3897C43.1792 80.3161 43.2113 80.236 43.2337 80.1503L49.1451 57.6041C49.3367 56.8737 48.7365 56.1808 48.0061 56.2894L38.1921 57.7505C37.809 57.8078 37.4899 58.0808 37.3666 58.4569L34.247 67.9728L21.4828 57.6794C19.5888 56.152 20.607 53.0327 23.0163 52.9813L48.6012 52.4376C48.6776 52.4473 48.7558 52.4511 48.835 52.4491L69.3532 51.9036C70.4695 51.8738 71.1996 50.6927 70.7491 49.6451L67.0293 40.995C66.7781 40.411 66.2149 40.0346 65.5925 40.0346H56.256L61.591 25.1546Z" fill="#CE90FF"/>
+</svg>
+<span class="inline-attribute-label Spirit" style="color: #CE90FF;">Spirit</span></span> and <span class="highlight">Cooldown Reduction</span>.</p><dl class="tstats"><dt>Spirit Power</dt><dd>+15</dd><dt>Ability Cooldown Reduction</dt><dd>+5%</dd></dl></div></div><p class="uptake">Bought by
+26% of this build's players (1,276 of
+4,901), most often as purchase 8.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">9</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/968099481.png" alt=""></span>
+<span class="txt"><span class="nm">Extra Spirit</span><span class="sub">builds into Improved Spirit</span></span>
+<span class="cost">800</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Extra Spirit</h4><p class="tcost">800 souls · builds into Improved Spirit</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Spirit Power</dt><dd>+10</dd></dl></div></div><p class="uptake">Bought by
+20% of this build's players (965 of
+4,901), most often as purchase 6.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">10</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/7409189.png" alt=""></span>
+<span class="txt"><span class="nm">Improved Spirit</span><span class="sub stat">+18 Spirit Power</span></span>
+<span class="cost">1,600</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Improved Spirit</h4><p class="tcost">1,600 souls</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Spirit Power</dt><dd>+18</dd><dt>Out of Combat Regen</dt><dd>+1.5</dd></dl></div></div><p class="uptake">Bought by
+19% of this build's players (951 of
+4,901), most often as purchase 9.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">11</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/1998374645.png" alt=""></span>
+<span class="txt"><span class="nm">Mystic Burst</span><span class="sub">builds into Tankbuster</span></span>
+<span class="cost">800</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Mystic Burst</h4><p class="tcost">800 souls · builds into Tankbuster</p></div><div class="facts"><div class="tsec"><p class="kind">Passive</p><p class="tprose">Charges up over time with <svg width="128" height="128" viewBox="0 0 128 128" fill="white" xmlns="http://www.w3.org/2000/svg">
+<path d="M53.7875 20.0238C48.6533 13.3022 40.8042 9 32.0027 9C16.5345 9 4 22.2789 4 38.6558C4 38.7707 4.00052 38.8854 4.00155 39H91.8416L94.7229 33.1618C97.2906 27.9591 104.71 27.9591 107.277 33.1618L110.159 39H115.998C115.999 38.8854 116 38.7707 116 38.6558C116 22.2789 103.466 9 87.9973 9C79.1958 9 71.3467 13.3022 66.2125 20.0238C65.7565 20.6214 65.336 21.1783 64.9462 21.6946C62.4734 24.9699 61.2367 26.6078 59.9993 26.6084C58.7614 26.609 57.5227 24.9711 55.0449 21.6946C54.6545 21.1783 54.2333 20.6214 53.7766 20.0238H53.7875Z" fill="white"/>
+<path d="M79.7015 79L79.5588 79.8323C78.7516 84.5386 82.6742 88.3253 86.9508 88.0132C86.8571 88.1111 86.7634 88.209 86.6696 88.3069C78.1991 97.1552 69.4174 106.328 62.6218 116.742C61.1111 119.051 58.8889 119.051 57.3782 116.742C50.5788 106.325 41.7966 97.1509 33.3264 88.303C30.3317 85.1748 27.3761 82.0873 24.5608 79H79.7015Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M101.901 35.5496C101.512 34.8168 100.488 34.8168 100.099 35.5497L93.0406 48.845C92.8929 49.123 92.6315 49.3183 92.3283 49.3766L77.8385 52.1641C77.0398 52.3178 76.7233 53.3185 77.2815 53.9252L87.4091 64.9295C87.6209 65.1597 87.7208 65.4756 87.6812 65.7898L85.7842 80.8078C85.6796 81.6357 86.5083 82.2542 87.2424 81.8963L100.56 75.402C100.838 75.2662 101.162 75.2662 101.44 75.402L114.758 81.8963C115.492 82.2542 116.32 81.6357 116.216 80.8078L114.319 65.7898C114.279 65.4756 114.379 65.1597 114.591 64.9295L124.718 53.9252C125.277 53.3185 124.96 52.3178 124.161 52.1641L109.672 49.3766C109.369 49.3183 109.107 49.123 108.959 48.845L101.901 35.5496ZM100.036 43.0789C100.366 42.1579 101.634 42.1579 101.964 43.0789L105.019 51.6179C105.01 51.6983 105.017 51.7822 105.041 51.8662L107.687 61.1634C107.817 61.6217 108.371 61.7807 108.714 61.4584L111.336 58.9947C111.498 58.8428 111.571 58.6153 111.528 58.3944L110.687 53.9877H117.422C118.389 53.9877 118.82 55.2373 118.067 55.8622L110.702 61.9792C110.601 61.9949 110.502 62.0365 110.413 62.1066L102.948 68.0247C102.581 68.3164 102.638 68.9036 103.055 69.1143L106.244 70.7259C106.44 70.8252 106.673 70.8121 106.858 70.6913L110.254 68.4723L112.085 75.0776C112.35 76.0329 111.299 76.8003 110.508 76.2296L101.591 69.8003C101.471 69.7136 101.337 69.6563 101.199 69.6285L95.0376 65.3393C94.6474 65.0677 94.116 65.3179 94.0614 65.7987L93.6534 69.3978C93.6281 69.6213 93.718 69.8423 93.8907 69.9808L96.868 72.3692L91.5448 76.2279C90.7554 76.8001 89.7037 76.0372 89.9645 75.0816L92.6557 65.2197C92.6717 65.1902 92.6845 65.1581 92.6935 65.1237L95.058 56.0862C95.1347 55.7934 94.8946 55.5156 94.6024 55.5592L90.6768 56.1448C90.5236 56.1678 90.3959 56.2773 90.3466 56.428L89.0988 60.2424L83.9931 56.1163C83.2355 55.5041 83.6428 54.2537 84.6065 54.2331L94.8405 54.0152C94.8711 54.0191 94.9023 54.0206 94.934 54.0198L103.141 53.8011C103.588 53.7892 103.88 53.3157 103.7 52.8958L102.212 49.4285C102.111 49.1944 101.886 49.0435 101.637 49.0435H97.9024L100.036 43.0789Z" fill="white"/>
+<path d="M67 57C68.1046 57 69 57.8954 69 59C69 60.1046 68.1046 61 67 61H7C5.89543 61 5 60.1046 5 59C5 57.8954 5.89543 57 7 57H67Z" fill="white"/>
+</svg>
+<span class="inline-attribute-label BonusSpiritDamage">bonus spirit damage</span>, causing abilities dealing more than <span class="highlight">80</span> damage to deal additional damage.</p><dl class="tstats"><dt>Bonus Damage</dt><dd>40</dd><dt>Charge-Up Time</dt><dd>14s</dd></dl></div></div><p class="uptake">Bought by
+28% of this build's players (1,386 of
+4,901), most often as purchase 4.</p></div></details></section><section class="band"><h2>Late game, 20+ min</h2><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">12</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/2121044373.png" alt=""></span>
+<span class="txt"><span class="nm">Tankbuster</span><span class="sub stat">40 Damage</span></span>
+<span class="cost">3,200</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Tankbuster</h4><p class="tcost">3,200 souls</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Bonus Health</dt><dd>+50</dd></dl></div><div class="tsec"><p class="kind">Passive</p><p class="tprose">Charges up over time with <svg width="128" height="128" viewBox="0 0 128 128" fill="white" xmlns="http://www.w3.org/2000/svg">
+<path d="M53.7875 20.0238C48.6533 13.3022 40.8042 9 32.0027 9C16.5345 9 4 22.2789 4 38.6558C4 38.7707 4.00052 38.8854 4.00155 39H91.8416L94.7229 33.1618C97.2906 27.9591 104.71 27.9591 107.277 33.1618L110.159 39H115.998C115.999 38.8854 116 38.7707 116 38.6558C116 22.2789 103.466 9 87.9973 9C79.1958 9 71.3467 13.3022 66.2125 20.0238C65.7565 20.6214 65.336 21.1783 64.9462 21.6946C62.4734 24.9699 61.2367 26.6078 59.9993 26.6084C58.7614 26.609 57.5227 24.9711 55.0449 21.6946C54.6545 21.1783 54.2333 20.6214 53.7766 20.0238H53.7875Z" fill="white"/>
+<path d="M79.7015 79L79.5588 79.8323C78.7516 84.5386 82.6742 88.3253 86.9508 88.0132C86.8571 88.1111 86.7634 88.209 86.6696 88.3069C78.1991 97.1552 69.4174 106.328 62.6218 116.742C61.1111 119.051 58.8889 119.051 57.3782 116.742C50.5788 106.325 41.7966 97.1509 33.3264 88.303C30.3317 85.1748 27.3761 82.0873 24.5608 79H79.7015Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M101.901 35.5496C101.512 34.8168 100.488 34.8168 100.099 35.5497L93.0406 48.845C92.8929 49.123 92.6315 49.3183 92.3283 49.3766L77.8385 52.1641C77.0398 52.3178 76.7233 53.3185 77.2815 53.9252L87.4091 64.9295C87.6209 65.1597 87.7208 65.4756 87.6812 65.7898L85.7842 80.8078C85.6796 81.6357 86.5083 82.2542 87.2424 81.8963L100.56 75.402C100.838 75.2662 101.162 75.2662 101.44 75.402L114.758 81.8963C115.492 82.2542 116.32 81.6357 116.216 80.8078L114.319 65.7898C114.279 65.4756 114.379 65.1597 114.591 64.9295L124.718 53.9252C125.277 53.3185 124.96 52.3178 124.161 52.1641L109.672 49.3766C109.369 49.3183 109.107 49.123 108.959 48.845L101.901 35.5496ZM100.036 43.0789C100.366 42.1579 101.634 42.1579 101.964 43.0789L105.019 51.6179C105.01 51.6983 105.017 51.7822 105.041 51.8662L107.687 61.1634C107.817 61.6217 108.371 61.7807 108.714 61.4584L111.336 58.9947C111.498 58.8428 111.571 58.6153 111.528 58.3944L110.687 53.9877H117.422C118.389 53.9877 118.82 55.2373 118.067 55.8622L110.702 61.9792C110.601 61.9949 110.502 62.0365 110.413 62.1066L102.948 68.0247C102.581 68.3164 102.638 68.9036 103.055 69.1143L106.244 70.7259C106.44 70.8252 106.673 70.8121 106.858 70.6913L110.254 68.4723L112.085 75.0776C112.35 76.0329 111.299 76.8003 110.508 76.2296L101.591 69.8003C101.471 69.7136 101.337 69.6563 101.199 69.6285L95.0376 65.3393C94.6474 65.0677 94.116 65.3179 94.0614 65.7987L93.6534 69.3978C93.6281 69.6213 93.718 69.8423 93.8907 69.9808L96.868 72.3692L91.5448 76.2279C90.7554 76.8001 89.7037 76.0372 89.9645 75.0816L92.6557 65.2197C92.6717 65.1902 92.6845 65.1581 92.6935 65.1237L95.058 56.0862C95.1347 55.7934 94.8946 55.5156 94.6024 55.5592L90.6768 56.1448C90.5236 56.1678 90.3959 56.2773 90.3466 56.428L89.0988 60.2424L83.9931 56.1163C83.2355 55.5041 83.6428 54.2537 84.6065 54.2331L94.8405 54.0152C94.8711 54.0191 94.9023 54.0206 94.934 54.0198L103.141 53.8011C103.588 53.7892 103.88 53.3157 103.7 52.8958L102.212 49.4285C102.111 49.1944 101.886 49.0435 101.637 49.0435H97.9024L100.036 43.0789Z" fill="white"/>
+<path d="M67 57C68.1046 57 69 57.8954 69 59C69 60.1046 68.1046 61 67 61H7C5.89543 61 5 60.1046 5 59C5 57.8954 5.89543 57 7 57H67Z" fill="white"/>
+</svg>
+<span class="inline-attribute-label BonusSpiritDamage">bonus spirit damage</span>, causing abilities dealing more than <span class="highlight">165</span> damage to deal additional damage. <span class="highlight">Ignores Spirit Resistance.</span></p><dl class="tstats"><dt>Damage</dt><dd>40</dd><dt>Current Health Bonus Damage</dt><dd>8%</dd><dt>Charge-Up Time</dt><dd>14s</dd></dl></div></div><p class="uptake">Bought by
+24% of this build's players (1,167 of
+4,901), most often as purchase 12.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">13</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/754480263.png" alt=""><img class="badge" src="../../assets/abilities/249410288.png" alt="imbued into Singularity"></span>
+<span class="txt"><span class="nm">Mystic Expansion</span><span class="sub">builds into Greater Expansion</span></span>
+<span class="cost">800</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Mystic Expansion</h4><p class="tcost">800 souls · builds into Greater Expansion</p></div><div class="imbuebox"><img src="../../assets/abilities/249410288.png" alt=""><div>Imbue into <b>Singularity</b>
+— 75% of 4,298 imbues.<span class="why">Chosen at the counter and fixed after —
+changing it means selling the item.</span></div></div><div class="facts"><div class="tsec"><p class="kind">Passive</p><p class="tprose">Imbue an ability to increase its <span class="highlight">range</span> and <span class="highlight">effect radius</span>.</p><dl class="tstats"><dt>Ability Range</dt><dd>+20%</dd></dl></div></div><p class="uptake">Bought by
+88% of this build's players (4,298 of
+4,901), most often as purchase 8.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">14</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/677738769.png" alt=""></span>
+<span class="txt"><span class="nm">Refresher</span><span class="sub stat">Reset the cooldown of all your abilities and restore all your charges .</span></span>
+<span class="cost">6,400</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Refresher</h4><p class="tcost">6,400 souls</p></div><div class="facts"><div class="tsec"><p class="kind">Active</p><p class="tprose"><span class="highlight">Reset the cooldown</span> of all your abilities and <span class="highlight">restore all your charges</span>.</p><dl class="tstats"><dt>Cooldown</dt><dd>300s</dd></dl></div></div><p class="uptake">Bought by
+81% of this build's players (3,963 of
+4,901), most often as purchase 14.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">15</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/1193964439.png" alt=""></span>
+<span class="txt"><span class="nm">Greater Expansion</span><span class="sub stat">+30% Ability Range</span></span>
+<span class="cost">3,200</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Greater Expansion</h4><p class="tcost">3,200 souls</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Spirit Resist</dt><dd>+10%</dd></dl></div><div class="tsec"><p class="kind">Passive</p><p class="tprose">Increases the <span class="highlight">range</span> and <span class="highlight">effect radius</span> of your abilities and items.</p><dl class="tstats"><dt>Ability Range</dt><dd>+30%</dd></dl></div></div><p class="uptake">Bought by
+73% of this build's players (3,601 of
+4,901), most often as purchase 14.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">16</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/1047818222.png" alt=""></span>
+<span class="txt"><span class="nm">Debuff Reducer</span><span class="sub">builds into Unstoppable</span></span>
+<span class="cost">1,600</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Debuff Reducer</h4><p class="tcost">1,600 souls · builds into Unstoppable</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Bonus Health</dt><dd>+90</dd></dl></div><div class="tsec"><p class="kind">Passive</p><p class="tprose">Reduces the <span class="highlight">duration</span> of all negative effects applied to you.</p><dl class="tstats"><dt>Debuff Resist</dt><dd>+25%</dd></dl></div></div><p class="uptake">Bought by
+43% of this build's players (2,084 of
+4,901), most often as purchase 14.</p></div></details><details class="buy"><summary role="button" aria-expanded="false">
+<span class="ix">17</span>
+<span class="icowrap"><img class="ico" src="../../assets/items/3357231760.png" alt=""></span>
+<span class="txt"><span class="nm">Unstoppable</span><span class="sub stat">5.5s Duration</span></span>
+<span class="cost">6,400</span></summary>
+<div class="detail"><div class="tiphead" hidden><h4>Unstoppable</h4><p class="tcost">6,400 souls</p></div><div class="facts"><div class="tsec"><dl class="tstats"><dt>Debuff Resist</dt><dd>+25%</dd><dt>Bonus Health</dt><dd>+125</dd></dl></div><div class="tsec"><p class="kind">Active</p><p class="tprose">Temporarily suppress <span class="highlight">negative status effects</span> and become <span class="highlight">immune</span> to <span class="highlight">Stun, Silence, Sleep, Root, and Disarm</span>. <br>Cannot be used while <span class="highlight">Stunned</span> or <span class="highlight">Slept</span>.</p><dl class="tstats"><dt>Duration</dt><dd>5.5s</dd><dt>Cooldown</dt><dd>60.0s</dd></dl></div></div><p class="uptake">Bought by
+56% of this build's players (2,737 of
+4,901), most often as purchase 15.</p></div></details></section></div>
+<p class="note">Costs are in souls. Hover or tap an item for what it does and how
+many of this build's players buy it.</p>
+</section><section class="sec">
+<h2>Copy into the build browser</h2>
+<p class="note">Open the game's build editor beside this and add the items in
+this order.</p>
+<div class="copygrid">
+<div><h3>Items</h3><ol class="copy"><li>Headshot Booster</li><li>Extra Charge</li><li>Headhunter</li><li>Recharging Rush</li><li>Extra Stamina</li><li>Arcane Surge</li><li>Rapid Recharge</li><li>Enchanter&#x27;s Emblem</li><li>Extra Spirit</li><li>Improved Spirit</li><li>Mystic Burst</li><li>Tankbuster</li><li>Mystic Expansion</li><li>Refresher</li><li>Greater Expansion</li><li>Debuff Reducer</li><li>Unstoppable</li></ol></div>
+<div><h3>Ability points</h3><ol class="copy"><li>Kinetic Pulse</li><li>Kinetic Pulse</li><li>Rejuvenating Aurora</li><li>Quantum Entanglement</li><li>Kinetic Pulse</li><li>Singularity</li><li>Kinetic Pulse</li><li>Singularity</li><li>Singularity</li><li>Rejuvenating Aurora</li><li>Rejuvenating Aurora</li><li>Rejuvenating Aurora</li><li>Quantum Entanglement</li><li>Quantum Entanglement</li><li>Singularity</li><li>Quantum Entanglement</li></ol></div>
+</div>
+</section><section class="sec">
+<h2>Ability order</h2>
+<p class="note">Spend points left to right. As in the game's build browser, a
+marker shows what the upgrade costs in ability points; an empty marker unlocks
+the ability.</p>
+<div class="track"><table><tr class="nums"><td></td><th scope="col">1</th><th scope="col">2</th><th scope="col">3</th><th scope="col">4</th><th scope="col">5</th><th scope="col">6</th><th scope="col">7</th><th scope="col">8</th><th scope="col">9</th><th scope="col">10</th><th scope="col">11</th><th scope="col">12</th><th scope="col">13</th><th scope="col">14</th><th scope="col">15</th><th scope="col">16</th></tr><tr><th scope="row"><img src="../../assets/abilities/3760705623.png" alt="">
+<span>Kinetic Pulse</span></th><td class="on unlock"><span class="sr">unlock</span></td><td class="on">1</td><td></td><td></td><td class="on">2</td><td></td><td class="on">5</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row"><img src="../../assets/abilities/492030745.png" alt="">
+<span>Rejuvenating Aurora</span></th><td></td><td></td><td class="on unlock"><span class="sr">unlock</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="on">1</td><td class="on">2</td><td class="on">5</td><td></td><td></td><td></td><td></td></tr><tr><th scope="row"><img src="../../assets/abilities/2031714424.png" alt="">
+<span>Quantum Entanglement</span></th><td></td><td></td><td></td><td class="on unlock"><span class="sr">unlock</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="on">1</td><td class="on">2</td><td></td><td class="on">5</td></tr><tr><th scope="row"><img src="../../assets/abilities/249410288.png" alt="">
+<span>Singularity</span></th><td></td><td></td><td></td><td></td><td></td><td class="on unlock"><span class="sr">unlock</span></td><td></td><td class="on">1</td><td class="on">2</td><td></td><td></td><td></td><td></td><td></td><td class="on">5</td><td></td></tr></table></div>
+</section><section class="sec">
+<h2>If you're facing…</h2>
+<p class="note">Items in this build that players buy more often against one
+enemy hero, measured across every hero's players.</p>
+<ul class="lines"><li><span><b>Calico</b>: Mystic Burst</span>
+<span class="num">39% against Calico, 35.5%
+overall · 47,645 player-matches</span></li></ul>
+</section>
+</main>
+<div id="tip" class="tip" role="tooltip" hidden></div>
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll("details.buy"));
+  var tip = document.getElementById("tip");
+  var shown = null;
+  var timer = null;
+
+  function hide() {
+    clearTimeout(timer);
+    if (tip) tip.hidden = true;
+    shown = null;
+  }
+  function hideSoon() {
+    clearTimeout(timer);
+    timer = setTimeout(hide, 150);
+  }
+  function show(row) {
+    clearTimeout(timer);
+    if (!tip || row.open || shown === row) return;
+    var head = row.querySelector(".tiphead");
+    var facts = row.querySelector(".facts");
+    if (!head) return;
+    tip.innerHTML = head.innerHTML + (facts ? facts.innerHTML : "");
+    tip.hidden = false;
+    shown = row;
+    var r = row.querySelector("summary").getBoundingClientRect();
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = r.right + 10;
+    if (x + w > window.innerWidth - 8) x = r.left - w - 10;
+    if (x < 8) x = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+    var y = Math.max(8, Math.min(r.top, window.innerHeight - h - 8));
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+
+  var fine = !!(window.matchMedia &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+
+  rows.forEach(function (row) {
+    var summary = row.querySelector("summary");
+    row.addEventListener("toggle", function () {
+      summary.setAttribute("aria-expanded", String(row.open));
+      if (row.open) hide();
+    });
+    if (fine) {
+      summary.addEventListener("mouseenter", function () { show(row); });
+      summary.addEventListener("mouseleave", hideSoon);
+    }
+    summary.addEventListener("focus", function () { show(row); });
+    summary.addEventListener("blur", hideSoon);
+  });
+  if (tip) {
+    tip.addEventListener("mouseenter", function () { clearTimeout(timer); });
+    tip.addEventListener("mouseleave", hideSoon);
+  }
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") hide();
+  });
+  window.addEventListener("scroll", hide, { passive: true });
+})();
+</script>
+</body>
+</html>
