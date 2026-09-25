@@ -5,7 +5,8 @@ For each feature block, fits archetypes with it, fits the item model on those
 labels, and scores next-item accuracy. Every fit uses the same purchases,
 split, and decision limit, because top-1 changes with the sample and limit
 and can't be compared across runs. `families` (no extra block) is always
-scored as the control. Used for #10 (imbue) and #39 (ability order).
+scored as the control. Used for #10 (imbue), #39 (ability order) and #42
+(upgrade effects and gun-routed abilities).
 
     python scripts/score_archetype_fits.py [--matches N] [--limit N]
         [--blocks families,order_mean,...]
@@ -13,7 +14,11 @@ scored as the control. Used for #10 (imbue) and #39 (ability order).
 Blocks: `families`, `conditional imbue`, `gated imbue` (the conditional
 block on `imbue.gated_heroes` only, for #40), `order` (raw point order),
 `order_mean` (point order minus the hero's mean), and `order_rank` (point
-order as a percentile within the hero).
+order as a percentile within the hero), and for #42 `effects` and
+`effects_t5` (effect-category exposure, all tiers or the 5-point tier),
+`gunproc` (spirit share x gun-routed exposure, gated to heroes with a
+gun-routed ability) and `reroute` (gun-routed spirit counted as gun, same
+gate). See `scripts/compare_upgrade_fits.py`.
 """
 
 from __future__ import annotations
@@ -36,6 +41,7 @@ from deadlock import (  # noqa: E402
     imbue,
     sequence,
     splits,
+    upgrades,
 )
 
 PURCHASES = Path("data/processed/purchases.parquet")
@@ -71,7 +77,9 @@ def candidate_blocks(
     the control and look like a tie.
     """
     out: dict[str, pd.DataFrame | None] = {"families": None}
-    wants_order = any(name.startswith("order") for name in names)
+    wants_order = any(
+        name.startswith(("order", "effects", "gunproc", "reroute")) for name in names
+    )
     ability_rows = (
         pd.read_parquet(ABILITIES) if wants_order and ABILITIES.exists() else None
     )
@@ -103,6 +111,31 @@ def candidate_blocks(
             gate = imbue.gated_heroes(rows, everyone)
             inside = heroes.reindex(block.index).isin(gate).to_numpy()
             out[name] = archetype.scale_block(block[inside], IMBUE_WEIGHT)
+        elif name in ("effects", "effects_t5"):
+            if ability_rows is None:
+                continue
+            levels = upgrades.TIER_LEVELS if name == "effects" else (4,)
+            out[name] = archetype.scale_block(
+                upgrades.effect_features(ability_rows, levels=levels), ORDER_WEIGHT
+            )
+        elif name in ("gunproc", "reroute"):
+            if ability_rows is None:
+                continue
+            routed = upgrades.gun_routed_slots()
+            exposure = upgrades.gun_exposure(ability_rows, routed)
+            if name == "reroute":
+                # Not a block: `label_frame` reroutes the family shares of the
+                # gated heroes. Carried as (exposure, gate).
+                out[name] = (exposure, set(routed))
+                continue
+            gated = heroes[heroes.isin(set(routed))].index
+            purchases = pd.read_parquet(PURCHASES, columns=["match_id", "player_slot", "hero_id", "item_id"])
+            purchases = purchases.set_index(["match_id", "player_slot"])
+            purchases = purchases[purchases.index.isin(gated)].reset_index()
+            families = archetype.family_shares(purchases)
+            out[name] = archetype.scale_block(
+                upgrades.gun_block(families, exposure), ORDER_WEIGHT
+            )
         elif name.startswith("order"):
             if ability_rows is None:
                 continue
@@ -127,17 +160,27 @@ def candidate_blocks(
 def label_frame(
     purchases: pd.DataFrame,
     hero_names: dict[int, str],
-    extra: pd.DataFrame | None,
+    extra,
 ) -> pd.DataFrame:
-    """Fit every hero and return only the labels, without naming."""
+    """Fit every hero and return only the labels, without naming.
+
+    `extra` is a scaled block, None, or for `reroute` a tuple of
+    (gun-routed exposure, gated hero ids).
+    """
+    reroute = extra if isinstance(extra, tuple) else None
     frames = []
     for hero_id, group in purchases.groupby("hero_id"):
-        fit = archetype.fit_hero(
-            group,
+        kwargs = dict(
             hero_id=int(hero_id),
             hero_name=hero_names.get(int(hero_id), str(hero_id)),
-            extra=extra,
         )
+        if reroute is not None and int(hero_id) in reroute[1]:
+            with upgrades.rerouted_families(reroute[0]):
+                fit = archetype.fit_hero(group, **kwargs)
+        else:
+            fit = archetype.fit_hero(
+                group, extra=None if reroute is not None else extra, **kwargs
+            )
         frame = fit.labels.rename("archetype_id").reset_index()
         frame["hero_id"] = int(hero_id)
         frames.append(frame)
@@ -196,8 +239,9 @@ def main() -> int:
         k = labels.groupby("hero_id")["archetype_id"].nunique()
         model = sequence.fit(train, labels)
         got = evaluate.next_item_accuracy(model, test, labels, limit=args.limit)
+        se = (got["top1"] * (1 - got["top1"]) / max(got["n_decisions"], 1)) ** 0.5
         print(
-            f"  {name:18s} top1={got['top1']:.4f}  top3={got['top3']:.4f}  "
+            f"  {name:18s} top1={got['top1']:.4f} (se {se:.4f})  top3={got['top3']:.4f}  "
             f"n={got['n_decisions']:,}  cells={int(k.sum())}  "
             f"({time.time() - started:.0f}s)"
         )

@@ -1,0 +1,229 @@
+hero_id,hero,fit,gated,k,separation,item_id,item,gap,names,ari
+1,Infernus,families,False,2,0.647293008870802,2480592370.0,Ricochet,0.647293008870802,Gun Infernus / Spirit Infernus,1.0
+1,Infernus,order,False,2,0.6278772369019565,787198704.0,Rapid Recharge,0.6278772369019565,Gun Infernus / Spirit Infernus,0.8012149760019206
+1,Infernus,effects,False,2,0.6147846000845801,2480592370.0,Ricochet,0.6147846000845801,Gun Infernus / Spirit Infernus,0.8074279515914188
+1,Infernus,effects_t5,False,3,0.49176851373042113,4104549924.0,Swift Striker,0.49176851373042113,Gun Infernus / Infernus / Spirit Infernus,0.27831714310549743
+1,Infernus,gunproc,True,2,0.4546771190652348,787198704.0,Rapid Recharge,0.4546771190652348,Hybrid-Gun Infernus / Spirit Infernus,0.22294248697065597
+1,Infernus,reroute,True,2,0.6489342327390051,787198704.0,Rapid Recharge,0.6489342327390051,Gun Infernus / Spirit Infernus,0.6387194993846987
+2,Seven,families,False,3,0.5176833396881051,3919289022.0,Mercurial Magnum,0.5176833396881051,Gun Seven / Hybrid-Tank Seven / Spirit Seven,1.0
+2,Seven,order,False,3,0.5210272169332792,3919289022.0,Mercurial Magnum,0.5210272169332792,Gun Seven / Hybrid-Tank Seven / Spirit Seven,0.9122540248873299
+2,Seven,effects,False,3,0.5027657229113082,3919289022.0,Mercurial Magnum,0.5027657229113082,Gun Seven / Seven / Spirit Seven,0.7467243567961365
+2,Seven,effects_t5,False,2,0.47127480038912883,1150006784.0,Arcane Surge,0.47127480038912883,Spirit Seven / Spirit Seven,0.03856517664171724
+2,Seven,gunproc,False,3,0.5176833396881051,3919289022.0,Mercurial Magnum,0.5176833396881051,Gun Seven / Hybrid-Tank Seven / Spirit Seven,1.0
+2,Seven,reroute,False,3,0.5176833396881051,3919289022.0,Mercurial Magnum,0.5176833396881051,Gun Seven / Hybrid-Tank Seven / Spirit Seven,1.0
+3,Vindicta,families,False,1,,,,,Vindicta,1.0
+3,Vindicta,order,False,1,,,,,Vindicta,1.0
+3,Vindicta,effects,False,2,0.5069727600163141,2356412290.0,Titanic Magazine,0.5069727600163141,Gun Vindicta / Spirit Vindicta,0.0
+3,Vindicta,effects_t5,False,1,,,,,Vindicta,1.0
+3,Vindicta,gunproc,True,1,,,,,Vindicta,1.0
+3,Vindicta,reroute,True,1,,,,,Vindicta,1.0
+4,Lady Geist,families,False,3,0.5738578576071207,3577481646.0,Mystic Reverb,0.5738578576071207,Gun Lady Geist / Spirit Lady Geist / Spirit Lady Geist,1.0
+4,Lady Geist,order,False,3,0.614512404530722,3577481646.0,Mystic Reverb,0.614512404530722,Gun Lady Geist / Spirit Lady Geist / Spirit Lady Geist,0.8623488995999044
+4,Lady Geist,effects,False,3,0.6386270639205115,3577481646.0,Mystic Reverb,0.6386270639205115,Gun Lady Geist / Spirit Lady Geist / Spirit Lady Geist,0.7246263341895229
+4,Lady Geist,effects_t5,False,2,0.7568067606531292,2121044373.0,Tankbuster,0.7568067606531292,Gun Lady Geist / Spirit Lady Geist,0.26599170340501477
+4,Lady Geist,gunproc,False,3,0.5738578576071207,3577481646.0,Mystic Reverb,0.5738578576071207,Gun Lady Geist / Spirit Lady Geist / Spirit Lady Geist,1.0
+4,Lady Geist,reroute,False,3,0.5738578576071207,3577481646.0,Mystic Reverb,0.5738578576071207,Gun Lady Geist / Spirit Lady Geist / Spirit Lady Geist,1.0
+6,Abrams,families,False,2,0.7537907301491451,1342610602.0,Close Quarters,0.7537907301491451,Hybrid-Spirit Abrams / Melee Abrams,1.0
+6,Abrams,order,False,3,0.4583707303976567,1371725689.0,Phantom Strike,0.4583707303976567,Hybrid-Melee Abrams / Hybrid-Spirit Abrams / Melee Abrams,0.39399887541745854
+6,Abrams,effects,False,2,0.778605452518496,1150006784.0,Arcane Surge,0.778605452518496,Hybrid-Spirit Abrams / Melee Abrams,0.8974466034968636
+6,Abrams,effects_t5,False,2,0.8021350210178902,1150006784.0,Arcane Surge,0.8021350210178902,Hybrid-Spirit Abrams / Melee Abrams,0.7344994506527212
+6,Abrams,gunproc,True,2,0.4812786493857274,1342610602.0,Close Quarters,0.4812786493857274,Hybrid-Spirit Abrams / Melee Abrams,0.5007975993169642
+6,Abrams,reroute,True,3,0.4974510772590914,1371725689.0,Phantom Strike,0.4974510772590914,Hybrid-Spirit Abrams / Melee Abrams / Melee Abrams,0.34153559850417003
+7,Wraith,families,False,1,,,,,Wraith,1.0
+7,Wraith,order,False,2,0.4517626824362169,2226497419.0,Spiritual Overflow,0.4517626824362169,Gun Wraith / Hybrid-Spirit Wraith,0.0
+7,Wraith,effects,False,1,,,,,Wraith,1.0
+7,Wraith,effects_t5,False,1,,,,,Wraith,1.0
+7,Wraith,gunproc,True,2,0.5702834592657748,2226497419.0,Spiritual Overflow,0.5702834592657748,Gun Wraith / Spirit Wraith,0.0
+7,Wraith,reroute,True,1,,,,,Wraith,1.0
+8,McGinnis,families,False,2,0.78507681465821,2081037738.0,Mystic Vulnerability,0.78507681465821,Gun McGinnis / Spirit McGinnis,1.0
+8,McGinnis,order,False,2,0.7859013376902746,2081037738.0,Mystic Vulnerability,0.7859013376902746,Gun McGinnis / Spirit McGinnis,0.9964300150368869
+8,McGinnis,effects,False,3,0.5584495720910397,2566692615.0,Healing Booster,0.5584495720910397,Gun McGinnis / McGinnis / Spirit McGinnis,0.5276229622033988
+8,McGinnis,effects_t5,False,3,0.5094145876894756,1150006784.0,Arcane Surge,0.5094145876894756,Gun McGinnis / Spirit McGinnis / Spirit McGinnis,0.5146422489710298
+8,McGinnis,gunproc,False,2,0.78507681465821,2081037738.0,Mystic Vulnerability,0.78507681465821,Gun McGinnis / Spirit McGinnis,1.0
+8,McGinnis,reroute,False,2,0.78507681465821,2081037738.0,Mystic Vulnerability,0.78507681465821,Gun McGinnis / Spirit McGinnis,1.0
+10,Paradox,families,False,3,0.6647679564479602,343572757.0,Spirit Burn,0.6647679564479602,Gun Paradox / Gun Paradox / Spirit Paradox,1.0
+10,Paradox,order,False,3,0.6541768137944268,343572757.0,Spirit Burn,0.6541768137944268,Gun Paradox / Gun Paradox / Spirit Paradox,0.9611301038111627
+10,Paradox,effects,False,2,0.8580219822964549,754480263.0,Mystic Expansion,0.8580219822964549,Gun Paradox / Spirit Paradox,0.2847214363673482
+10,Paradox,effects_t5,False,2,0.8422685980686189,2951612397.0,Duration Extender,0.8422685980686189,Gun Paradox / Spirit Paradox,0.2509119165193206
+10,Paradox,gunproc,True,2,0.5196650269391442,3577481646.0,Mystic Reverb,0.5196650269391442,Gun Paradox / Spirit Paradox,0.1341913912482222
+10,Paradox,reroute,True,2,0.8447916959746795,2152872419.0,Sharpshooter,0.8447916959746795,Gun Paradox / Spirit Paradox,0.2987561131021363
+11,Dynamo,families,False,2,0.6749814330395562,677738769.0,Refresher,0.6749814330395562,Dynamo / Hybrid-Gun Dynamo,1.0
+11,Dynamo,order,False,2,0.6839800621034353,677738769.0,Refresher,0.6839800621034353,Dynamo / Hybrid-Gun Dynamo,0.952124343930622
+11,Dynamo,effects,False,2,0.6859740420891776,677738769.0,Refresher,0.6859740420891776,Dynamo / Hybrid-Gun Dynamo,0.9234261469623241
+11,Dynamo,effects_t5,False,2,0.5392632589852471,787198704.0,Rapid Recharge,0.5392632589852471,Dynamo / Support Dynamo,-0.008044069487938201
+11,Dynamo,gunproc,False,2,0.6749814330395562,677738769.0,Refresher,0.6749814330395562,Dynamo / Hybrid-Gun Dynamo,1.0
+11,Dynamo,reroute,False,2,0.6749814330395562,677738769.0,Refresher,0.6749814330395562,Dynamo / Hybrid-Gun Dynamo,1.0
+12,Kelvin,families,False,2,0.4546088727504657,3005970438.0,Escalating Exposure,0.4546088727504657,Spirit Kelvin / Support Kelvin,1.0
+12,Kelvin,order,False,2,0.5013987413147077,3005970438.0,Escalating Exposure,0.5013987413147077,Spirit Kelvin / Support Kelvin,0.8733149986723502
+12,Kelvin,effects,False,2,0.4692672411709835,3005970438.0,Escalating Exposure,0.4692672411709835,Spirit Kelvin / Support Kelvin,0.8106573273786255
+12,Kelvin,effects_t5,False,3,0.4684738017937981,787198704.0,Rapid Recharge,0.4684738017937981,Spirit Kelvin / Spirit Kelvin / Support Kelvin,0.11273580402391081
+12,Kelvin,gunproc,False,2,0.4546088727504657,3005970438.0,Escalating Exposure,0.4546088727504657,Spirit Kelvin / Support Kelvin,1.0
+12,Kelvin,reroute,False,2,0.4546088727504657,3005970438.0,Escalating Exposure,0.4546088727504657,Spirit Kelvin / Support Kelvin,1.0
+13,Haze,families,False,3,0.4601699246199055,3357231760.0,Unstoppable,0.4601699246199055,Gun Haze / Haze / Spirit Haze,1.0
+13,Haze,order,False,1,,,,,Haze,0.0
+13,Haze,effects,False,3,0.4771992295738714,865958998.0,Veil Walker,0.4771992295738714,Gun Haze / Haze / Hybrid-Spirit Haze,0.5488677085125734
+13,Haze,effects_t5,False,2,0.5796017834710783,499683006.0,Bullet Lifesteal,0.5796017834710783,Gun Haze / Haze,0.07971786084126836
+13,Haze,gunproc,True,2,0.5709507595366023,2226497419.0,Spiritual Overflow,0.5709507595366023,Gun Haze / Spirit Haze,0.15326097149560045
+13,Haze,reroute,True,2,0.6194827035314585,3357231760.0,Unstoppable,0.6194827035314585,Haze / Hybrid-Tank Haze,0.32867775625427537
+14,Holliday,families,False,3,0.748544376305681,2152872419.0,Sharpshooter,0.748544376305681,Gun Holliday / Spirit Holliday / Spirit Holliday,1.0
+14,Holliday,order,False,3,0.7447868619311193,2152872419.0,Sharpshooter,0.7447868619311193,Gun Holliday / Spirit Holliday / Spirit Holliday,0.9713638125531421
+14,Holliday,effects,False,3,0.7390599017682417,2152872419.0,Sharpshooter,0.7390599017682417,Gun Holliday / Spirit Holliday / Spirit Holliday,0.9268651123985822
+14,Holliday,effects_t5,False,2,0.7379660199451102,2121044373.0,Tankbuster,0.7379660199451102,Gun Holliday / Spirit Holliday,0.31281895178468955
+14,Holliday,gunproc,True,2,0.5076617169265288,1763073141.0,Recharging Rush,0.5076617169265288,Gun Holliday / Spirit Holliday,0.20028145155648952
+14,Holliday,reroute,True,3,0.7264625495847115,2152872419.0,Sharpshooter,0.7264625495847115,Gun Holliday / Spirit Holliday / Spirit Holliday,0.9345116499063736
+15,Bebop,families,False,2,0.6564642871254089,2010028405.0,Headshot Booster,0.6564642871254089,Gun Bebop / Spirit Bebop,1.0
+15,Bebop,order,False,2,0.6639690941445944,2010028405.0,Headshot Booster,0.6639690941445944,Gun Bebop / Spirit Bebop,0.9774140907244803
+15,Bebop,effects,False,2,0.671631626467174,2010028405.0,Headshot Booster,0.671631626467174,Gun Bebop / Spirit Bebop,0.9178900989368058
+15,Bebop,effects_t5,False,2,0.6669942988953954,2010028405.0,Headshot Booster,0.6669942988953954,Gun Bebop / Spirit Bebop,0.9236790060160642
+15,Bebop,gunproc,True,2,0.4971310693396276,3028234315.0,Witchmail,0.4971310693396276,Gun Bebop / Spirit Bebop,-0.01850864431637206
+15,Bebop,reroute,True,2,0.6527349260547608,2010028405.0,Headshot Booster,0.6527349260547608,Gun Bebop / Spirit Bebop,0.9242633476750854
+16,Calico,families,False,1,,,,,Calico,1.0
+16,Calico,order,False,1,,,,,Calico,1.0
+16,Calico,effects,False,1,,,,,Calico,1.0
+16,Calico,effects_t5,False,1,,,,,Calico,1.0
+16,Calico,gunproc,False,1,,,,,Calico,1.0
+16,Calico,reroute,False,1,,,,,Calico,1.0
+17,Grey Talon,families,False,3,0.5187383940127174,2152872419.0,Sharpshooter,0.5187383940127174,Gun Grey Talon / Hybrid-Spirit Grey Talon / Spirit Grey Talon,1.0
+17,Grey Talon,order,False,3,0.5088594774877206,2152872419.0,Sharpshooter,0.5088594774877206,Gun Grey Talon / Hybrid-Spirit Grey Talon / Spirit Grey Talon,0.8305409421641354
+17,Grey Talon,effects,False,3,0.6044175976376382,3331811235.0,Long Range,0.6044175976376382,Gun Grey Talon / Hybrid-Spirit Grey Talon / Spirit Grey Talon,0.49265639149155965
+17,Grey Talon,effects_t5,False,2,0.892735823212492,787198704.0,Rapid Recharge,0.892735823212492,Gun Grey Talon / Spirit Grey Talon,0.3126593925705074
+17,Grey Talon,gunproc,False,3,0.5187383940127174,2152872419.0,Sharpshooter,0.5187383940127174,Gun Grey Talon / Hybrid-Spirit Grey Talon / Spirit Grey Talon,1.0
+17,Grey Talon,reroute,False,3,0.5187383940127174,2152872419.0,Sharpshooter,0.5187383940127174,Gun Grey Talon / Hybrid-Spirit Grey Talon / Spirit Grey Talon,1.0
+18,Mo & Krill,families,False,1,,,,,Mo & Krill,1.0
+18,Mo & Krill,order,False,1,,,,,Mo & Krill,1.0
+18,Mo & Krill,effects,False,1,,,,,Mo & Krill,1.0
+18,Mo & Krill,effects_t5,False,1,,,,,Mo & Krill,1.0
+18,Mo & Krill,gunproc,False,1,,,,,Mo & Krill,1.0
+18,Mo & Krill,reroute,False,1,,,,,Mo & Krill,1.0
+19,Shiv,families,False,2,0.9307668047321157,4104549924.0,Swift Striker,0.9307668047321157,Gun Shiv / Spirit Shiv,1.0
+19,Shiv,order,False,2,0.9331178439204679,4104549924.0,Swift Striker,0.9331178439204679,Gun Shiv / Spirit Shiv,0.9954512023193742
+19,Shiv,effects,False,2,0.9354805852112587,4104549924.0,Swift Striker,0.9354805852112587,Gun Shiv / Spirit Shiv,0.9919167439180584
+19,Shiv,effects_t5,False,2,0.9363734848096775,4104549924.0,Swift Striker,0.9363734848096775,Gun Shiv / Spirit Shiv,0.9738275384916002
+19,Shiv,gunproc,False,2,0.9307668047321157,4104549924.0,Swift Striker,0.9307668047321157,Gun Shiv / Spirit Shiv,1.0
+19,Shiv,reroute,False,2,0.9307668047321157,4104549924.0,Swift Striker,0.9307668047321157,Gun Shiv / Spirit Shiv,1.0
+20,Ivy,families,False,3,0.531411092826834,381961617.0,Active Reload,0.531411092826834,Gun Ivy / Ivy / Spirit Ivy,1.0
+20,Ivy,order,False,3,0.5309429078184171,381961617.0,Active Reload,0.5309429078184171,Gun Ivy / Ivy / Spirit Ivy,0.9579271749685864
+20,Ivy,effects,False,3,0.5255968650787173,381961617.0,Active Reload,0.5255968650787173,Gun Ivy / Hybrid-Support Ivy / Spirit Ivy,0.8568565310640821
+20,Ivy,effects_t5,False,3,0.48268541986458674,381961617.0,Active Reload,0.48268541986458674,Gun Ivy / Spirit Ivy / Support Ivy,0.6127280874519023
+20,Ivy,gunproc,True,3,0.5725584226156122,787198704.0,Rapid Recharge,0.5725584226156122,Gun Ivy / Ivy / Spirit Ivy,0.4273207143168475
+20,Ivy,reroute,True,3,0.5006210900290915,710436191.0,Capacitor,0.5006210900290915,Gun Ivy / Spirit Ivy / Support Ivy,0.6446718946337419
+25,Warden,families,False,2,0.4837820830806012,2519598785.0,Boundless Spirit,0.4837820830806012,Gun Warden / Hybrid-Spirit Warden,1.0
+25,Warden,order,False,2,0.4828999193998545,2519598785.0,Boundless Spirit,0.4828999193998545,Gun Warden / Hybrid-Spirit Warden,0.9740677048287679
+25,Warden,effects,False,3,0.480116388784595,865958998.0,Veil Walker,0.480116388784595,Gun Warden / Gun Warden / Hybrid-Spirit Warden,0.6113507281253566
+25,Warden,effects_t5,False,2,0.48938279616410707,865958998.0,Veil Walker,0.48938279616410707,Gun Warden / Hybrid-Gun Warden,-0.00039428907356571437
+25,Warden,gunproc,False,2,0.4837820830806012,2519598785.0,Boundless Spirit,0.4837820830806012,Gun Warden / Hybrid-Spirit Warden,1.0
+25,Warden,reroute,False,2,0.4837820830806012,2519598785.0,Boundless Spirit,0.4837820830806012,Gun Warden / Hybrid-Spirit Warden,1.0
+27,Yamato,families,False,2,0.5186571490802778,3577481646.0,Mystic Reverb,0.5186571490802778,Spirit Yamato / Yamato,1.0
+27,Yamato,order,False,2,0.6597659630972348,7409189.0,Improved Spirit,0.6597659630972348,Spirit Yamato / Yamato,0.11635394028994393
+27,Yamato,effects,False,2,0.6146387828082104,7409189.0,Improved Spirit,0.6146387828082104,Spirit Yamato / Yamato,0.12906780576920202
+27,Yamato,effects_t5,False,2,0.5557349343581932,98582110.0,Stalker,0.5557349343581932,Hybrid-Spirit Yamato / Yamato,0.16509745499869863
+27,Yamato,gunproc,False,2,0.5186571490802778,3577481646.0,Mystic Reverb,0.5186571490802778,Spirit Yamato / Yamato,1.0
+27,Yamato,reroute,False,2,0.5186571490802778,3577481646.0,Mystic Reverb,0.5186571490802778,Spirit Yamato / Yamato,1.0
+31,Lash,families,False,3,0.4661547318593643,3357231760.0,Unstoppable,0.4661547318593643,Gun Lash / Lash / Spirit Lash,1.0
+31,Lash,order,False,3,0.4560020633588465,3357231760.0,Unstoppable,0.4560020633588465,Gun Lash / Lash / Spirit Lash,0.9046872923738386
+31,Lash,effects,False,3,0.4526673983395824,3357231760.0,Unstoppable,0.4526673983395824,Gun Lash / Lash / Spirit Lash,0.8390378081884268
+31,Lash,effects_t5,False,2,0.8659590245332702,2971868509.0,Bullet Resist Shredder,0.8659590245332702,Gun Lash / Spirit Lash,0.4014469925900226
+31,Lash,gunproc,False,3,0.4661547318593643,3357231760.0,Unstoppable,0.4661547318593643,Gun Lash / Lash / Spirit Lash,1.0
+31,Lash,reroute,False,3,0.4661547318593643,3357231760.0,Unstoppable,0.4661547318593643,Gun Lash / Lash / Spirit Lash,1.0
+35,Viscous,families,False,2,0.8068925501352944,26002154.0,Melee Charge,0.8068925501352944,Melee Viscous / Spirit Viscous,1.0
+35,Viscous,order,False,2,0.8627093111838358,26002154.0,Melee Charge,0.8627093111838358,Melee Viscous / Spirit Viscous,0.8808340770124387
+35,Viscous,effects,False,2,0.8169624060150376,26002154.0,Melee Charge,0.8169624060150376,Melee Viscous / Spirit Viscous,0.9631195677999397
+35,Viscous,effects_t5,False,2,0.7754064870651801,26002154.0,Melee Charge,0.7754064870651801,Melee Viscous / Spirit Viscous,0.6093804820362638
+35,Viscous,gunproc,False,2,0.8068925501352944,26002154.0,Melee Charge,0.8068925501352944,Melee Viscous / Spirit Viscous,1.0
+35,Viscous,reroute,False,2,0.8068925501352944,26002154.0,Melee Charge,0.8068925501352944,Melee Viscous / Spirit Viscous,1.0
+50,Pocket,families,False,1,,,,,Pocket,1.0
+50,Pocket,order,False,1,,,,,Pocket,1.0
+50,Pocket,effects,False,2,0.6116520104247909,968099481.0,Extra Spirit,0.6116520104247909,Hybrid-Spirit Pocket / Spirit Pocket,0.0
+50,Pocket,effects_t5,False,2,0.5988662135515147,968099481.0,Extra Spirit,0.5988662135515147,Spirit Pocket / Spirit Pocket,0.0
+50,Pocket,gunproc,True,2,0.47512038826086644,4104549924.0,Swift Striker,0.47512038826086644,Spirit Pocket / Spirit Pocket,0.0
+50,Pocket,reroute,True,2,0.6363502167629753,4104549924.0,Swift Striker,0.6363502167629753,Pocket / Spirit Pocket,0.0
+52,Mirage,families,False,2,0.6094508083017826,3005970438.0,Escalating Exposure,0.6094508083017826,Gun Mirage / Spirit Mirage,1.0
+52,Mirage,order,False,3,0.4508217446270544,2480592370.0,Ricochet,0.4508217446270544,Gun Mirage / Mirage / Spirit Mirage,0.4799663491015266
+52,Mirage,effects,False,3,0.4998064266356949,2480592370.0,Ricochet,0.4998064266356949,Gun Mirage / Mirage / Spirit Mirage,0.437683934554466
+52,Mirage,effects_t5,False,1,,,,,Mirage,0.0
+52,Mirage,gunproc,True,1,,,,,Mirage,0.0
+52,Mirage,reroute,True,3,0.517272349676076,3005970438.0,Escalating Exposure,0.517272349676076,Gun Mirage / Hybrid-Spirit Mirage / Mirage,0.4226380192903377
+58,Vyper,families,False,2,0.6230543806561695,3357231760.0,Unstoppable,0.6230543806561695,Gun Vyper / Tank Vyper,1.0
+58,Vyper,order,False,2,0.625813428568411,3357231760.0,Unstoppable,0.625813428568411,Gun Vyper / Tank Vyper,0.9577860581192276
+58,Vyper,effects,False,1,,,,,Vyper,0.0
+58,Vyper,effects_t5,False,1,,,,,Vyper,0.0
+58,Vyper,gunproc,True,2,0.45106904282123006,2226497419.0,Spiritual Overflow,0.45106904282123006,Gun Vyper / Spirit Vyper,0.002354106858275668
+58,Vyper,reroute,True,2,0.6045378529783737,3357231760.0,Unstoppable,0.6045378529783737,Gun Vyper / Tank Vyper,0.7604561001578742
+60,Sinclair,families,False,2,0.49314344522339326,787198704.0,Rapid Recharge,0.49314344522339326,Hybrid-Melee Sinclair / Spirit Sinclair,1.0
+60,Sinclair,order,False,2,0.8648031780426146,787198704.0,Rapid Recharge,0.8648031780426146,Hybrid-Melee Sinclair / Spirit Sinclair,0.30868714644861384
+60,Sinclair,effects,False,2,0.8807809620704871,787198704.0,Rapid Recharge,0.8807809620704871,Hybrid-Melee Sinclair / Spirit Sinclair,0.29582908873164154
+60,Sinclair,effects_t5,False,2,0.6958530213432175,787198704.0,Rapid Recharge,0.6958530213432175,Melee Sinclair / Spirit Sinclair,0.24660444099243506
+60,Sinclair,gunproc,True,1,,,,,Sinclair,0.0
+60,Sinclair,reroute,True,2,0.4826388445314277,787198704.0,Rapid Recharge,0.4826388445314277,Hybrid-Melee Sinclair / Spirit Sinclair,0.4966542630779817
+63,Mina,families,False,3,0.48290454789260706,3919289022.0,Mercurial Magnum,0.48290454789260706,Hybrid-Gun Mina / Spirit Mina / Tank Mina,1.0
+63,Mina,order,False,3,0.4856482465489752,3919289022.0,Mercurial Magnum,0.4856482465489752,Hybrid-Gun Mina / Spirit Mina / Tank Mina,0.9524167100690903
+63,Mina,effects,False,3,0.45283841210488257,3919289022.0,Mercurial Magnum,0.45283841210488257,Hybrid-Gun Mina / Spirit Mina / Tank Mina,0.827539433237869
+63,Mina,effects_t5,False,1,,,,,Mina,0.0
+63,Mina,gunproc,True,1,,,,,Mina,0.0
+63,Mina,reroute,True,3,0.4602190598037387,3919289022.0,Mercurial Magnum,0.4602190598037387,Mina / Spirit Mina / Tank Mina,0.5885287076265783
+64,Drifter,families,False,3,0.4589142466078615,3977876567.0,Kinetic Dash,0.4589142466078615,Gun Drifter / Melee Drifter / Melee Drifter,1.0
+64,Drifter,order,False,3,0.46514618314241474,3977876567.0,Kinetic Dash,0.46514618314241474,Gun Drifter / Melee Drifter / Melee Drifter,0.9681749416686046
+64,Drifter,effects,False,3,0.45640204228232,3977876567.0,Kinetic Dash,0.45640204228232,Gun Drifter / Melee Drifter / Melee Drifter,0.9237506113017432
+64,Drifter,effects_t5,False,2,0.590819647443874,2121044373.0,Tankbuster,0.590819647443874,Gun Drifter / Melee Drifter,0.5131094136718702
+64,Drifter,gunproc,True,2,0.6191801092635074,2121044373.0,Tankbuster,0.6191801092635074,Gun Drifter / Melee Drifter,0.42822509563273786
+64,Drifter,reroute,True,3,0.4524655793949741,3977876567.0,Kinetic Dash,0.4524655793949741,Gun Drifter / Melee Drifter / Melee Drifter,0.8440265909805632
+65,Venator,families,False,2,0.4854475933148633,787198704.0,Rapid Recharge,0.4854475933148633,Gun Venator / Hybrid-Spirit Venator,1.0
+65,Venator,order,False,1,,,,,Venator,0.0
+65,Venator,effects,False,1,,,,,Venator,0.0
+65,Venator,effects_t5,False,1,,,,,Venator,0.0
+65,Venator,gunproc,False,2,0.4854475933148633,787198704.0,Rapid Recharge,0.4854475933148633,Gun Venator / Hybrid-Spirit Venator,1.0
+65,Venator,reroute,False,2,0.4854475933148633,787198704.0,Rapid Recharge,0.4854475933148633,Gun Venator / Hybrid-Spirit Venator,1.0
+66,Victor,families,False,2,0.905531988914969,3919289022.0,Mercurial Magnum,0.905531988914969,Gun Victor / Spirit Victor,1.0
+66,Victor,order,False,2,0.9082784853726292,3919289022.0,Mercurial Magnum,0.9082784853726292,Gun Victor / Spirit Victor,0.9932483393178009
+66,Victor,effects,False,3,0.4538018742558825,3776945997.0,Extra Charge,0.4538018742558825,Gun Victor / Spirit Victor / Spirit Victor,0.4346672477282233
+66,Victor,effects_t5,False,2,0.910890686699617,3919289022.0,Mercurial Magnum,0.910890686699617,Gun Victor / Spirit Victor,0.9544100325219002
+66,Victor,gunproc,True,2,0.45840331728151196,754480263.0,Mystic Expansion,0.45840331728151196,Gun Victor / Spirit Victor,0.26665528133784844
+66,Victor,reroute,True,2,0.9012126470410202,3919289022.0,Mercurial Magnum,0.9012126470410202,Gun Victor / Spirit Victor,0.966453470486094
+67,Paige,families,False,2,0.5341320775611582,787198704.0,Rapid Recharge,0.5341320775611582,Gun Paige / Spirit Paige,1.0
+67,Paige,order,False,2,0.5786258404516424,787198704.0,Rapid Recharge,0.5786258404516424,Paige / Spirit Paige,0.7385172985663868
+67,Paige,effects,False,2,0.5933361816613629,787198704.0,Rapid Recharge,0.5933361816613629,Spirit Paige / Support Paige,0.3069933366207512
+67,Paige,effects_t5,False,2,0.4801775240485886,787198704.0,Rapid Recharge,0.4801775240485886,Spirit Paige / Support Paige,0.08845547011817778
+67,Paige,gunproc,True,1,,,,,Paige,0.0
+67,Paige,reroute,True,3,0.5145094656446154,787198704.0,Rapid Recharge,0.5145094656446154,Gun Paige / Spirit Paige / Support Paige,0.2917683591791102
+69,The Doorman,families,False,1,,,,,The Doorman,1.0
+69,The Doorman,order,False,1,,,,,The Doorman,1.0
+69,The Doorman,effects,False,2,0.4740246044366392,2519598785.0,Boundless Spirit,0.4740246044366392,Hybrid-Gun The Doorman / Spirit The Doorman,0.0
+69,The Doorman,effects_t5,False,1,,,,,The Doorman,1.0
+69,The Doorman,gunproc,False,1,,,,,The Doorman,1.0
+69,The Doorman,reroute,False,1,,,,,The Doorman,1.0
+72,Billy,families,False,2,0.5937010308246096,787198704.0,Rapid Recharge,0.5937010308246096,Billy / Spirit Billy,1.0
+72,Billy,order,False,1,,,,,Billy,0.0
+72,Billy,effects,False,1,,,,,Billy,0.0
+72,Billy,effects_t5,False,1,,,,,Billy,0.0
+72,Billy,gunproc,True,2,0.5368498434978236,787198704.0,Rapid Recharge,0.5368498434978236,Melee Billy / Spirit Billy,0.18906987792781574
+72,Billy,reroute,True,2,0.5659389456212863,800008313.0,Crushing Fists,0.5659389456212863,Billy / Melee Billy,0.001953236771458121
+76,Graves,families,False,3,0.6391890501183493,811521119.0,Tesla Bullets,0.6391890501183493,Graves / Gun Graves / Spirit Graves,1.0
+76,Graves,order,False,3,0.6380160949960653,811521119.0,Tesla Bullets,0.6380160949960653,Graves / Gun Graves / Spirit Graves,0.9693200978345898
+76,Graves,effects,False,3,0.6380603926069763,811521119.0,Tesla Bullets,0.6380603926069763,Graves / Gun Graves / Spirit Graves,0.9432596010594669
+76,Graves,effects_t5,False,2,0.6774340146530662,811521119.0,Tesla Bullets,0.6774340146530662,Gun Graves / Spirit Graves,0.2821455379839133
+76,Graves,gunproc,False,3,0.6391890501183493,811521119.0,Tesla Bullets,0.6391890501183493,Graves / Gun Graves / Spirit Graves,1.0
+76,Graves,reroute,False,3,0.6391890501183493,811521119.0,Tesla Bullets,0.6391890501183493,Graves / Gun Graves / Spirit Graves,1.0
+77,Apollo,families,False,1,,,,,Apollo,1.0
+77,Apollo,order,False,1,,,,,Apollo,1.0
+77,Apollo,effects,False,1,,,,,Apollo,1.0
+77,Apollo,effects_t5,False,2,0.5462117836005076,754480263.0,Mystic Expansion,0.5462117836005076,Melee Apollo / Spirit Apollo,0.0
+77,Apollo,gunproc,True,1,,,,,Apollo,1.0
+77,Apollo,reroute,True,1,,,,,Apollo,1.0
+79,Rem,families,False,2,0.5254073169464879,3261353684.0,Superior Cooldown,0.5254073169464879,Gun Rem / Spirit Rem,1.0
+79,Rem,order,False,1,,,,,Rem,0.0
+79,Rem,effects,False,1,,,,,Rem,0.0
+79,Rem,effects_t5,False,2,0.5189644932684775,1998374645.0,Mystic Burst,0.5189644932684775,Spirit Rem / Support Rem,0.03358602202213727
+79,Rem,gunproc,False,2,0.5254073169464879,3261353684.0,Superior Cooldown,0.5254073169464879,Gun Rem / Spirit Rem,1.0
+79,Rem,reroute,False,2,0.5254073169464879,3261353684.0,Superior Cooldown,0.5254073169464879,Gun Rem / Spirit Rem,1.0
+80,Silver,families,False,2,0.6175717703349282,3357231760.0,Unstoppable,0.6175717703349282,Hybrid-Melee Silver / Tank Silver,1.0
+80,Silver,order,False,2,0.6190325599818561,3357231760.0,Unstoppable,0.6190325599818561,Hybrid-Melee Silver / Tank Silver,0.9878092576203008
+80,Silver,effects,False,2,0.6198073246377194,3357231760.0,Unstoppable,0.6198073246377194,Hybrid-Melee Silver / Tank Silver,0.9244337916711939
+80,Silver,effects_t5,False,2,0.5344478216818642,2121044373.0,Tankbuster,0.5344478216818642,Hybrid-Tank Silver / Silver,0.2665394208004884
+80,Silver,gunproc,True,2,0.5071496404829738,2820116164.0,Diviner's Kevlar,0.5071496404829738,Hybrid-Gun Silver / Spirit Silver,-0.02806140866354936
+80,Silver,reroute,True,2,0.6273335563125538,3357231760.0,Unstoppable,0.6273335563125538,Hybrid-Melee Silver / Tank Silver,0.6821119672332192
+81,Celeste,families,False,2,0.5949793314792641,2221211450.0,Spellslinger,0.5949793314792641,Celeste / Celeste,1.0
+81,Celeste,order,False,2,0.5954685617193455,2221211450.0,Spellslinger,0.5954685617193455,Celeste / Celeste,0.9709983886184336
+81,Celeste,effects,False,3,0.550186383231926,334300056.0,Stamina Mastery,0.550186383231926,Celeste / Spirit Celeste / Tank Celeste,0.3840596912786005
+81,Celeste,effects_t5,False,2,0.555599584149278,1998374645.0,Mystic Burst,0.555599584149278,Celeste / Spirit Celeste,-0.05421392166380852
+81,Celeste,gunproc,True,1,,,,,Celeste,0.0
+81,Celeste,reroute,True,2,0.5704007481438729,2221211450.0,Spellslinger,0.5704007481438729,Celeste / Tank Celeste,0.7551303934281887
